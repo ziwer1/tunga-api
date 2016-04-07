@@ -1,0 +1,1 @@
+default_app_config = 'tunga_profiles.apps.TungaProfilesConfig'
