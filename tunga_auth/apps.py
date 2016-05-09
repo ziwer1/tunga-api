@@ -9,6 +9,7 @@ class TungaAuthConfig(AppConfig):
 
     def ready(self):
         from actstream import registry
+        from tunga_auth import signals
 
         registry.register(self.get_model('TungaUser'))
 

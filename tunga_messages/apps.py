@@ -9,5 +9,6 @@ class TungaMessagesConfig(AppConfig):
 
     def ready(self):
         from actstream import registry
+        from tunga_messages import signals
 
         registry.register(self.get_model('Message'))

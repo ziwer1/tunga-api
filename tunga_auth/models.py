@@ -3,17 +3,32 @@ from __future__ import unicode_literals
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
-from tunga_profiles.models import Skill
+USER_TYPE_DEVELOPER = 1
+USER_TYPE_PROJECT_OWNER = 2
 
-USER_TYPES = (
-    (1, 'Developer'),
-    (2, 'Project Owner')
+USER_TYPE_CHOICES = (
+    (USER_TYPE_DEVELOPER, 'Developer'),
+    (USER_TYPE_PROJECT_OWNER, 'Project Owner')
 )
 
 
 class TungaUser(AbstractUser):
-    type = models.IntegerField(choices=USER_TYPES, blank=True, null=True)
+    type = models.IntegerField(choices=USER_TYPE_CHOICES, blank=True, null=True)
     image = models.ImageField(upload_to='photos/%Y/%m/%d', blank=True, null=True)
+    last_activity = models.DateTimeField(blank=True, null=True)
+    verified = models.BooleanField(default=False)
 
     class Meta(AbstractUser.Meta):
         unique_together = ('email',)
+
+    @property
+    def display_name(self):
+        return self.get_full_name() or self.username
+
+    @property
+    def is_developer(self):
+        return self.type == USER_TYPE_DEVELOPER
+
+    @property
+    def is_project_owner(self):
+        return self.type == USER_TYPE_PROJECT_OWNER

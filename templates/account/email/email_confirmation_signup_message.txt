@@ -1,0 +1,19 @@
+{% load account %}{% user_display user as user_display %}{% load i18n %}{% autoescape off %}{% block email_content %}
+Hi {{ user.first_name }},
+
+You just registered as a {% if user.type == 2 %}coder{% else %}project owner{% endif %} on Tunga! Welcome on board and thank you for joining our team.
+
+To start using our platform you have to activate your account, simply by clicking the following link:
+
+{{ activate_url }}
+
+{% comment %}Once you activate your account you will receive another email with instructions and tips which will make your introduction to Tunga easier.{% endcomment %}
+
+In case you need further information or help, don’t hesitate to contact us.
+
+We hope you’ll enjoy using our platform.
+
+Kind regards,
+
+The Tunga Team
+{% endblock %}{% endautoescape %}

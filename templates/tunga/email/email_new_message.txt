@@ -1,0 +1,14 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello,
+
+{{ sender }} sent you a new message:
+
+"RE: {{ subject }}"
+
+{{ message }}
+
+Click the link below to go to the discussion:
+
+{{ message_url }}
+
+{% endblock %}{% endautoescape %}

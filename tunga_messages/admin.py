@@ -1,17 +1,17 @@
 from django.contrib import admin
 
-from tunga_messages.models import Message, Reply, Recipient
+from tunga_messages.models import Message, Reply, Reception
 
 
 class RecipientInline(admin.TabularInline):
-    model = Recipient
-    exclude = ('read_at', 'status')
+    model = Reception
+    exclude = ('read_at',)
     extra = 1
 
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ('user', 'subject', 'is_broadcast', 'status', 'created_at')
+    list_display = ('user', 'subject', 'is_broadcast', 'created_at')
     inlines = (RecipientInline,)
 
 

@@ -1,10 +1,13 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import render
-from rest_framework import views, status, generics
+from rest_framework import views, status, generics, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from tunga_auth.filterbackends import UserFilterBackend
+from tunga_auth.filters import UserFilter
 from tunga_auth.serializers import SimpleUserSerializer, UserSerializer, AccountInfoSerializer
+from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 
 
 class VerifyUserView(views.APIView):
@@ -32,22 +35,6 @@ class VerifyUserView(views.APIView):
         return Response(serializer.data)
 
 
-class AuthUserView(generics.RetrieveUpdateAPIView):
-    """
-    Manage current user's basic info
-    """
-    queryset = get_user_model().objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_object(self):
-        user = self.request.user
-        if user is not None and user.is_authenticated():
-            return user
-        else:
-            return None
-
-
 class AccountInfoView(generics.RetrieveUpdateAPIView):
     """
     Manage current user's account info
@@ -62,3 +49,16 @@ class AccountInfoView(generics.RetrieveUpdateAPIView):
             return user
         else:
             return None
+
+
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Display User Info
+    """
+    queryset = get_user_model().objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+    filter_class = UserFilter
+    filter_backends = DEFAULT_FILTER_BACKENDS + (UserFilterBackend,)
+    search_fields = ('username', 'first_name', 'last_name', 'email', 'userprofile__skills__name')
+

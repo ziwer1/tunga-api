@@ -9,7 +9,17 @@ from tunga import settings
 
 class Skill(tagulous.models.TagModel):
     class TagMeta:
-        initial = "PHP, Javascript, HTML, CSS, Python, Ruby, Java, C#, C++, Django, Ruby on Rails, AngularJS, ReactJS"
+        initial = "PHP, JavaScript, Python, Ruby, Java, C#, C++, Ruby, Swift, Objective C, .NET, ASP.NET, Node.js," \
+                  "HTML, CSS, HTML5, CSS3, XML, JSON, YAML," \
+                  "Django, Ruby on Rails, Flask, Yii, Lavarel, Express.js, Spring, JAX-RS" \
+                  "AngularJS, React.js, Meteor.js, Ember.js, Backbone.js," \
+                  "WordPress, Joomla, Drupal," \
+                  "jQuery, jQuery UI, Bootstrap, AJAX," \
+                  "Android, iOS, Windows Mobile, Apache Cordova, Ionic," \
+                  "SQL, MySQL, PostgreSQL, MongoDB, CouchDB" \
+                  "Git, Subversion, Mercurial, " \
+                  "Docker, Ansible, " \
+                  "Webpack, Grunt, Gulp, Ant, Maven, Gradle"
 
 
 class City(tagulous.models.TagModel):
@@ -31,12 +41,21 @@ class UserProfile(models.Model):
     plot_number = models.CharField(max_length=100, blank=True, null=True)
     postal_code = models.IntegerField(blank=True, null=True)
     postal_address = models.CharField(max_length=100, blank=True, null=True)
+    phone_number = models.CharField(max_length=15, blank=True, null=True)
     company = models.CharField(max_length=200, blank=True, null=True)
     skills = tagulous.models.TagField(to=Skill, blank=True)
     website = models.URLField(blank=True, null=True)
 
     def __unicode__(self):
         return self.user.get_short_name()
+
+    @property
+    def city_name(self):
+        return str(self.city)
+
+    @property
+    def country_name(self):
+        return self.country.name
 
 
 class SocialPlatform(models.Model):
@@ -119,3 +138,7 @@ class Connection(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+#class Settings(models.Model):
+#    pass

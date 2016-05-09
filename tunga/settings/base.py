@@ -20,7 +20,9 @@ BASE_DIR = os.path.dirname(PROJECT_DIR)
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.9/howto/deployment/checklist/
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['tunga.io', 'web.tunga.io', 'www.tunga.io']
+
+DEBUG = False
 
 # Application definition
 
@@ -49,6 +51,7 @@ INSTALLED_APPS = [
     'rest_framework_swagger',
     'rest_auth',
     'rest_auth.registration',
+    'rest_framework.authtoken',
     'corsheaders',
     'dry_rest_permissions',
 
@@ -58,7 +61,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.github',
     'allauth.socialaccount.providers.gitlab',
     'allauth.socialaccount.providers.google',
-    'allauth.socialaccount.providers.linkedin',
+    'allauth.socialaccount.providers.linkedin_oauth2',
     'allauth.socialaccount.providers.twitter',
 
     # Local
@@ -66,10 +69,12 @@ INSTALLED_APPS = [
     'tunga_profiles',
     'tunga_tasks',
     'tunga_messages',
-    'tunga_comments'
+    'tunga_comments',
+    'tunga_utils'
 ]
 
 MIDDLEWARE_CLASSES = [
+    # Default
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -78,6 +83,11 @@ MIDDLEWARE_CLASSES = [
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
+    # Local
+    'oauth2_provider.middleware.OAuth2TokenMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'tunga_auth.middleware.UserLastActivityMiddleware',
 ]
 
 ROOT_URLCONF = 'tunga.urls'
@@ -134,7 +144,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = None  # 'UTC'
+TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
@@ -169,6 +179,34 @@ SITE_ID = 1
 
 AUTH_USER_MODEL = 'tunga_auth.TungaUser'
 
+LOGIN_URL = '/'
+
+LOGIN_REDIRECT_URL = '/'
+
+EMAIL_SUBJECT_PREFIX = '[Tunga] '
+
+DEFAULT_FROM_EMAIL = 'support@tunga.io'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+EMAIL_HOST = 'localhost'
+
+EMAIL_USE_TLS = False
+
+PASSWORD_HASHERS = [
+    # Default
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    'django.contrib.auth.hashers.BCryptPasswordHasher',
+    'django.contrib.auth.hashers.SHA1PasswordHasher',
+    'django.contrib.auth.hashers.MD5PasswordHasher',
+    'django.contrib.auth.hashers.CryptPasswordHasher',
+
+    # WordPress
+    'hashers_passlib.phpass',
+]
+
 
 # Third Party
 SERIALIZATION_MODULES = {
@@ -180,11 +218,40 @@ SERIALIZATION_MODULES = {
 
 ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
 
+ACCOUNT_LOGOUT_REDIRECT_URL = '/'
+
 ACCOUNT_EMAIL_REQUIRED = True
+
+ACCOUNT_EMAIL_SUBJECT_PREFIX = EMAIL_SUBJECT_PREFIX
 
 ACCOUNT_SIGNUP_FORM_CLASS = 'tunga_auth.forms.SignupForm'
 
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
+
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = '/'
+
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = '/'
+
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+
+ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
+
+ACCOUNT_USERNAME_BLACKLIST = ['tunga', 'tunga.io', 'admin', 'administrator', 'moderator', 'user']
+
+SOCIALACCOUNT_PROVIDERS = {
+    'facebook': {
+        'VERIFIED_EMAIL': True,
+    },
+    'github' : {
+        'SCOPE': ['user:email']
+    }
+}
+
+SOCIALACCOUNT_AUTO_SIGNUP = True
+
+SOCIALACCOUNT_ADAPTER = "tunga_auth.adapter.SocialAccountAdapter"
 
 OAUTH2_PROVIDER = {
     # this is the list of available scopes
@@ -209,11 +276,21 @@ REST_FRAMEWORK = {
     ),
 }
 
+REST_AUTH_SERIALIZERS = {
+    'TOKEN_SERIALIZER': 'tunga_auth.serializers.TungaTokenSerializer',
+    'USER_DETAILS_SERIALIZER': 'tunga_auth.serializers.UserSerializer',
+    #'PASSWORD_RESET_SERIALIZER': 'tunga_auth.serializers.TungaPasswordResetSerializer',
+}
+
+REST_AUTH_REGISTER_SERIALIZERS = {
+    'REGISTER_SERIALIZER': 'tunga_auth.serializers.TungaRegisterSerializer',
+}
+
 SWAGGER_SETTINGS = {
     'is_authenticated': True,
     #'is_superuser': True,
 }
 
-CORS_ORIGIN_WHITELIST = ('localhost:8080', '127.0.0.1:8080')
 
-CORS_ALLOW_CREDENTIALS = True
+# Local
+CONTACT_REQUEST_EMAIL_RECIPIENT = 'bart@tunga.io'

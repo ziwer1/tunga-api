@@ -1,0 +1,9 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello,
+
+{{ email }} wants to know more about Tunga.
+
+Kind regards,
+
+The Tunga Bot
+{% endblock %}{% endautoescape %}

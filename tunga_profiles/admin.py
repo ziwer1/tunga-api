@@ -4,12 +4,6 @@ from tunga_profiles.models import UserProfile, SocialPlatform, SocialLink, Educa
 from tunga_utils.admin import AdminAutoCreatedBy
 
 
-class UserProfileInline(admin.StackedInline):
-    model = UserProfile
-    can_delete = False
-    verbose_name = 'user profile'
-
-
 @admin.register(SocialPlatform)
 class SocialPlatformAdmin(AdminAutoCreatedBy):
     pass

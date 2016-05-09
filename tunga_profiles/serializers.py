@@ -1,3 +1,5 @@
+from django_countries.serializer_fields import CountryField
+from django_countries.tests.test_countries import CountriesFirstTest
 from rest_framework import serializers
 
 from tunga_auth.serializers import SimpleUserSerializer
@@ -14,14 +16,53 @@ class ProfileDetailsSerializer(SimpleProfileSerializer):
         fields = ('user', 'city', 'skills')
 
 
+class CountryCodeSerializer(serializers.Serializer):
+    pass
+
+
 class ProfileSerializer(DetailAnnotatedSerializer):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
-    city = serializers.CharField()
-    skills = serializers.CharField()
+    city = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    skills = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    country = CountryField()
 
     class Meta:
         model = UserProfile
         details_serializer = ProfileDetailsSerializer
+
+    def create(self, validated_data):
+        skills = None
+        city = None
+        if 'skills' in validated_data:
+            skills = validated_data.pop('skills')
+        if 'city' in validated_data:
+            city = validated_data.pop('city')
+        instance = super(ProfileSerializer, self).create(validated_data)
+        self.save_skills(instance, skills)
+        self.save_city(instance, city)
+        return instance
+
+    def update(self, instance, validated_data):
+        skills = None
+        city = None
+        if 'skills' in validated_data:
+            skills = validated_data.pop('skills')
+        if 'city' in validated_data:
+            city = validated_data.pop('city')
+        instance = super(ProfileSerializer, self).update(instance, validated_data)
+        self.save_skills(instance, skills)
+        self.save_city(instance, city)
+        return instance
+
+    def save_skills(self, profile, skills):
+        if skills:
+            profile.skills = skills
+            profile.save()
+
+    def save_city(self, profile, city):
+        if city:
+            profile.city = city
+            profile.save()
 
 
 class SocialPlatformSerializer(serializers.ModelSerializer):

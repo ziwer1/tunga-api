@@ -15,7 +15,7 @@ class ParticipationInline(admin.TabularInline):
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ('summary', 'user', 'assignee', 'closed', 'skills_list', 'created_at')
+    list_display = ('summary', 'user', 'closed', 'skills_list', 'created_at')
     list_filter = ('closed',)
     inlines = (ParticipationInline,)
 

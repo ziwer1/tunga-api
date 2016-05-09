@@ -8,7 +8,7 @@ class MessageFilter(GenericDateFilterSet):
 
     class Meta:
         model = Message
-        fields = ('user', 'status', 'is_broadcast')
+        fields = ('user', 'is_broadcast')
 
 
 class ReplyFilter(GenericDateFilterSet):
