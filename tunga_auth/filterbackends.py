@@ -15,9 +15,9 @@ class UserFilterBackend(DRYPermissionFiltersBase):
             queryset = queryset.filter(type=USER_TYPE_PROJECT_OWNER)
         elif user_filter in ['team', 'my-project-owners']:
             if user_filter == 'my-project-owners':
-                user_type = USER_TYPE_DEVELOPER
-            else:
                 user_type = USER_TYPE_PROJECT_OWNER
+            else:
+                user_type = USER_TYPE_DEVELOPER
             queryset = queryset.filter(type=user_type).filter(
                 (
                     Q(connections_initiated__to_user=request.user) &

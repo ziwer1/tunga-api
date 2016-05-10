@@ -70,7 +70,8 @@ INSTALLED_APPS = [
     'tunga_tasks',
     'tunga_messages',
     'tunga_comments',
-    'tunga_utils'
+    'tunga_utils',
+    'tunga_settings'
 ]
 
 MIDDLEWARE_CLASSES = [

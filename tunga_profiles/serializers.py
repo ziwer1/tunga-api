@@ -1,11 +1,9 @@
 from django_countries.serializer_fields import CountryField
-from django_countries.tests.test_countries import CountriesFirstTest
 from rest_framework import serializers
 
 from tunga_auth.serializers import SimpleUserSerializer
-from tunga_utils.serializers import SimpleProfileSerializer, CreateOnlyCurrentUserDefault, DetailAnnotatedSerializer, \
-    ContentTypeAnnotatedSerializer
 from tunga_profiles.models import UserProfile, Education, Work, Connection, SocialPlatform, SocialLink
+from tunga_utils.serializers import SimpleProfileSerializer, CreateOnlyCurrentUserDefault, DetailAnnotatedSerializer
 
 
 class ProfileDetailsSerializer(SimpleProfileSerializer):
@@ -14,10 +12,6 @@ class ProfileDetailsSerializer(SimpleProfileSerializer):
     class Meta:
         model = UserProfile
         fields = ('user', 'city', 'skills')
-
-
-class CountryCodeSerializer(serializers.Serializer):
-    pass
 
 
 class ProfileSerializer(DetailAnnotatedSerializer):
@@ -124,4 +118,3 @@ class ConnectionSerializer(DetailAnnotatedSerializer):
         model = Connection
         exclude = ('created_at',)
         details_serializer = ConnectionDetailsSerializer
-

@@ -1,5 +1,4 @@
 from django.contrib.auth import get_user_model
-from django.shortcuts import render
 from rest_framework import views, status, generics, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -61,4 +60,3 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     filter_class = UserFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (UserFilterBackend,)
     search_fields = ('username', 'first_name', 'last_name', 'email', 'userprofile__skills__name')
-

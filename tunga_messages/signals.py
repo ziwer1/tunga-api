@@ -28,7 +28,6 @@ def activity_handler_new_message(sender, instance, created, **kwargs):
         if recipients:
             subject = "%s New message from %s" % (EMAIL_SUBJECT_PREFIX, instance.user.first_name)
             to = [recipient.email for recipient in recipients]
-            from_email = DEFAULT_FROM_EMAIL
 
             message = render_to_string(
                 'tunga/email/email_new_message.txt',
@@ -39,7 +38,7 @@ def activity_handler_new_message(sender, instance, created, **kwargs):
                     'message_url': 'http://tunga.io/message/%s/' % instance.id
                 }
             )
-            EmailMessage(subject, message, to=to, from_email=from_email).send()
+            EmailMessage(subject, message, to=to).send()
 
 
 @receiver(post_save, sender=Reception)
@@ -47,7 +46,6 @@ def activity_handler_new_message_recipient(sender, instance, created, **kwargs):
     if created:
         subject = "%s New message from %s" % (EMAIL_SUBJECT_PREFIX, instance.message.user.first_name)
         to = [instance.user.email]
-        from_email = DEFAULT_FROM_EMAIL
 
         message = render_to_string(
             'tunga/email/email_new_message.txt',
@@ -58,8 +56,7 @@ def activity_handler_new_message_recipient(sender, instance, created, **kwargs):
                 'message_url': 'http://tunga.io/message/%s/' % instance.message.id
             }
         )
-        EmailMessage(subject, message, to=to, from_email=from_email).send()
-
+        EmailMessage(subject, message, to=to).send()
 
 
 @receiver(post_save, sender=Reply)
@@ -73,7 +70,6 @@ def activity_handler_new_reply(sender, instance, created, **kwargs):
         if recipients:
             subject = "%s New message from %s" % (EMAIL_SUBJECT_PREFIX, instance.user.first_name)
             to = [recipient.email for recipient in recipients]
-            from_email = DEFAULT_FROM_EMAIL
 
             message = render_to_string(
                 'tunga/email/email_new_message.txt',
@@ -84,4 +80,4 @@ def activity_handler_new_reply(sender, instance, created, **kwargs):
                     'message_url': 'http://tunga.io/message/%s/' % instance.message.id
                 }
             )
-            EmailMessage(subject, message, to=to, from_email=from_email).send()
+            EmailMessage(subject, message, to=to).send()

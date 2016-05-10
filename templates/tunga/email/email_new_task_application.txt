@@ -1,0 +1,12 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello {{ owner.first_name }},
+
+{{ applicant.display_name }} applied for your task:
+
+{{ task.summary }}
+
+Click the link below to go to the workflow page:
+
+{{ task_url }}
+
+{% endblock %}{% endautoescape %}

@@ -20,5 +20,5 @@ class TungaUserAdmin(UserAdmin):
         (_('Profile'), {'fields': ('email', 'first_name', 'last_name')})
     )
 
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'type')
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'type', 'verified')
     list_filter = ('type', 'is_staff', 'is_superuser', 'is_active')

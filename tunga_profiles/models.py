@@ -138,7 +138,3 @@ class Connection(models.Model):
 
     class Meta:
         ordering = ['-created_at']
-
-
-#class Settings(models.Model):
-#    pass

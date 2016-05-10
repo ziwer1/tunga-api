@@ -1,0 +1,12 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello {{ invitee.first_name }},
+
+{{ inviter.display_name }} invited you to the task:
+
+{{ task.summary }}
+
+Click the link below to view the task's details:
+
+{{ task_url }}
+
+{% endblock %}{% endautoescape %}

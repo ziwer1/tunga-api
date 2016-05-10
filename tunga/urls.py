@@ -25,6 +25,7 @@ from tunga_comments.views import CommentViewSet
 from tunga_messages.views import MessageViewSet, ReplyViewSet
 from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, ConnectionViewSet, SocialLinkViewSet, \
     NotificationView, CountryListView
+from tunga_settings.views import UserSwitchSettingViewSet, UserVisibilitySettingViewSet
 from tunga_tasks.views import TaskViewSet, ApplicationViewSet, ParticipationViewSet, TaskRequestViewSet, \
     SavedTaskViewSet, task_webscrapers
 from tunga_activity.views import ActionViewSet
@@ -46,6 +47,8 @@ router.register(r'message', MessageViewSet)
 router.register(r'reply', ReplyViewSet)
 router.register(r'activity', ActionViewSet)
 router.register(r'skill', SkillViewSet)
+router.register(r'settings/switch', UserSwitchSettingViewSet)
+router.register(r'settings/visibility', UserVisibilitySettingViewSet)
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
@@ -68,7 +71,7 @@ urlpatterns = [
     url(r'^api/countries/', CountryListView.as_view(), name='countries'),
     url(r'^api/contact-request/', ContactRequestView.as_view(), name='contact-request'),
     url(r'^task/(?P<pk>\d+)/$', task_webscrapers, name="task-detail"),
-    #url(r'^', include('django.contrib.auth.urls')),
+    # url(r'^', include('django.contrib.auth.urls')),
     url(r'^reset-password/confirm/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
         password_reset_confirm, name='password_reset_confirm'),
 ]

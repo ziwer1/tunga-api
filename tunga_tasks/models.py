@@ -3,8 +3,6 @@ from __future__ import unicode_literals
 
 import re
 import urllib
-from _mysql import result
-from urllib import urlencode
 
 import requests
 import tagulous.models
@@ -15,6 +13,7 @@ from dry_rest_permissions.generics import allow_staff_or_superuser
 from tunga import settings
 from tunga_auth.models import USER_TYPE_DEVELOPER
 from tunga_profiles.models import Skill, Connection
+from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM, VISIBILITY_CHOICES
 
 CURRENCY_EUR = 'EUR'
 CURRENCY_USD = 'USD'
@@ -22,18 +21,6 @@ CURRENCY_USD = 'USD'
 CURRENCY_CHOICES = (
     (CURRENCY_EUR, 'EUR'),
     (CURRENCY_USD, 'USD')
-)
-
-VISIBILITY_DEVELOPER = 1
-VISIBILITY_MY_TEAM = 2
-VISIBILITY_CUSTOM = 3
-VISIBILITY_ONLY_ME = 4
-
-VISIBILITY_CHOICES = (
-    (VISIBILITY_DEVELOPER, 'Developers'),
-    (VISIBILITY_MY_TEAM, 'My Team'),
-    (VISIBILITY_CUSTOM, 'Custom'),
-    (VISIBILITY_ONLY_ME, 'Only Me')
 )
 
 TASK_REQUEST_CLOSE = 1

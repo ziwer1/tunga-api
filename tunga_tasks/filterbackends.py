@@ -2,8 +2,7 @@ from django.db.models.query_utils import Q
 from dry_rest_permissions.generics import DRYPermissionFiltersBase
 
 from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
-from tunga_tasks.models import VISIBILITY_DEVELOPER, VISIBILITY_CUSTOM, VISIBILITY_MY_TEAM
-from tunga_utils.filterbackends import dont_filter_staff_or_superuser
+from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM
 
 
 class TaskFilterBackend(DRYPermissionFiltersBase):
@@ -50,7 +49,7 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                     (
                         Q(visibility=VISIBILITY_CUSTOM) & Q(visible_to=request.user)
                     ) |
-                    Q(
+                    (
                         Q(visibility=VISIBILITY_MY_TEAM) &
                         (
                             (
@@ -64,7 +63,7 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                         )
                     )
                 )
-            )
+            ).distinct()
         else:
             return queryset.none()
         return queryset
