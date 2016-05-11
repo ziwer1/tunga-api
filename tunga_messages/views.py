@@ -1,6 +1,9 @@
 import datetime
 
 from django.contrib.contenttypes.models import ContentType
+from django.db.models.aggregates import Max
+from django.db.models.expressions import Case, When, F
+from django.db.models.fields import DateTimeField
 from django.shortcuts import render
 from dry_rest_permissions.generics import DRYObjectPermissions
 from rest_framework import viewsets, status
@@ -20,7 +23,20 @@ class MessageViewSet(viewsets.ModelViewSet):
     """
     Manage Messages
     """
-    queryset = Message.objects.all()
+    queryset = Message.objects.all().annotate(
+        latest_reply_created_at=Max('replies__created_at')
+    ).annotate(latest_created_at=Case(
+        When(
+            latest_reply_created_at__isnull=True,
+            then='created_at'
+        ),
+        When(
+            latest_reply_created_at__gt=F('created_at'),
+            then='latest_reply_created_at'
+        ),
+        default='created_at',
+        output_field=DateTimeField()
+    )).order_by('-latest_created_at')
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated, DRYObjectPermissions]
     filter_class = MessageFilter

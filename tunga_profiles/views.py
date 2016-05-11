@@ -8,7 +8,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from tunga_auth.models import USER_TYPE_PROJECT_OWNER
-from tunga_messages.models import Message
+from tunga_messages.filterbackends import received_messages_q_filter, received_replies_q_filter
+from tunga_messages.models import Message, Reply
 from tunga_profiles.filters import EducationFilter, WorkFilter, ConnectionFilter, SocialLinkFilter
 from tunga_profiles.models import UserProfile, Education, Work, Connection, SocialLink
 from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, WorkSerializer, ConnectionSerializer, \
@@ -107,32 +108,44 @@ class NotificationView(views.APIView):
                 {'status': 'Unauthorized', 'message': 'You are not logged in'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-        aggregator = Max(
+        aggregator_message_read_at = Max(
             Case(
                 When(
                     Q(reception__user=request.user) &
                     Q(reception__message__id=F('id')),
                     then='reception__read_at'
                 ),
-                output_field=DateTimeField())
+                output_field=DateTimeField()
+            )
         )
-        messages = Message.objects.annotate(my_read_at=aggregator).filter(
-            (
-                Q(recipients=user) |
-                (
-                    Q(is_broadcast=True) & (
-                        (
-                            Q(user__connections_initiated__accepted=True) &
-                            Q(user__connections_initiated__to_user=request.user)
-                        ) |
-                        (
-                            Q(user__connection_requests__from_user=request.user) &
-                            Q(user__connection_requests__accepted=True)
-                        )
-                    )
-                )
-            ) & (Q(created_at__gt=F('my_read_at')) | Q(my_read_at=None))
+
+        new_messages = Message.objects.filter(
+            received_messages_q_filter(request.user)
+        ).annotate(
+            my_read_at=aggregator_message_read_at
+        ).filter(
+            Q(my_read_at=None) | Q(created_at__gt=F('my_read_at'))
         ).count()
+
+        aggregator_reply_read_at = Max(
+            Case(
+                When(
+                    Q(message__user=request.user),
+                    then='message__read_at'
+                ),
+                When(
+                    Q(is_broadcast=True) &
+                    Q(message__reception__user=request.user) &
+                    Q(message__reception__message__id=F('message__id')),
+                    then='message__reception__read_at'
+                ),
+                output_field=DateTimeField()
+            )
+        )
+        new_replies = Reply.objects.exclude(user=request.user).filter(
+            received_replies_q_filter(request.user)
+        ).annotate(my_read_at=aggregator_reply_read_at).filter(Q(my_read_at=None) | Q(created_at__gt=F('my_read_at'))).count()
+
         requests = user.connection_requests.filter(responded=False).count()
         tasks = user.tasks_created.filter(closed=False).count() + user.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=user).count()
         profile = None
@@ -173,6 +186,6 @@ class NotificationView(views.APIView):
                                          + len(profile_notifications['improve'])
 
         return Response(
-            {'messages': messages, 'requests': requests, 'tasks': tasks, 'profile': profile_notifications},
+            {'messages': (new_messages + new_replies), 'requests': requests, 'tasks': tasks, 'profile': profile_notifications},
             status=status.HTTP_200_OK
         )

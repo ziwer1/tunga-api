@@ -11,7 +11,7 @@ class Skill(tagulous.models.TagModel):
     class TagMeta:
         initial = "PHP, JavaScript, Python, Ruby, Java, C#, C++, Ruby, Swift, Objective C, .NET, ASP.NET, Node.js," \
                   "HTML, CSS, HTML5, CSS3, XML, JSON, YAML," \
-                  "Django, Ruby on Rails, Flask, Yii, Lavarel, Express.js, Spring, JAX-RS" \
+                  "Django, Ruby on Rails, Flask, Yii, Lavarel, Express.js, Spring, JAX-RS," \
                   "AngularJS, React.js, Meteor.js, Ember.js, Backbone.js," \
                   "WordPress, Joomla, Drupal," \
                   "jQuery, jQuery UI, Bootstrap, AJAX," \

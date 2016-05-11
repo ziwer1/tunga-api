@@ -75,7 +75,7 @@ class Task(models.Model):
         if self.skills:
             tags.extend(str(self.skills).split(','))
         return {
-            'type': 'payment', 'language': 'EN', 'title': self.summary, 'description': self.description or self.summary,
+            'type': 'payment', 'language': 'EN', 'title': self.summary, 'description': self.summary,
             'keywords': tags, 'participants': [
                 {'id': 'mailto:admin@tunga.io', 'role': 'owner', 'share': '10%'}
             ]
