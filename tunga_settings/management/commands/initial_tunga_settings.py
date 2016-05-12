@@ -38,6 +38,7 @@ class Command(BaseCommand):
             {'slug': 'new_task_application_email', 'name': 'New application for a task', 'default_value': True},
             {'slug': 'task_update_email', 'name': 'Task updates', 'default_value': True},
             {'slug': 'payment_request_email', 'name': 'Payment requests', 'default_value': True},
+            {'slug': 'payment_update_email', 'name': 'Payment updates', 'default_value': True},
         ]
 
         for setting in visibility_settings:

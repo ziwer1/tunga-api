@@ -25,7 +25,7 @@ from tunga_comments.views import CommentViewSet
 from tunga_messages.views import MessageViewSet, ReplyViewSet
 from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, ConnectionViewSet, SocialLinkViewSet, \
     NotificationView, CountryListView
-from tunga_settings.views import UserSwitchSettingViewSet, UserVisibilitySettingViewSet
+from tunga_settings.views import UserSwitchSettingViewSet, UserVisibilitySettingViewSet, UserSettingsView
 from tunga_tasks.views import TaskViewSet, ApplicationViewSet, ParticipationViewSet, TaskRequestViewSet, \
     SavedTaskViewSet, task_webscrapers
 from tunga_activity.views import ActionViewSet
@@ -60,6 +60,7 @@ urlpatterns = [
     url(r'^api/auth/verify/', VerifyUserView.as_view(), name='auth-verify'),
     url(r'^api/auth/account/', AccountInfoView.as_view(), name='account-info'),
     url(r'^api/auth/profile/', ProfileView.as_view(), name='profile-info'),
+    url(r'^api/auth/settings/', UserSettingsView.as_view(), name='user-settings'),
     url(r'^api/auth/notification/', NotificationView.as_view(), name='user-notifications'),
     url(r'^api/auth/', include('rest_auth.urls')),
     url(r'api/', include('rest_framework.urls', namespace='rest_framework')),

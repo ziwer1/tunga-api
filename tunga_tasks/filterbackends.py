@@ -1,7 +1,12 @@
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models.aggregates import Count
+from django.db.models.expressions import Case, When
+from django.db.models.fields import IntegerField
 from django.db.models.query_utils import Q
 from dry_rest_permissions.generics import DRYPermissionFiltersBase
 
 from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
+from tunga_profiles.models import UserProfile
 from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM
 
 
@@ -21,9 +26,24 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
             queryset = queryset.filter(savedtask__user=request.user)
         elif label_filter == 'skills':
             try:
-                queryset = queryset.filter(skills__in=request.user.userprofile.skills.all())
-            except:
-                pass
+                user_skills = request.user.userprofile.skills.all()
+                queryset = queryset.filter(skills__in=user_skills)
+                when = []
+                for skill in user_skills:
+                    new_when = When(
+                            skills=skill,
+                            then=1
+                        )
+                    when.append(new_when)
+                queryset = queryset.annotate(matches=Count(
+                    Case(
+                        *when,
+                        default=0,
+                        output_field=IntegerField()
+                    )
+                )).order_by('-matches')
+            except (ObjectDoesNotExist, UserProfile.DoesNotExist):
+                return queryset.none()
         elif label_filter == 'project-owners':
             queryset = queryset.filter(
                 (

@@ -57,7 +57,13 @@ class UserSwitchSetting(UserSetting):
     setting = models.ForeignKey(SwitchSetting)
     value = models.BooleanField()
 
+    class Meta:
+        unique_together = ('user', 'setting')
+
 
 class UserVisibilitySetting(UserSetting):
     setting = models.ForeignKey(VisibilitySetting)
     value = models.PositiveSmallIntegerField(choices=VISIBILITY_CHOICES)
+
+    class Meta:
+        unique_together = ('user', 'setting')

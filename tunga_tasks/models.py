@@ -40,7 +40,7 @@ class Task(models.Model):
     fee = models.BigIntegerField()
     currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
     deadline = models.DateTimeField(blank=True, null=True)
-    skills = tagulous.models.TagField(Skill)
+    skills = tagulous.models.TagField(Skill, blank=True)
     visibility = models.PositiveSmallIntegerField(choices=VISIBILITY_CHOICES, default=VISIBILITY_CHOICES[0][0])
     closed = models.BooleanField(default=False)
     paid = models.BooleanField(default=False)

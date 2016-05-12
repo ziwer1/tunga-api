@@ -59,7 +59,7 @@ class TaskDetailsSerializer(ContentTypeAnnotatedSerializer):
 class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
     display_fee = serializers.CharField(required=False, read_only=True)
-    skills = serializers.CharField()
+    skills = serializers.CharField(required=True, allow_blank=True, allow_null=True)
     visible_to = serializers.PrimaryKeyRelatedField(many=True, queryset=get_user_model().objects.all(), required=False)
     deadline = serializers.DateTimeField(required=False, allow_null=True)
     can_apply = serializers.SerializerMethodField(read_only=True, required=False)
@@ -101,8 +101,9 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
         return instance
 
     def save_skills(self, task, skills):
-        task.skills = skills
-        task.save()
+        if skills:
+            task.skills = skills
+            task.save()
 
     def save_participants(self, task, participants):
         if participants:

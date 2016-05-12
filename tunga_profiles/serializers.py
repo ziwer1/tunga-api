@@ -18,7 +18,7 @@ class ProfileSerializer(DetailAnnotatedSerializer):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
     city = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     skills = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    country = CountryField()
+    country = CountryField(required=False)
 
     class Meta:
         model = UserProfile
