@@ -49,7 +49,7 @@ class ProfileSerializer(DetailAnnotatedSerializer):
         return instance
 
     def save_skills(self, profile, skills):
-        if skills:
+        if skills is not None:
             profile.skills = skills
             profile.save()
 

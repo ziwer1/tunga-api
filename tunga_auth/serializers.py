@@ -77,7 +77,7 @@ class UserSerializer(SimpleUserSerializer):
         return obj.tasks_created.count()
 
     def get_tasks_completed(self, obj):
-        return obj.participation_set.filter(task__closed=True).count()
+        return obj.participation_set.filter(task__closed=True, accepted=True).count()
 
 
 class AccountInfoSerializer(serializers.ModelSerializer):

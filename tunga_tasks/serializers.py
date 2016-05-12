@@ -3,6 +3,7 @@ from django.db.models.query_utils import Q
 from rest_framework import serializers
 
 from tunga_auth.serializers import SimpleUserSerializer, UserSerializer
+from tunga_tasks.emails import send_new_task_email
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask
 from tunga_utils.serializers import ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer, SkillSerializer, \
     CreateOnlyCurrentUserDefault
@@ -86,6 +87,10 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
         instance = super(TaskSerializer, self).create(validated_data)
         self.save_skills(instance, skills)
         self.save_participants(instance, participants)
+
+        # Triggered here instead of in the post_save signal to allow skills to be attached first
+        # TODO: Consider moving this trigger
+        send_new_task_email(instance)
         return instance
 
     def update(self, instance, validated_data):
@@ -101,7 +106,7 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
         return instance
 
     def save_skills(self, task, skills):
-        if skills:
+        if skills is not None:
             task.skills = skills
             task.save()
 

@@ -1,5 +1,5 @@
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models.aggregates import Count
+from django.db.models.aggregates import Count, Sum
 from django.db.models.expressions import Case, When
 from django.db.models.fields import IntegerField
 from django.db.models.query_utils import Q
@@ -35,13 +35,13 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                             then=1
                         )
                     when.append(new_when)
-                queryset = queryset.annotate(matches=Count(
+                queryset = queryset.annotate(matches=Sum(
                     Case(
                         *when,
                         default=0,
                         output_field=IntegerField()
                     )
-                )).order_by('-matches')
+                )).order_by('-matches', '-created_at')
             except (ObjectDoesNotExist, UserProfile.DoesNotExist):
                 return queryset.none()
         elif label_filter == 'project-owners':

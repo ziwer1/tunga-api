@@ -1,0 +1,12 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello,
+
+{{ owner.display_name }} created a new task:
+
+{{ task.summary }}
+
+Click the link below to view the task's details:
+
+{{ task_url }}
+
+{% endblock %}{% endautoescape %}
