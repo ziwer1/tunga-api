@@ -15,12 +15,17 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
     #@dont_filter_staff_or_superuser
     def filter_list_queryset(self, request, queryset, view):
         label_filter = request.query_params.get('filter', None)
-        if label_filter == 'running':
+        if label_filter in ['running', 'my-tasks']:
+            if label_filter == 'running':
+                queryset = queryset.filter(closed=False)
             queryset = queryset.filter(
                 Q(user=request.user) |
                 (
-                    (Q(participation__accepted=True) | Q(participation__responded=False)) &
-                    Q(participation__user=request.user))
+                    (
+                        Q(participation__accepted=True) | Q(participation__responded=False)
+                    ) &
+                    Q(participation__user=request.user)
+                )
             )
         elif label_filter == 'saved':
             queryset = queryset.filter(savedtask__user=request.user)

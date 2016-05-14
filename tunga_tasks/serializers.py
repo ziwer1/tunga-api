@@ -144,13 +144,16 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
                 Participation.objects.exclude(user__id=assignee).filter(task=task).update(assignee=False)
 
     def get_can_apply(self, obj):
+        if obj.closed:
+            return False
         request = self.context.get("request", None)
         if request:
             user = getattr(request, "user", None)
             if user:
                 if obj.user == user:
                     return False
-                return obj.applicants.filter(id=user.id).count() == 0
+                return obj.applicants.filter(id=user.id).count() == 0 and \
+                       obj.participation_set.filter(user=user).count() == 0
         return False
 
     def get_can_save(self, obj):
