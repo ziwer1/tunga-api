@@ -17,7 +17,7 @@ class CreateOnlyCurrentUserDefault(serializers.CurrentUserDefault):
         if hasattr(self, 'is_update') and self.is_update:
             # TODO: Make sure this check is sufficient for all update scenarios
             raise SkipField()
-        super(CreateOnlyCurrentUserDefault, self).__call__()
+        return super(CreateOnlyCurrentUserDefault, self).__call__()
 
 
 class ContentTypeAnnotatedSerializer(serializers.ModelSerializer):
