@@ -7,7 +7,7 @@ from tunga_utils.serializers import SkillSerializer, ContactRequestSerializer
 
 class SkillViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    Skills Info
+    Skills Resource
     """
     queryset = Skill.objects.all()
     serializer_class = SkillSerializer
@@ -17,7 +17,7 @@ class SkillViewSet(viewsets.ReadOnlyModelViewSet):
 
 class ContactRequestView(generics.CreateAPIView):
     """
-    Create contact request
+    Contact Request Resource
     """
     queryset = ContactRequest.objects.all()
     serializer_class = ContactRequestSerializer

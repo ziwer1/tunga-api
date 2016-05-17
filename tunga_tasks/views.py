@@ -18,7 +18,7 @@ from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 
 class TaskViewSet(viewsets.ModelViewSet):
     """
-    Manage Tasks
+    Task Resource
     """
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
@@ -47,7 +47,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
 class ApplicationViewSet(viewsets.ModelViewSet):
     """
-    Manage Task Applications
+    Task Application Resource
     """
     queryset = Application.objects.all()
     serializer_class = ApplicationSerializer
@@ -58,7 +58,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
 class ParticipationViewSet(viewsets.ModelViewSet):
     """
-    Manage Task Participation
+    Task Participation Resource
     """
     queryset = Participation.objects.all()
     serializer_class = ParticipationSerializer
@@ -69,7 +69,7 @@ class ParticipationViewSet(viewsets.ModelViewSet):
 
 class TaskRequestViewSet(viewsets.ModelViewSet):
     """
-    Manage Task Requests
+    Task Request Resource
     """
     queryset = TaskRequest.objects.all()
     serializer_class = TaskRequestSerializer
@@ -80,7 +80,7 @@ class TaskRequestViewSet(viewsets.ModelViewSet):
 
 class SavedTaskViewSet(viewsets.ModelViewSet):
     """
-    Manage Saved Tasks
+    Saved Task Resource
     """
     queryset = SavedTask.objects.all()
     serializer_class = SavedTaskSerializer

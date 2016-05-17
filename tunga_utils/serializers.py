@@ -1,11 +1,23 @@
 from django.contrib.contenttypes.models import ContentType
 from django_countries.serializer_fields import CountryField
 from rest_framework import serializers
+from rest_framework.fields import SkipField
 
 from tunga_profiles.models import Skill, City, Institution, UserProfile
-from tunga_utils.models import GenericUpload, ContactRequest
+from tunga_utils.models import GenericUpload, ContactRequest, Upload
 
-CreateOnlyCurrentUserDefault = serializers.CreateOnlyDefault(serializers.CurrentUserDefault())
+
+class CreateOnlyCurrentUserDefault(serializers.CurrentUserDefault):
+
+    def set_context(self, serializer_field):
+        self.is_update = serializer_field.parent.instance is not None
+        super(CreateOnlyCurrentUserDefault, self).set_context(serializer_field)
+
+    def __call__(self):
+        if hasattr(self, 'is_update') and self.is_update:
+            # TODO: Make sure this check is sufficient for all update scenarios
+            raise SkipField()
+        super(CreateOnlyCurrentUserDefault, self).__call__()
 
 
 class ContentTypeAnnotatedSerializer(serializers.ModelSerializer):
@@ -81,6 +93,12 @@ class SimpleUploadSerializer(serializers.ModelSerializer):
             if conversion and filesize > conversion:
                 return '%s %s' % (round(filesize/conversion, 2), label)
         return '%s %s' % (filesize, 'bytes')
+
+
+class UploadSerializer(SimpleUploadSerializer):
+
+    class Meta(SimpleUploadSerializer.Meta):
+        model = Upload
 
 
 class ContactRequestSerializer(serializers.ModelSerializer):

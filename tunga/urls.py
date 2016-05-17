@@ -17,6 +17,7 @@ from allauth.account.views import ConfirmEmailView
 from django.conf.urls import url, include
 from django.contrib import admin
 from django.contrib.auth.views import password_reset_confirm
+from rest_auth.views import UserDetailsView
 from rest_framework.routers import DefaultRouter
 from rest_framework_jwt.views import obtain_jwt_token, refresh_jwt_token, verify_jwt_token
 
@@ -58,21 +59,21 @@ urlpatterns = [
         name='account_confirm_email'),
     url(r'^api/auth/register/', include('rest_auth.registration.urls')),
     url(r'^api/auth/verify/', VerifyUserView.as_view(), name='auth-verify'),
-    url(r'^api/auth/account/', AccountInfoView.as_view(), name='account-info'),
-    url(r'^api/auth/profile/', ProfileView.as_view(), name='profile-info'),
-    url(r'^api/auth/settings/', UserSettingsView.as_view(), name='user-settings'),
-    url(r'^api/auth/notification/', NotificationView.as_view(), name='user-notifications'),
+    url(r'^api/me/account/', AccountInfoView.as_view(), name='account-info'),
+    url(r'^api/me/user/', UserDetailsView.as_view(), name='user-info'),
+    url(r'^api/me/profile/', ProfileView.as_view(), name='profile-info'),
+    url(r'^api/me/settings/', UserSettingsView.as_view(), name='user-settings'),
+    url(r'^api/me/notification/', NotificationView.as_view(), name='user-notifications'),
     url(r'^api/auth/', include('rest_auth.urls')),
     url(r'api/', include('rest_framework.urls', namespace='rest_framework')),
     url(r'^api/oauth/', include('oauth2_provider.urls', namespace='oauth2_provider')),
     url(r'^api/jwt/token/', obtain_jwt_token),
     url(r'^api/jwt/refresh/', refresh_jwt_token),
     url(r'^api/jwt/verify/', verify_jwt_token),
-    url(r'^api/docs/', include('rest_framework_swagger.urls')),
     url(r'^api/countries/', CountryListView.as_view(), name='countries'),
     url(r'^api/contact-request/', ContactRequestView.as_view(), name='contact-request'),
+    url(r'^api/docs/', include('rest_framework_swagger.urls')),
     url(r'^task/(?P<pk>\d+)/$', task_webscrapers, name="task-detail"),
-    # url(r'^', include('django.contrib.auth.urls')),
     url(r'^reset-password/confirm/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
         password_reset_confirm, name='password_reset_confirm'),
 ]

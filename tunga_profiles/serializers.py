@@ -15,7 +15,7 @@ class ProfileDetailsSerializer(SimpleProfileSerializer):
 
 
 class ProfileSerializer(DetailAnnotatedSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
+    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     city = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     skills = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     country = CountryField(required=False)
@@ -60,7 +60,7 @@ class ProfileSerializer(DetailAnnotatedSerializer):
 
 
 class SocialPlatformSerializer(serializers.ModelSerializer):
-    created_by = serializers.HiddenField(required=False, default=CreateOnlyCurrentUserDefault)
+    created_by = serializers.HiddenField(required=False, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = SocialPlatform
@@ -77,7 +77,7 @@ class SocialLinkDetailsSerializer(DetailAnnotatedSerializer):
 
 
 class SocialLinkSerializer(DetailAnnotatedSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
+    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = SocialLink
@@ -86,7 +86,7 @@ class SocialLinkSerializer(DetailAnnotatedSerializer):
 
 
 class EducationSerializer(serializers.ModelSerializer):
-    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
+    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     institution = serializers.CharField()
 
     class Meta:
@@ -95,7 +95,7 @@ class EducationSerializer(serializers.ModelSerializer):
 
 
 class WorkSerializer(serializers.ModelSerializer):
-    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
+    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = Work
@@ -112,7 +112,7 @@ class ConnectionDetailsSerializer(serializers.ModelSerializer):
 
 
 class ConnectionSerializer(DetailAnnotatedSerializer):
-    from_user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
+    from_user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = Connection

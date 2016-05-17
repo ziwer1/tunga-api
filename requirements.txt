@@ -1,5 +1,5 @@
 bleach==1.4.2
-Django==1.9.4
+Django==1.9.6
 django-activity-stream==0.6.1
 django-allauth==0.25.2
 django-braces==1.8.1
@@ -9,7 +9,7 @@ django-filter==0.13.0
 django-hashers-passlib==0.3
 django-oauth-toolkit==0.10.0
 django-rest-auth==0.7.0
-django-rest-swagger==0.3.5
+django-rest-swagger==0.3.6
 django-tagulous==0.11.1
 djangorestframework==3.3.3
 djangorestframework-jwt==1.7.2

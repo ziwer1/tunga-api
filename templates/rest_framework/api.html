@@ -1,0 +1,18 @@
+{% extends "rest_framework/base.html" %}
+{% load staticfiles %}
+
+{# Override this template in your own templates directory to customize #}
+
+{% block style %}
+    <link rel='stylesheet' id='roboto-font-css'  href='https://fonts.googleapis.com/css?family=Roboto%3A400%2C400italic%2C700%2C700italic%2C300%2C300italic&#038;ver=20160309.1' type='text/css' media='all' />
+    {{ block.super }}
+    <link rel="stylesheet" type="text/css" href="{% static "tunga/css/drf-theme.css" %}"/>
+{% endblock %}
+
+{% block title %}Tunga API{% endblock %}
+
+{% block branding %}
+    <a class='navbar-brand' rel="nofollow" href='#'>
+        Tunga API
+    </a>
+{% endblock %}

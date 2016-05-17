@@ -9,7 +9,7 @@ from tunga_activity.serializers import ActionSerializer
 
 class ActionViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    Manage Actions
+    Activity Resource
     """
     queryset = Action.objects.all()
     serializer_class = ActionSerializer

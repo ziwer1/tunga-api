@@ -58,7 +58,7 @@ class TaskDetailsSerializer(ContentTypeAnnotatedSerializer):
 
 
 class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
+    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     display_fee = serializers.CharField(required=False, read_only=True)
     skills = serializers.CharField(required=True, allow_blank=True, allow_null=True)
     visible_to = serializers.PrimaryKeyRelatedField(many=True, queryset=get_user_model().objects.all(), required=False)
@@ -214,7 +214,7 @@ class ApplicationDetailsSerializer(SimpleApplicationSerializer):
 
 
 class ApplicationSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
+    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = Application
@@ -232,7 +232,7 @@ class ParticipationDetailsSerializer(SimpleParticipationSerializer):
 
 
 class ParticipationSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
-    created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
+    created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = Participation
@@ -250,7 +250,7 @@ class TaskRequestDetailsSerializer(serializers.ModelSerializer):
 
 
 class TaskRequestSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
+    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = TaskRequest
@@ -268,7 +268,7 @@ class SavedTaskDetailsSerializer(serializers.ModelSerializer):
 
 
 class SavedTaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
+    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = SavedTask

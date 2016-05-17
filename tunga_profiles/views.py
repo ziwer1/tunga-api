@@ -18,7 +18,7 @@ from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, W
 
 class ProfileView(generics.CreateAPIView, generics.RetrieveUpdateDestroyAPIView):
     """
-    Manage current user's profile info
+    User Profile Info Resource
     """
     queryset = UserProfile.objects.all()
     serializer_class = ProfileSerializer
@@ -36,18 +36,17 @@ class ProfileView(generics.CreateAPIView, generics.RetrieveUpdateDestroyAPIView)
 
 class SocialLinkViewSet(viewsets.ModelViewSet):
     """
-    Manage Education Profile
+    Social Link Resource
     """
     queryset = SocialLink.objects.all()
     serializer_class = SocialLinkSerializer
     permission_classes = [IsAuthenticated]
     filter_class = SocialLinkFilter
-    search_fields = ('institution__name', 'award')
 
 
 class EducationViewSet(viewsets.ModelViewSet):
     """
-    Manage Education Profile
+    Education Info Resource
     """
     queryset = Education.objects.all()
     serializer_class = EducationSerializer
@@ -58,7 +57,7 @@ class EducationViewSet(viewsets.ModelViewSet):
 
 class WorkViewSet(viewsets.ModelViewSet):
     """
-    Manage Work Profile
+    Work Info Resource
     """
     queryset = Work.objects.all()
     serializer_class = WorkSerializer
@@ -69,7 +68,7 @@ class WorkViewSet(viewsets.ModelViewSet):
 
 class ConnectionViewSet(viewsets.ModelViewSet):
     """
-    Manage Connections
+    Connection Resource
     """
     queryset = Connection.objects.all()
     serializer_class = ConnectionSerializer
@@ -79,6 +78,9 @@ class ConnectionViewSet(viewsets.ModelViewSet):
 
 
 class CountryListView(views.APIView):
+    """
+    Country Resource
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -92,6 +94,9 @@ class CountryListView(views.APIView):
 
 
 class NotificationView(views.APIView):
+    """
+    Notification Resource
+    """
     permission_classes = [IsAuthenticated]
 
     def get_object(self, request):

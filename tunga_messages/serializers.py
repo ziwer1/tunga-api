@@ -27,7 +27,7 @@ class MessageDetailsSerializer(serializers.ModelSerializer):
 
 
 class MessageSerializer(DetailAnnotatedSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
+    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     recipients = serializers.PrimaryKeyRelatedField(many=True, queryset=get_user_model().objects.all(),
                                                     allow_null=True, allow_empty=True)
     is_read = serializers.SerializerMethodField(read_only=True, required=False)
@@ -104,7 +104,7 @@ class ReplyDetailsSerializer(serializers.ModelSerializer):
 
 
 class ReplySerializer(DetailAnnotatedSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault)
+    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     attachments = serializers.SerializerMethodField(read_only=True, required=False)
 
     class Meta:

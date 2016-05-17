@@ -36,6 +36,7 @@ class VerifyUserView(views.APIView):
 
 class AccountInfoView(generics.RetrieveUpdateAPIView):
     """
+    Account Info Resource
     Manage current user's account info
     """
     queryset = get_user_model().objects.all()
@@ -52,7 +53,7 @@ class AccountInfoView(generics.RetrieveUpdateAPIView):
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    Display User Info
+    User Resource
     """
     queryset = get_user_model().objects.all()
     serializer_class = UserSerializer

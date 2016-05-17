@@ -230,7 +230,7 @@ class Participation(models.Model):
 class TaskRequest(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    type = models.PositiveSmallIntegerField(choices=TASK_REQUEST_CHOICES)
+    type = models.PositiveSmallIntegerField(choices=TASK_REQUEST_CHOICES, help_text=','.join(['%s - %s' % (item[0], item[1]) for item in TASK_REQUEST_CHOICES]))
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __unicode__(self):

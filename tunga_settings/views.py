@@ -12,7 +12,7 @@ from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 
 class UserSwitchSettingViewSet(viewsets.ModelViewSet):
     """
-    Manage Switch Settings
+    Switch Settings Resource
     """
     queryset = UserSwitchSetting.objects.all()
     serializer_class = UserSwitchSettingSerializer
@@ -22,7 +22,7 @@ class UserSwitchSettingViewSet(viewsets.ModelViewSet):
 
 class UserVisibilitySettingViewSet(viewsets.ModelViewSet):
     """
-    Manage Visibility Settings
+    Visibility Settings Resource
     """
     queryset = UserVisibilitySetting.objects.all()
     serializer_class = UserVisibilitySettingSerializer
@@ -31,6 +31,10 @@ class UserVisibilitySettingViewSet(viewsets.ModelViewSet):
 
 
 class UserSettingsView(generics.GenericAPIView):
+    """
+    User Settings Resource
+    Manage settings of current user
+    """
     permission_classes = [IsAuthenticated]
     serializer_class = ReadUserSettingsSerializer
 

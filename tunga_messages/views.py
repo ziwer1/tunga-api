@@ -21,7 +21,7 @@ from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 
 class MessageViewSet(viewsets.ModelViewSet):
     """
-    Manage Messages
+    Message Resource
     """
     queryset = Message.objects.all().annotate(
         latest_reply_created_at=Max('replies__created_at')
@@ -58,7 +58,7 @@ class MessageViewSet(viewsets.ModelViewSet):
     )
     def update_read(self, request, pk=None):
         """
-        Update read_at value
+        Updates read_at of message thread
         """
         read_at = datetime.datetime.now()  # store read timestamp ASAP
         message = get_object_or_404(self.get_queryset(), pk=pk)
@@ -80,7 +80,7 @@ class MessageViewSet(viewsets.ModelViewSet):
 
 class ReplyViewSet(viewsets.ModelViewSet):
     """
-    Manage Replies
+    Reply Resource
     """
     queryset = Reply.objects.all()
     serializer_class = ReplySerializer

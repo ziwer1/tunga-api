@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from tunga_tasks.models import Task, Application, Participation
+from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask
 
 
 class ParticipationInline(admin.TabularInline):
@@ -37,3 +37,13 @@ class ApplicationAdmin(admin.ModelAdmin):
 class ParticipationAdmin(admin.ModelAdmin):
     list_display = ('task', 'user', 'responded', 'accepted', 'share', 'created_at')
     list_filter = ('accepted',)
+
+
+@admin.register(TaskRequest)
+class TaskRequestAdmin(admin.ModelAdmin):
+    list_display = ('task', 'user', 'type', 'created_at')
+
+
+@admin.register(SavedTask)
+class SavedTaskAdmin(admin.ModelAdmin):
+    list_display = ('task', 'user', 'created_at')
