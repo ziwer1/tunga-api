@@ -25,5 +25,5 @@ class CommentViewSet(viewsets.ModelViewSet):
         content_type = ContentType.objects.get_for_model(Comment)
         if uploads:
             for file in uploads.itervalues():
-                upload = Upload(object_id=comment.id, content_type=content_type, file=file)
+                upload = Upload(object_id=comment.id, content_type=content_type, file=file, user=self.request.user)
                 upload.save()
