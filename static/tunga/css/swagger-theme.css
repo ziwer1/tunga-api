@@ -16,3 +16,21 @@ body {
     background: transparent none;
     padding-left: 0;
 }
+
+#header .header-actions > * {
+    margin-right: 5px;
+    color: #fff;
+}
+
+#header .header-actions > a {
+    color: #f41152;
+    background-color: #fff;
+    text-decoration: none;
+    padding: 8px 10px;
+    margin-left: 10px;
+    border-radius: 3px;
+}
+
+.pull-right {
+    float: right;
+}

@@ -1,5 +1,8 @@
+from django.http.response import HttpResponseRedirect
 from rest_framework import viewsets, generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_swagger.views import SwaggerUIView
+
 from tunga_profiles.models import Skill
 from tunga_utils.models import ContactRequest
 from tunga_utils.serializers import SkillSerializer, ContactRequestSerializer
@@ -24,5 +27,5 @@ class ContactRequestView(generics.CreateAPIView):
     permission_classes = [AllowAny]
 
 
-
-
+def swagger_permission_denied_handler(request):
+    return HttpResponseRedirect('%s://%s/api/login/?next=/api/docs/' % (request.scheme, request.get_host()))

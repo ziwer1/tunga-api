@@ -76,4 +76,5 @@ urlpatterns = [
     url(r'^task/(?P<pk>\d+)/$', task_webscrapers, name="task-detail"),
     url(r'^reset-password/confirm/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
         password_reset_confirm, name='password_reset_confirm'),
+    url(r'^$', router.get_api_root_view(), name='backend-root')
 ]

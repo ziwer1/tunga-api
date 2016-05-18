@@ -12,3 +12,9 @@ body {
     font-size: 23px;
     font-weight: bold;
 }
+
+.login-title {
+    color: #f41152;
+    font-weight: bold;
+    margin: 0 0 20px;
+}

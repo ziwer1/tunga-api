@@ -290,6 +290,7 @@ REST_AUTH_REGISTER_SERIALIZERS = {
 SWAGGER_SETTINGS = {
     'is_authenticated': True,
     #'is_superuser': True,
+    'permission_denied_handler': 'tunga_utils.views.swagger_permission_denied_handler',
 }
 
 
