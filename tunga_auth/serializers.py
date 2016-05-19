@@ -1,11 +1,12 @@
 from allauth.account.forms import ResetPasswordForm
 from django.contrib.auth import get_user_model
+from django.db.models.aggregates import Avg
 from django.db.models.query_utils import Q
 from rest_auth.registration.serializers import RegisterSerializer
 from rest_auth.serializers import TokenSerializer, PasswordResetSerializer
 from rest_framework import serializers
 
-from tunga_auth.models import USER_TYPE_CHOICES
+from tunga_auth.models import USER_TYPE_CHOICES, USER_TYPE_DEVELOPER
 from tunga_utils.serializers import SimpleProfileSerializer
 
 
@@ -38,6 +39,7 @@ class UserSerializer(SimpleUserSerializer):
     request = serializers.SerializerMethodField(read_only=True, required=False)
     tasks_created = serializers.SerializerMethodField(read_only=True, required=False)
     tasks_completed = serializers.SerializerMethodField(read_only=True, required=False)
+    satisfaction = serializers.SerializerMethodField(read_only=True, required=False)
 
     class Meta:
         model = get_user_model()
@@ -78,6 +80,17 @@ class UserSerializer(SimpleUserSerializer):
 
     def get_tasks_completed(self, obj):
         return obj.participation_set.filter(task__closed=True, accepted=True).count()
+
+    def get_satisfaction(self, obj):
+        score = None
+        if obj.type == USER_TYPE_DEVELOPER:
+            score = obj.participation_set.filter(
+                task__closed=True, accepted=True
+            ).aggregate(satisfaction=Avg('task__satisfaction'))['satisfaction']
+            if score:
+                score = '{:0,.0f}%'.format(score*10)
+        return score
+
 
 
 class AccountInfoSerializer(serializers.ModelSerializer):

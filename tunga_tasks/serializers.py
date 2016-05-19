@@ -70,6 +70,7 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
     summary = serializers.CharField(read_only=True, required=False)
     assignee = serializers.SerializerMethodField(required=False, read_only=True)
     participants = serializers.PrimaryKeyRelatedField(many=True, queryset=get_user_model().objects.all(), required=False, write_only=True)
+    open_applications = serializers.SerializerMethodField(required=False, read_only=True)
 
     class Meta:
         model = Task
@@ -203,6 +204,9 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
         except:
             return None
 
+    def get_open_applications(self, obj):
+        return obj.application_set.filter(responded=False).count()
+
 
 class ApplicationDetailsSerializer(SimpleApplicationSerializer):
     user = UserSerializer()
@@ -218,7 +222,6 @@ class ApplicationSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSeria
 
     class Meta:
         model = Application
-        exclude = ('created_at',)
         details_serializer = ApplicationDetailsSerializer
 
 
