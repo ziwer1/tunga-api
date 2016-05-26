@@ -1,11 +1,9 @@
 import datetime
-
 from actstream.signals import action
 from django.core.mail.message import EmailMessage
 from django.db.models.signals import post_save
 from django.dispatch.dispatcher import receiver
 from django.template.loader import render_to_string
-
 from tunga.settings import EMAIL_SUBJECT_PREFIX
 from tunga_tasks.models import Task, Application, Participation, TaskRequest
 
@@ -35,6 +33,20 @@ def activity_handler_new_application(sender, instance, created, **kwargs):
 
         message = render_to_string(
             'tunga/email/email_new_task_application.txt',
+            {
+                'owner': instance.task.user,
+                'applicant': instance.user,
+                'task': instance.task,
+                'task_url': 'http://tunga.io/task/%s/' % instance.task.id
+            }
+        )
+        EmailMessage(subject, message, to=to).send()
+
+        subject = "%s You applied for a task: %s" % (EMAIL_SUBJECT_PREFIX, instance.task.summary)
+        to = [instance.user.email]
+
+        message = render_to_string(
+            'tunga/email/email_new_task_application_applicant.txt',
             {
                 'owner': instance.task.user,
                 'applicant': instance.user,
@@ -98,13 +110,13 @@ def activity_handler_new_participant(sender, instance, created, **kwargs):
         if update_fields:
             if 'accepted' in update_fields and instance.accepted:
                 action.send(
-                        instance.task.user, verb='accepted participation',
-                        action_object=instance, target=instance.task
+                    instance.task.user, verb='accepted participation',
+                    action_object=instance, target=instance.task
                 )
             elif 'responded' in update_fields and not instance.accepted:
                 action.send(
-                        instance.task.user, verb='rejected participation',
-                        action_object=instance, target=instance.task
+                    instance.task.user, verb='rejected participation',
+                    action_object=instance, target=instance.task
                 )
 
 
@@ -112,6 +124,6 @@ def activity_handler_new_participant(sender, instance, created, **kwargs):
 def activity_handler_task_request(sender, instance, created, **kwargs):
     if created:
         action.send(
-                instance.user, verb='created a %s' % instance.get_type_display().lower(),
-                action_object=instance, target=instance.task
+            instance.user, verb='created a %s' % instance.get_type_display().lower(),
+            action_object=instance, target=instance.task
         )

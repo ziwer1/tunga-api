@@ -54,15 +54,13 @@ def send_new_task_email(instance):
             )
         )
         queryset = queryset.order_by(*ordering)
-        print queryset.query
-        print queryset.values()
 
         if queryset:
             developers = queryset[:20]
 
             subject = "%s New task created by %s" % (EMAIL_SUBJECT_PREFIX, instance.user.first_name)
-            to = [developers[0]]
-            bcc = developers[1:] if len(developers) > 1 else None
+            to = [developers[0].email]
+            bcc = [dev.email for dev in developers[1:]] if len(developers) > 1 else None
 
             message = render_to_string(
                 'tunga/email/email_new_task.txt',
@@ -73,3 +71,21 @@ def send_new_task_email(instance):
                 }
             )
             EmailMessage(subject, message, to=to, bcc=bcc).send()
+
+
+@catch_all_exceptions
+def send_task_application_not_accepted_email(instance):
+    rejected_applicants = instance.application_set.filter(responded=False)
+    if rejected_applicants:
+        subject = "%s Your application was not accepted for: %s" % (EMAIL_SUBJECT_PREFIX, instance.summary)
+        to = [rejected_applicants[0].user.email]
+        bcc = [dev.user.email for dev in rejected_applicants[1:]] if len(rejected_applicants) > 1 else None
+
+        message = render_to_string(
+            'tunga/email/email_task_application_not_accepted.txt',
+            {
+                'task': instance,
+                'task_url': 'http://tunga.io/task/%s/' % instance.id
+            }
+        )
+        EmailMessage(subject, message, to=to, bcc=bcc).send()

@@ -1,9 +1,9 @@
 from django_countries.serializer_fields import CountryField
 from rest_framework import serializers
 
-from tunga_auth.serializers import SimpleUserSerializer
 from tunga_profiles.models import UserProfile, Education, Work, Connection, SocialPlatform, SocialLink
-from tunga_utils.serializers import SimpleProfileSerializer, CreateOnlyCurrentUserDefault, DetailAnnotatedSerializer
+from tunga_utils.serializers import SimpleProfileSerializer, CreateOnlyCurrentUserDefault, DetailAnnotatedSerializer, \
+    SimpleUserSerializer, AbstractExperienceSerializer
 
 
 class ProfileDetailsSerializer(SimpleProfileSerializer):
@@ -85,21 +85,16 @@ class SocialLinkSerializer(DetailAnnotatedSerializer):
         details_serializer = SocialLinkDetailsSerializer
 
 
-class EducationSerializer(serializers.ModelSerializer):
-    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
-    institution = serializers.CharField()
+class EducationSerializer(AbstractExperienceSerializer):
 
-    class Meta:
+    class Meta(AbstractExperienceSerializer.Meta):
         model = Education
-        exclude = ('created_at',)
 
 
-class WorkSerializer(serializers.ModelSerializer):
-    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+class WorkSerializer(AbstractExperienceSerializer):
 
-    class Meta:
+    class Meta(AbstractExperienceSerializer.Meta):
         model = Work
-        exclude = ('created_at',)
 
 
 class ConnectionDetailsSerializer(serializers.ModelSerializer):

@@ -1,33 +1,14 @@
 from rest_framework import serializers
 
-from tunga_settings.models import Setting, SwitchSetting, VisibilitySetting, UserSetting, UserSwitchSetting, \
+from tunga_settings.models import SwitchSetting, VisibilitySetting, UserSetting, UserSwitchSetting, \
     UserVisibilitySetting
-
-
-class SimpleSettingSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Setting
-        exclude = ('created_by', 'created_at')
-
-
-class SimpleSwitchSettingSerializer(SimpleSettingSerializer):
-
-    class Meta(SimpleSettingSerializer.Meta):
-        model = SwitchSetting
-
-
-class SimpleVisibilitySettingSerializer(SimpleSettingSerializer):
-
-    class Meta(SimpleSettingSerializer.Meta):
-        model = VisibilitySetting
 
 
 class UserSettingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserSetting
-        exclude = ('created_at', 'updated_at')
+        exclude = ('id', 'user', 'created_at', 'updated_at')
 
 
 class UserSwitchSettingSerializer(UserSettingSerializer):
@@ -42,28 +23,9 @@ class UserVisibilitySettingSerializer(UserSettingSerializer):
         model = UserVisibilitySetting
 
 
-class AuthUserSettingSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = UserSetting
-        exclude = ('id', 'user', 'created_at', 'updated_at')
-
-
-class AuthUserSwitchSettingSerializer(AuthUserSettingSerializer):
-
-    class Meta(AuthUserSettingSerializer.Meta):
-        model = UserSwitchSetting
-
-
-class AuthUserVisibilitySettingSerializer(AuthUserSettingSerializer):
-
-    class Meta(AuthUserSettingSerializer.Meta):
-        model = UserVisibilitySetting
-
-
-class CompoundUserSettingsSerializer(serializers.Serializer):
-    switches = AuthUserSwitchSettingSerializer(many=True, required=False, write_only=True)
-    visibility = AuthUserVisibilitySettingSerializer(many=True, required=False, write_only=True)
+class UserSettingsUpdateSerializer(serializers.Serializer):
+    switches = UserSwitchSettingSerializer(many=True, required=False, write_only=True)
+    visibility = UserVisibilitySettingSerializer(many=True, required=False, write_only=True)
 
     def create(self, validated_data):
         settings = {'switches': [], 'visibility': []}
@@ -91,7 +53,7 @@ class CompoundUserSettingsSerializer(serializers.Serializer):
         return self.create(validated_data)
 
 
-class ReadUserSettingsSerializer(serializers.Serializer):
+class UserSettingsSerializer(serializers.Serializer):
     visibility = serializers.SerializerMethodField(required=False, read_only=True)
     switches = serializers.SerializerMethodField(required=False, read_only=True)
 

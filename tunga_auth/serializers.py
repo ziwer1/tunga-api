@@ -7,31 +7,14 @@ from rest_auth.serializers import TokenSerializer, PasswordResetSerializer
 from rest_framework import serializers
 
 from tunga_auth.models import USER_TYPE_CHOICES, USER_TYPE_DEVELOPER
-from tunga_utils.serializers import SimpleProfileSerializer
-
-
-class SimpleUserSerializer(serializers.ModelSerializer):
-    company = serializers.CharField(read_only=True, required=False, source='userprofile.company')
-    avatar_url = serializers.SerializerMethodField(required=False, read_only=True)
-
-    class Meta:
-        model = get_user_model()
-        fields = (
-            'id', 'username', 'email', 'first_name', 'last_name', 'display_name', 'type', 'image',
-            'is_developer', 'is_project_owner', 'is_staff', 'verified', 'company', 'avatar_url'
-        )
-
-    def get_avatar_url(self, obj):
-        if obj.image:
-            return obj.image.url
-        social_accounts = obj.socialaccount_set.all()
-        if social_accounts:
-            return social_accounts[0].get_avatar_url()
-        return None
+from tunga_utils.serializers import SimpleProfileSerializer, SimpleUserSerializer, SimpleWorkSerializer, \
+    SimpleEducationSerializer
 
 
 class UserSerializer(SimpleUserSerializer):
     profile = SimpleProfileSerializer(read_only=True, required=False, source='userprofile')
+    work = SimpleWorkSerializer(many=True, source='work_set', read_only=True, required=False)
+    education = SimpleEducationSerializer(many=True, source='education_set', read_only=True, required=False)
     is_developer = serializers.BooleanField(read_only=True, required=False)
     is_project_owner = serializers.BooleanField(read_only=True, required=False)
     display_name = serializers.CharField(read_only=True, required=False)

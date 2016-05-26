@@ -1,12 +1,5 @@
-import os
-
-import datetime
-from allauth.account.models import EmailAddress
-from django.contrib.auth import get_user_model
-from django.core.files.base import File
 from django.core.management.base import BaseCommand
 
-from tunga.settings.base import MEDIA_ROOT
 from tunga_settings import slugs
 from tunga_settings.models import VISIBILITY_CHOICES, SwitchSetting, VisibilitySetting
 
@@ -15,7 +8,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         """
-        Creates all auth emails for all wordpress users.
+        Creates default settings.
         """
         # command to run: python manage.py initial_tunga_settings
 

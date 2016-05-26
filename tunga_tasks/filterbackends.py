@@ -72,9 +72,6 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                 (
                     Q(visibility=VISIBILITY_DEVELOPER) |
                     (
-                        Q(visibility=VISIBILITY_CUSTOM) & Q(visible_to=request.user)
-                    ) |
-                    (
                         Q(visibility=VISIBILITY_MY_TEAM) &
                         (
                             (

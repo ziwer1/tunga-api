@@ -1,0 +1,8 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello,
+
+Your application has not been accepted for task:
+
+{{ task.summary }}
+
+{% endblock %}{% endautoescape %}

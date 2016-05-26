@@ -23,6 +23,23 @@ CURRENCY_CHOICES = (
     (CURRENCY_USD, 'USD')
 )
 
+UPDATE_SCHEDULE_HOURLY = 1
+UPDATE_SCHEDULE_DAILY = 2
+UPDATE_SCHEDULE_WEEKLY = 3
+UPDATE_SCHEDULE_MONTHLY = 4
+UPDATE_SCHEDULE_QUATERLY = 5
+UPDATE_SCHEDULE_ANNUALLY = 6
+
+UPDATE_SCHEDULE_CHOICES = (
+    (UPDATE_SCHEDULE_HOURLY, 'Hourly'),
+    (UPDATE_SCHEDULE_DAILY, 'Daily'),
+    (UPDATE_SCHEDULE_WEEKLY, 'Weekly'),
+    (UPDATE_SCHEDULE_MONTHLY, 'Monthly'),
+    (UPDATE_SCHEDULE_QUATERLY, 'Quaterly'),
+    (UPDATE_SCHEDULE_ANNUALLY, 'Annually')
+)
+
+
 TASK_REQUEST_CLOSE = 1
 TASK_REQUEST_PAY = 2
 
@@ -42,9 +59,10 @@ class Task(models.Model):
     deadline = models.DateTimeField(blank=True, null=True)
     skills = tagulous.models.TagField(Skill, blank=True)
     visibility = models.PositiveSmallIntegerField(choices=VISIBILITY_CHOICES, default=VISIBILITY_CHOICES[0][0])
+    update_schedule = models.PositiveSmallIntegerField(choices=UPDATE_SCHEDULE_CHOICES, blank=True, null=True)
+    apply = models.BooleanField(default=True)
     closed = models.BooleanField(default=False)
     paid = models.BooleanField(default=False)
-    visible_to = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='task_invites', blank=True)
     applicants = models.ManyToManyField(
             settings.AUTH_USER_MODEL, through='Application', through_fields=('task', 'user'),
             related_name='task_applications', blank=True)
@@ -53,6 +71,7 @@ class Task(models.Model):
             related_name='task_participants', blank=True)
     satisfaction = models.SmallIntegerField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    apply_closed_at = models.DateTimeField(blank=True, null=True)
     closed_at = models.DateTimeField(blank=True, null=True)
     paid_at = models.DateTimeField(blank=True, null=True)
 
@@ -198,6 +217,8 @@ class Application(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     accepted = models.BooleanField(default=False)
     responded = models.BooleanField(default=False)
+    pitch = models.CharField(max_length=1000, blank=True, null=True)
+    deliver_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __unicode__(self):

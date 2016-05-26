@@ -8,7 +8,8 @@ from rest_framework import serializers
 
 from tunga_auth.serializers import SimpleUserSerializer
 from tunga_messages.models import Message, Reply, Reception, Attachment
-from tunga_utils.serializers import DetailAnnotatedSerializer, CreateOnlyCurrentUserDefault, SimpleUploadSerializer
+from tunga_utils.serializers import DetailAnnotatedSerializer, CreateOnlyCurrentUserDefault, SimpleUploadSerializer, \
+    SimpleUserSerializer
 
 
 class SimpleAttachmentSerializer(SimpleUploadSerializer):

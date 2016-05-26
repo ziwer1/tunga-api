@@ -1,10 +1,11 @@
+from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django_countries.serializer_fields import CountryField
 from rest_framework import serializers
 from rest_framework.fields import SkipField
 
-from tunga_profiles.models import Skill, City, Institution, UserProfile
-from tunga_utils.models import GenericUpload, ContactRequest, Upload
+from tunga_profiles.models import Skill, City, UserProfile, Education, Work
+from tunga_utils.models import GenericUpload, ContactRequest, Upload, AbstractExperience
 
 
 class CreateOnlyCurrentUserDefault(serializers.CurrentUserDefault):
@@ -53,10 +54,24 @@ class CitySerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'slug')
 
 
-class InstitutionSerializer(serializers.ModelSerializer):
+class SimpleUserSerializer(serializers.ModelSerializer):
+    company = serializers.CharField(read_only=True, required=False, source='userprofile.company')
+    avatar_url = serializers.SerializerMethodField(required=False, read_only=True)
+
     class Meta:
-        model = Institution
-        fields = ('id', 'name', 'slug')
+        model = get_user_model()
+        fields = (
+            'id', 'username', 'email', 'first_name', 'last_name', 'display_name', 'type', 'image',
+            'is_developer', 'is_project_owner', 'is_staff', 'verified', 'company', 'avatar_url'
+        )
+
+    def get_avatar_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        social_accounts = obj.socialaccount_set.all()
+        if social_accounts:
+            return social_accounts[0].get_avatar_url()
+        return None
 
 
 class SimpleProfileSerializer(serializers.ModelSerializer):
@@ -68,6 +83,35 @@ class SimpleProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         exclude = ('user',)
+
+
+class SimpleAbstractExperienceSerializer(serializers.ModelSerializer):
+    start_month_display = serializers.CharField(read_only=True, required=False, source='get_start_month_display')
+    end_month_display = serializers.CharField(read_only=True, required=False, source='get_end_month_display')
+
+    class Meta:
+        model = AbstractExperience
+        exclude = ('user', 'created_at')
+
+
+class AbstractExperienceSerializer(SimpleAbstractExperienceSerializer):
+    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+
+    class Meta:
+        model = AbstractExperience
+        exclude = ('created_at',)
+
+
+class SimpleWorkSerializer(SimpleAbstractExperienceSerializer):
+
+    class Meta(SimpleAbstractExperienceSerializer.Meta):
+        model = Work
+
+
+class SimpleEducationSerializer(SimpleAbstractExperienceSerializer):
+
+    class Meta(SimpleAbstractExperienceSerializer.Meta):
+        model = Education
 
 
 class SimpleUploadSerializer(serializers.ModelSerializer):

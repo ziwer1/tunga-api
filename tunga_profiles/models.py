@@ -5,6 +5,7 @@ from django.db import models
 from django_countries.fields import CountryField
 
 from tunga import settings
+from tunga_utils.models import AbstractExperience
 
 
 class Skill(tagulous.models.TagModel):
@@ -16,7 +17,7 @@ class Skill(tagulous.models.TagModel):
                   "WordPress, Joomla, Drupal," \
                   "jQuery, jQuery UI, Bootstrap, AJAX," \
                   "Android, iOS, Windows Mobile, Apache Cordova, Ionic," \
-                  "SQL, MySQL, PostgreSQL, MongoDB, CouchDB" \
+                  "SQL, MySQL, PostgreSQL, MongoDB, CouchDB," \
                   "Git, Subversion, Mercurial, " \
                   "Docker, Ansible, " \
                   "Webpack, Grunt, Gulp, Ant, Maven, Gradle"
@@ -25,11 +26,6 @@ class Skill(tagulous.models.TagModel):
 class City(tagulous.models.TagModel):
     class TagMeta:
         initial = "Kampala, Entebbe, Jinja, Nairobi, Mombosa, Dar es Salaam, Kigali, Amsterdam"
-
-
-class Institution(tagulous.models.TagModel):
-    class TagMeta:
-        initial = 'Makerere University'
 
 
 class UserProfile(models.Model):
@@ -87,24 +83,8 @@ class SocialLink(models.Model):
         unique_together = ('user', 'platform')
 
 
-class AbstractExperience(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    start_month = models.PositiveSmallIntegerField()
-    start_year = models.PositiveIntegerField()
-    end_month = models.PositiveSmallIntegerField(blank=True, null=True)
-    end_year = models.PositiveIntegerField(blank=True, null=True)
-    details = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __unicode__(self):
-        return '%s' % self.user.get_short_name
-
-    class Meta:
-        abstract = True
-
-
 class Education(AbstractExperience):
-    institution = tagulous.models.SingleTagField(to=Institution)
+    institution = models.CharField(max_length=200)
     award = models.CharField(max_length=200)
 
     def __unicode__(self):

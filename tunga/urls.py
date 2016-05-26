@@ -26,7 +26,7 @@ from tunga_comments.views import CommentViewSet
 from tunga_messages.views import MessageViewSet, ReplyViewSet
 from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, ConnectionViewSet, SocialLinkViewSet, \
     NotificationView, CountryListView
-from tunga_settings.views import UserSwitchSettingViewSet, UserVisibilitySettingViewSet, UserSettingsView
+from tunga_settings.views import UserSettingsView
 from tunga_tasks.views import TaskViewSet, ApplicationViewSet, ParticipationViewSet, TaskRequestViewSet, \
     SavedTaskViewSet, task_webscrapers
 from tunga_activity.views import ActionViewSet
@@ -39,17 +39,15 @@ router.register(r'application', ApplicationViewSet)
 router.register(r'participation', ParticipationViewSet)
 router.register(r'task-request', TaskRequestViewSet)
 router.register(r'saved-task', SavedTaskViewSet)
-router.register(r'social-link', SocialLinkViewSet)
-router.register(r'education', EducationViewSet)
-router.register(r'work', WorkViewSet)
+router.register(r'me/social-link', SocialLinkViewSet)
+router.register(r'me/education', EducationViewSet)
+router.register(r'me/work', WorkViewSet)
 router.register(r'connection', ConnectionViewSet)
 router.register(r'comment', CommentViewSet)
 router.register(r'message', MessageViewSet)
 router.register(r'reply', ReplyViewSet)
 router.register(r'activity', ActionViewSet)
 router.register(r'skill', SkillViewSet)
-router.register(r'settings/switch', UserSwitchSettingViewSet)
-router.register(r'settings/visibility', UserVisibilitySettingViewSet)
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
@@ -59,6 +57,10 @@ urlpatterns = [
         name='account_confirm_email'),
     url(r'^api/auth/register/', include('rest_auth.registration.urls')),
     url(r'^api/auth/verify/', VerifyUserView.as_view(), name='auth-verify'),
+    url(r'^api/auth/jwt/token/', obtain_jwt_token),
+    url(r'^api/auth/jwt/refresh/', refresh_jwt_token),
+    url(r'^api/auth/jwt/verify/', verify_jwt_token),
+    url(r'^api/oauth/', include('oauth2_provider.urls', namespace='oauth2_provider')),
     url(r'^api/me/account/', AccountInfoView.as_view(), name='account-info'),
     url(r'^api/me/user/', UserDetailsView.as_view(), name='user-info'),
     url(r'^api/me/profile/', ProfileView.as_view(), name='profile-info'),
@@ -66,10 +68,6 @@ urlpatterns = [
     url(r'^api/me/notification/', NotificationView.as_view(), name='user-notifications'),
     url(r'^api/auth/', include('rest_auth.urls')),
     url(r'api/', include('rest_framework.urls', namespace='rest_framework')),
-    url(r'^api/oauth/', include('oauth2_provider.urls', namespace='oauth2_provider')),
-    url(r'^api/jwt/token/', obtain_jwt_token),
-    url(r'^api/jwt/refresh/', refresh_jwt_token),
-    url(r'^api/jwt/verify/', verify_jwt_token),
     url(r'^api/countries/', CountryListView.as_view(), name='countries'),
     url(r'^api/contact-request/', ContactRequestView.as_view(), name='contact-request'),
     url(r'^api/docs/', include('rest_framework_swagger.urls')),

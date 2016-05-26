@@ -5,7 +5,8 @@ from rest_framework.response import Response
 
 from tunga_auth.filterbackends import UserFilterBackend
 from tunga_auth.filters import UserFilter
-from tunga_auth.serializers import SimpleUserSerializer, UserSerializer, AccountInfoSerializer
+from tunga_auth.serializers import UserSerializer, AccountInfoSerializer
+from tunga_utils.serializers import SimpleUserSerializer
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 
 

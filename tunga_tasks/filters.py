@@ -5,13 +5,12 @@ from tunga_utils.filters import GenericDateFilterSet
 
 
 class TaskFilter(GenericDateFilterSet):
-    invitee = django_filters.NumberFilter(name='visible_to', label='Invitee')
     applicant = django_filters.NumberFilter(name='applications__user', label='Applicant')
     participant = django_filters.NumberFilter(name='participants__user', label='Participant')
 
     class Meta:
         model = Task
-        fields = ('user', 'closed', 'invitee', 'applicant', 'participant', 'paid')
+        fields = ('user', 'closed', 'applicant', 'participant', 'paid')
 
 
 class ApplicationFilter(GenericDateFilterSet):

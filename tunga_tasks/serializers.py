@@ -3,10 +3,10 @@ from django.db.models.query_utils import Q
 from rest_framework import serializers
 
 from tunga_auth.serializers import SimpleUserSerializer, UserSerializer
-from tunga_tasks.emails import send_new_task_email
+from tunga_tasks.emails import send_new_task_email, send_task_application_not_accepted_email
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask
 from tunga_utils.serializers import ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer, SkillSerializer, \
-    CreateOnlyCurrentUserDefault
+    CreateOnlyCurrentUserDefault, SimpleUserSerializer
 
 
 class SimpleTaskSerializer(ContentTypeAnnotatedSerializer):
@@ -36,14 +36,13 @@ class SimpleParticipationSerializer(ContentTypeAnnotatedSerializer):
 class TaskDetailsSerializer(ContentTypeAnnotatedSerializer):
     user = SimpleUserSerializer()
     skills = SkillSerializer(many=True)
-    visible_to = SimpleUserSerializer(many=True)
     assignee = serializers.SerializerMethodField(required=False, read_only=True)
     applications = SimpleApplicationSerializer(many=True, source='application_set')
     participation = SimpleParticipationSerializer(many=True, source='participation_set')
 
     class Meta:
         model = Task
-        fields = ('user', 'skills', 'visible_to', 'assignee', 'applications', 'participation')
+        fields = ('user', 'skills', 'assignee', 'applications', 'participation')
 
     def get_assignee(self, obj):
         try:
@@ -61,7 +60,6 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     display_fee = serializers.CharField(required=False, read_only=True)
     skills = serializers.CharField(required=True, allow_blank=True, allow_null=True)
-    visible_to = serializers.PrimaryKeyRelatedField(many=True, queryset=get_user_model().objects.all(), required=False)
     deadline = serializers.DateTimeField(required=False, allow_null=True)
     can_apply = serializers.SerializerMethodField(read_only=True, required=False)
     can_save = serializers.SerializerMethodField(read_only=True, required=False)
@@ -95,6 +93,7 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
         return instance
 
     def update(self, instance, validated_data):
+        initial_apply = instance.apply
         skills = None
         participants = None
         if 'skills' in validated_data:
@@ -104,6 +103,10 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
         instance = super(TaskSerializer, self).update(instance, validated_data)
         self.save_skills(instance, skills)
         self.save_participants(instance, participants)
+
+        # TODO: Consider moving this trigger
+        if initial_apply and not instance.apply:
+            send_task_application_not_accepted_email(instance)
         return instance
 
     def save_skills(self, task, skills):
@@ -145,7 +148,7 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
                 Participation.objects.exclude(user__id=assignee).filter(task=task).update(assignee=False)
 
     def get_can_apply(self, obj):
-        if obj.closed:
+        if obj.closed or not obj.apply:
             return False
         request = self.context.get("request", None)
         if request:
@@ -223,6 +226,10 @@ class ApplicationSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSeria
     class Meta:
         model = Application
         details_serializer = ApplicationDetailsSerializer
+        extra_kwargs = {
+            'pitch': {'required': True, 'allow_blank': False, 'allow_null': False},
+            'deliver_at': {'required': True, 'allow_null': False}
+        }
 
 
 class ParticipationDetailsSerializer(SimpleParticipationSerializer):
