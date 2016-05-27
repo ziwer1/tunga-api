@@ -31,12 +31,12 @@ UPDATE_SCHEDULE_QUATERLY = 5
 UPDATE_SCHEDULE_ANNUALLY = 6
 
 UPDATE_SCHEDULE_CHOICES = (
-    (UPDATE_SCHEDULE_HOURLY, 'Hourly'),
-    (UPDATE_SCHEDULE_DAILY, 'Daily'),
-    (UPDATE_SCHEDULE_WEEKLY, 'Weekly'),
-    (UPDATE_SCHEDULE_MONTHLY, 'Monthly'),
-    (UPDATE_SCHEDULE_QUATERLY, 'Quaterly'),
-    (UPDATE_SCHEDULE_ANNUALLY, 'Annually')
+    (UPDATE_SCHEDULE_HOURLY, 'Hour'),
+    (UPDATE_SCHEDULE_DAILY, 'Day'),
+    (UPDATE_SCHEDULE_WEEKLY, 'Week'),
+    (UPDATE_SCHEDULE_MONTHLY, 'Month'),
+    (UPDATE_SCHEDULE_QUATERLY, 'Quarter'),
+    (UPDATE_SCHEDULE_ANNUALLY, 'Annual')
 )
 
 
@@ -59,7 +59,8 @@ class Task(models.Model):
     deadline = models.DateTimeField(blank=True, null=True)
     skills = tagulous.models.TagField(Skill, blank=True)
     visibility = models.PositiveSmallIntegerField(choices=VISIBILITY_CHOICES, default=VISIBILITY_CHOICES[0][0])
-    update_schedule = models.PositiveSmallIntegerField(choices=UPDATE_SCHEDULE_CHOICES, blank=True, null=True)
+    update_interval = models.PositiveIntegerField(blank=True, null=True)
+    update_interval_units = models.PositiveSmallIntegerField(choices=UPDATE_SCHEDULE_CHOICES, blank=True, null=True)
     apply = models.BooleanField(default=True)
     closed = models.BooleanField(default=False)
     paid = models.BooleanField(default=False)
@@ -77,6 +78,31 @@ class Task(models.Model):
 
     def __unicode__(self):
         return self.summary
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ('user', 'title', 'fee')
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        if self.has_object_write_permission(request):
+            return True
+        if self.visibility == VISIBILITY_DEVELOPER:
+            return request.user.type == USER_TYPE_DEVELOPER
+        elif self.visibility == VISIBILITY_MY_TEAM:
+            return bool(
+                Connection.objects.exclude(accepted=False).filter(
+                    Q(from_user=self.user, to_user=request.user) | Q(from_user=request.user, to_user=self.user)
+                ).count()
+            )
+        elif self.visibility == VISIBILITY_CUSTOM:
+            return self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
+        return False
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user or \
+               self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
 
     @property
     def display_fee(self):
@@ -185,31 +211,6 @@ class Task(models.Model):
     @property
     def skills_list(self):
         return str(self.skills)
-
-    class Meta:
-        ordering = ['-created_at']
-        unique_together = ('user', 'title', 'fee')
-
-    @allow_staff_or_superuser
-    def has_object_read_permission(self, request):
-        if self.has_object_write_permission(request):
-            return True
-        if self.visibility == VISIBILITY_DEVELOPER:
-            return request.user.type == USER_TYPE_DEVELOPER
-        elif self.visibility == VISIBILITY_MY_TEAM:
-            return bool(
-                Connection.objects.exclude(accepted=False).filter(
-                    Q(from_user=self.user, to_user=request.user) | Q(from_user=request.user, to_user=self.user)
-                ).count()
-            )
-        elif self.visibility == VISIBILITY_CUSTOM:
-            return self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
-        return False
-
-    @allow_staff_or_superuser
-    def has_object_write_permission(self, request):
-        return request.user == self.user or \
-               self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
 
 
 class Application(models.Model):
