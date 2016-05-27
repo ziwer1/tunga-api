@@ -2,9 +2,11 @@
 API and Backend for tunga.io
 
 # Installation
-1. run this command from project root (preferably in a virtualenv)
+1. run the following commands from project root (preferably in a virtualenv)
 ```
 pip install -r requirements.txt
+python manage.py initial_tags
+python manage.py initial_tunga_settings
 ```
 
 # Coding Guide
