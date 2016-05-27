@@ -11,6 +11,8 @@ AUTH_PASSWORD_VALIDATORS = []
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+ACCOUNT_EMAIL_VERIFICATION = 'optional'
+
 CORS_ORIGIN_WHITELIST = ('localhost:8080', '127.0.0.1:8080', 'tunga.dev:8080', 'lightbox.tunga.io')
 
 CORS_ALLOW_CREDENTIALS = True
