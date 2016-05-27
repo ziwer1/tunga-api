@@ -219,6 +219,8 @@ class Application(models.Model):
     accepted = models.BooleanField(default=False)
     responded = models.BooleanField(default=False)
     pitch = models.CharField(max_length=1000, blank=True, null=True)
+    hours_needed = models.PositiveIntegerField(blank=True, null=True)
+    hours_available = models.PositiveIntegerField(blank=True, null=True)
     deliver_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

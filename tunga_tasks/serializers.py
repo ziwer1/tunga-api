@@ -228,6 +228,8 @@ class ApplicationSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSeria
         details_serializer = ApplicationDetailsSerializer
         extra_kwargs = {
             'pitch': {'required': True, 'allow_blank': False, 'allow_null': False},
+            'hours_needed': {'required': True, 'allow_null': False},
+            'hours_available': {'required': True, 'allow_null': False},
             'deliver_at': {'required': True, 'allow_null': False}
         }
 
