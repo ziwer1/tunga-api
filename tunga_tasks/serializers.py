@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from tunga_auth.serializers import SimpleUserSerializer, UserSerializer
 from tunga_tasks.emails import send_new_task_email, send_task_application_not_accepted_email
-from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask
+from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, UPDATE_SCHEDULE_DAILY
 from tunga_utils.serializers import ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer, SkillSerializer, \
     CreateOnlyCurrentUserDefault, SimpleUserSerializer
 
@@ -69,6 +69,7 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
     assignee = serializers.SerializerMethodField(required=False, read_only=True)
     participants = serializers.PrimaryKeyRelatedField(many=True, queryset=get_user_model().objects.all(), required=False, write_only=True)
     open_applications = serializers.SerializerMethodField(required=False, read_only=True)
+    update_schedule_display = serializers.SerializerMethodField(required=False, read_only=True)
 
     class Meta:
         model = Task
@@ -209,6 +210,16 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
 
     def get_open_applications(self, obj):
         return obj.application_set.filter(responded=False).count()
+
+    def get_update_schedule_display(self, obj):
+        if obj.update_interval and obj.update_interval_units:
+            if obj.update_interval == 1 and obj.update_interval_units == UPDATE_SCHEDULE_DAILY:
+                return 'Daily'
+            interval_units = str(obj.get_update_interval_units_display()).lower()
+            if obj.update_interval == 1:
+                return 'Every %s' % interval_units
+            return 'Every %s %ss' % (obj.update_interval, interval_units)
+        return None
 
 
 class ApplicationDetailsSerializer(SimpleApplicationSerializer):
