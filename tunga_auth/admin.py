@@ -27,11 +27,11 @@ class TungaUserAdmin(UserAdmin):
     def make_pending(self, request, queryset):
         rows_updated = queryset.update(pending=True)
         self.message_user(
-            request, "%s user%s successfully marked as pending." % (rows_updated, (rows_updated == 1 and '' or 's')))
+            request, "%s user%s successfully marked as pending." % (rows_updated, (rows_updated > 1 and 's' or '')))
     make_pending.short_description = "Mark selected users as pending"
 
     def make_not_pending(self, request, queryset):
         rows_updated = queryset.update(pending=False)
         self.message_user(
-            request, "%s user%s successfully marked as active." % (rows_updated, (rows_updated == 1 and '' or 's')))
+            request, "%s user%s successfully marked as active." % (rows_updated, (rows_updated > 1 and 's' or '')))
     make_not_pending.short_description = "Mark selected users as active"
