@@ -10,6 +10,7 @@ from tunga_auth.forms import TungaUserChangeForm, TungaUserCreationForm
 class TungaUserAdmin(UserAdmin):
     form = TungaUserChangeForm
     add_form = TungaUserCreationForm
+    actions = UserAdmin.actions + ['make_pending', 'make_not_pending']
 
     fieldsets = UserAdmin.fieldsets + (
         (_('Profile'), {'fields': ('type', 'image')}),
@@ -20,5 +21,17 @@ class TungaUserAdmin(UserAdmin):
         (_('Profile'), {'fields': ('email', 'first_name', 'last_name')})
     )
 
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'type', 'verified')
-    list_filter = ('type', 'is_staff', 'is_superuser', 'is_active')
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'type', 'pending', 'verified')
+    list_filter = ('type', 'pending', 'is_staff', 'is_superuser')
+
+    def make_pending(self, request, queryset):
+        rows_updated = queryset.update(pending=True)
+        self.message_user(
+            request, "%s user%s successfully marked as pending." % (rows_updated, (rows_updated == 1 and '' or 's')))
+    make_pending.short_description = "Mark selected users as pending"
+
+    def make_not_pending(self, request, queryset):
+        rows_updated = queryset.update(pending=False)
+        self.message_user(
+            request, "%s user%s successfully marked as active." % (rows_updated, (rows_updated == 1 and '' or 's')))
+    make_not_pending.short_description = "Mark selected users as active"

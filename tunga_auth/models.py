@@ -17,6 +17,7 @@ class TungaUser(AbstractUser):
     image = models.ImageField(upload_to='photos/%Y/%m/%d', blank=True, null=True)
     last_activity = models.DateTimeField(blank=True, null=True)
     verified = models.BooleanField(default=False)
+    pending = models.BooleanField(default=True)
 
     class Meta(AbstractUser.Meta):
         unique_together = ('email',)
