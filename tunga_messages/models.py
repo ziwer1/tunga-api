@@ -4,6 +4,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models.query_utils import Q
+from django.utils.html import strip_tags
 from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
@@ -44,6 +45,10 @@ class Message(models.Model):
     def has_object_write_permission(self, request):
         return request.user == self.user
 
+    @property
+    def excerpt(self):
+        return strip_tags(self.body)
+
 
 class Reception(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -83,6 +88,10 @@ class Reply(models.Model):
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
         return request.user == self.user
+
+    @property
+    def excerpt(self):
+        return strip_tags(self.body)
 
 
 class Attachment(models.Model):

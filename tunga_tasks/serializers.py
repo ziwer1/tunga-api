@@ -59,6 +59,7 @@ class TaskDetailsSerializer(ContentTypeAnnotatedSerializer):
 class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     display_fee = serializers.CharField(required=False, read_only=True)
+    excerpt = serializers.CharField(required=False, read_only=True)
     skills = serializers.CharField(required=True, allow_blank=True, allow_null=True)
     deadline = serializers.DateTimeField(required=False, allow_null=True)
     can_apply = serializers.SerializerMethodField(read_only=True, required=False)

@@ -8,6 +8,7 @@ import requests
 import tagulous.models
 from django.db import models
 from django.db.models.query_utils import Q
+from django.utils.html import strip_tags
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
@@ -114,6 +115,10 @@ class Task(models.Model):
     @property
     def summary(self):
         return '%s - Fee: %s' % (self.title, self.display_fee)
+
+    @property
+    def excerpt(self):
+        return strip_tags(self.description)
 
     def get_default_participation(self):
         tags = ['tunga.io', 'tunga']
