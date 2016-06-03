@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db.models.query_utils import Q
 from rest_framework import serializers
 
+from tunga.settings.base import TUNGA_SHARE_PERCENTAGE
 from tunga_auth.serializers import SimpleUserSerializer, UserSerializer
 from tunga_tasks.emails import send_new_task_email, send_task_application_not_accepted_email
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, UPDATE_SCHEDULE_DAILY
@@ -58,7 +59,7 @@ class TaskDetailsSerializer(ContentTypeAnnotatedSerializer):
 
 class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
-    display_fee = serializers.CharField(required=False, read_only=True)
+    display_fee = serializers.SerializerMethodField(required=False, read_only=True)
     excerpt = serializers.CharField(required=False, read_only=True)
     skills = serializers.CharField(required=True, allow_blank=True, allow_null=True)
     deadline = serializers.DateTimeField(required=False, allow_null=True)
@@ -148,6 +149,19 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
                     pass
             if assignee and changed_assignee:
                 Participation.objects.exclude(user__id=assignee).filter(task=task).update(assignee=False)
+
+    def __get_current_user(self):
+        request = self.context.get("request", None)
+        if request:
+            return getattr(request, "user", None)
+        return None
+
+    def get_display_fee(self, obj):
+        user = self.__get_current_user()
+        amount = None
+        if user and user.is_developer:
+            amount = obj.fee*(1 - TUNGA_SHARE_PERCENTAGE*0.01)
+        return obj.display_fee(amount=amount)
 
     def get_can_apply(self, obj):
         if obj.closed or not obj.apply:

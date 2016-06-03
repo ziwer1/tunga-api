@@ -5,8 +5,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
 
-    <meta name="description" content='{{ task.description | default:task.summary | escape }}'/>
-    <meta name="participation" content='{{ participation|safe }}'/>
+    <meta name="description" content='{{ task.excerpt | default:task.summary | escape }}'/>
+    <meta name="participation" content='{{ participation | safe }}'/>
     <meta name="tunga" content='{{ payment|safe }}'/>
 
     <title>{{ task.summary | default:'Tunga' }}</title>
