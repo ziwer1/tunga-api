@@ -197,7 +197,7 @@ class Task(models.Model):
                         if len(additional_participants):
                             participation_meta[meta_key].extend(additional_participants)
                             has_script = True
-                elif task_script[meta_key]:
+                elif meta_key in task_script:
                     participation_meta[meta_key] = task_script[meta_key]
         return participation_meta, has_script
 
