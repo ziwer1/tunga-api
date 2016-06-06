@@ -135,7 +135,7 @@ class Task(models.Model):
         if self.skills:
             tags.extend(str(self.skills).split(','))
         return {
-            'type': 'payment', 'language': 'EN', 'title': self.summary, 'description': self.excerpt or task.summary,
+            'type': 'payment', 'language': 'EN', 'title': self.summary, 'description': self.excerpt or self.summary,
             'keywords': tags, 'participants': [
                 {'id': 'mailto:%s' % TUNGA_SHARE_EMAIL, 'role': 'owner', 'share': '{share}%'.format(**{'share': TUNGA_SHARE_PERCENTAGE})}
             ]
