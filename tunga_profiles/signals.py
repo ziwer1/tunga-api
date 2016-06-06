@@ -9,7 +9,7 @@ from tunga_profiles.models import Connection
 def activity_handler_new_connection(sender, instance, created, **kwargs):
     if created:
         action.send(
-                instance.from_user, verb='made a connection request', action_object=instance, target=instance.to_user)
+            instance.from_user, verb='made a connection request', action_object=instance, target=instance.to_user)
     else:
         update_fields = kwargs.get('update_fields', None)
         if update_fields:

@@ -300,3 +300,5 @@ CONTACT_REQUEST_EMAIL_RECIPIENT = 'bart@tunga.io'
 TUNGA_SHARE_EMAIL = 'admin@tunga.io'
 
 TUNGA_SHARE_PERCENTAGE = 13
+
+TUNGA_URL = 'https://tunga.io'

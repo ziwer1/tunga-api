@@ -6,6 +6,7 @@ from django.db.models.expressions import F
 from django.template.loader import render_to_string
 
 from tunga.settings import EMAIL_SUBJECT_PREFIX
+from tunga.settings.base import TUNGA_URL
 from tunga_auth.filterbackends import my_connections_q_filter
 from tunga_auth.models import USER_TYPE_DEVELOPER
 from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM
@@ -67,10 +68,79 @@ def send_new_task_email(instance):
                 {
                     'owner': instance.user,
                     'task': instance,
-                    'task_url': 'http://tunga.io/task/%s/' % instance.id
+                    'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
                 }
             )
             EmailMessage(subject, message, to=to, bcc=bcc).send()
+
+
+@catch_all_exceptions
+def send_new_task_invitation_email(instance):
+    subject = "%s Task invitation from %s" % (EMAIL_SUBJECT_PREFIX, instance.created_by.first_name)
+    to = [instance.user.email]
+
+    message = render_to_string(
+        'tunga/email/email_new_task_invitation.txt',
+        {
+            'inviter': instance.created_by,
+            'invitee': instance.user,
+            'task': instance.task,
+            'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
+        }
+    )
+    EmailMessage(subject, message, to=to).send()
+
+
+@catch_all_exceptions
+def send_new_task_application_email(instance):
+    subject = "%s New application from %s" % (EMAIL_SUBJECT_PREFIX, instance.user.first_name)
+    to = [instance.task.user.email]
+
+    message = render_to_string(
+        'tunga/email/email_new_task_application.txt',
+        {
+            'owner': instance.task.user,
+            'applicant': instance.user,
+            'task': instance.task,
+            'task_url': '%s/task/%s/' % (TUNGA_URL, instance.task.id)
+        }
+    )
+    EmailMessage(subject, message, to=to).send()
+
+
+@catch_all_exceptions
+def send_new_task_application_response_email(instance, accepted=False):
+    subject = "%s Task application %s by %s" % (EMAIL_SUBJECT_PREFIX, accepted and 'accepted' or 'rejected', instance.task.user.first_name)
+    to = [instance.user.email]
+
+    message = render_to_string(
+        'tunga/email/email_task_application_response.txt',
+        {
+            'owner': instance.task.user,
+            'applicant': instance.user,
+            'accepted': accepted,
+            'task': instance.task,
+            'task_url': '%s/task/%s/' % (TUNGA_URL, instance.task.id)
+        }
+    )
+    EmailMessage(subject, message, to=to).send()
+
+
+@catch_all_exceptions
+def send_new_task_application_applicant_email(instance):
+    subject = "%s You applied for a task: %s" % (EMAIL_SUBJECT_PREFIX, instance.task.summary)
+    to = [instance.user.email]
+
+    message = render_to_string(
+        'tunga/email/email_new_task_application_applicant.txt',
+        {
+            'owner': instance.task.user,
+            'applicant': instance.user,
+            'task': instance.task,
+            'task_url': '%s/task/%s/' % (TUNGA_URL, instance.task.id)
+        }
+    )
+    EmailMessage(subject, message, to=to).send()
 
 
 @catch_all_exceptions
@@ -85,7 +155,7 @@ def send_task_application_not_accepted_email(instance):
             'tunga/email/email_task_application_not_accepted.txt',
             {
                 'task': instance,
-                'task_url': 'http://tunga.io/task/%s/' % instance.id
+                'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
             }
         )
         EmailMessage(subject, message, to=to, bcc=bcc).send()
