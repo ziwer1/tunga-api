@@ -5,6 +5,12 @@ Hello,
 
 {{ task.summary }}
 
+{% if task.deadline %}Deadline: {{ task.deadline | date:'jS F Y \a\t H:i' }} GMT{% endif %}
+
+{% if task.skills %}Skills: {{ task.skills }}{% endif %}
+
+{% if task.description %}{{ task.description }}{% endif %}
+
 Click the link below to view the task's details:
 
 {{ task_url }}

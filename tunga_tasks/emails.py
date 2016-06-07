@@ -5,8 +5,7 @@ from django.db.models.aggregates import Sum
 from django.db.models.expressions import F
 from django.template.loader import render_to_string
 
-from tunga.settings import EMAIL_SUBJECT_PREFIX
-from tunga.settings.base import TUNGA_URL
+from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
 from tunga_auth.filterbackends import my_connections_q_filter
 from tunga_auth.models import USER_TYPE_DEVELOPER
 from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM
@@ -56,22 +55,23 @@ def send_new_task_email(instance):
         )
         queryset = queryset.order_by(*ordering)
 
+        developers = None
         if queryset:
-            developers = queryset[:20]
+            developers = queryset[:15]
 
-            subject = "%s New task created by %s" % (EMAIL_SUBJECT_PREFIX, instance.user.first_name)
-            to = [developers[0].email]
-            bcc = [dev.email for dev in developers[1:]] if len(developers) > 1 else None
+        subject = "%s New task created by %s" % (EMAIL_SUBJECT_PREFIX, instance.user.first_name)
+        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+        bcc = [dev.email for dev in developers] if developers else None
 
-            message = render_to_string(
-                'tunga/email/email_new_task.txt',
-                {
-                    'owner': instance.user,
-                    'task': instance,
-                    'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
-                }
-            )
-            EmailMessage(subject, message, to=to, bcc=bcc).send()
+        message = render_to_string(
+            'tunga/email/email_new_task.txt',
+            {
+                'owner': instance.user,
+                'task': instance,
+                'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
+            }
+        )
+        EmailMessage(subject, message, to=to, bcc=bcc).send()
 
 
 @catch_all_exceptions

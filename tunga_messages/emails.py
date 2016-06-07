@@ -3,8 +3,7 @@ from django.core.mail import EmailMessage
 from django.db.models.query_utils import Q
 from django.template.loader import render_to_string
 
-from tunga.settings import EMAIL_SUBJECT_PREFIX
-from tunga.settings.base import TUNGA_URL
+from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL
 from tunga_utils.decorators import catch_all_exceptions
 
 
