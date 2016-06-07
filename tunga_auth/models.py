@@ -27,6 +27,10 @@ class TungaUser(AbstractUser):
         return self.get_full_name() or self.username
 
     @property
+    def display_type(self):
+        return self.get_type_display()
+
+    @property
     def is_developer(self):
         return self.type == USER_TYPE_DEVELOPER
 

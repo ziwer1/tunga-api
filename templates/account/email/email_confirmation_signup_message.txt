@@ -1,7 +1,9 @@
 {% load account %}{% user_display user as user_display %}{% load i18n %}{% autoescape off %}{% block email_content %}
 Hi {{ user.first_name }},
 
-You just registered as a {% if user.type == 2 %}coder{% else %}project owner{% endif %} on Tunga! Welcome on board and thank you for joining our team.
+You just registered as a {% if user.type == 2 %}project owner{% else %}coder{% endif %} on Tunga!
+
+Welcome on board and thank you for joining our team.
 
 To start using our platform you have to activate your account, simply by clicking the following link:
 

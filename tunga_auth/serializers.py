@@ -12,12 +12,13 @@ from tunga_utils.serializers import SimpleProfileSerializer, SimpleUserSerialize
 
 
 class UserSerializer(SimpleUserSerializer):
+    display_name = serializers.CharField(read_only=True, required=False)
+    display_type = serializers.CharField(read_only=True, required=False)
+    is_developer = serializers.BooleanField(read_only=True, required=False)
+    is_project_owner = serializers.BooleanField(read_only=True, required=False)
     profile = SimpleProfileSerializer(read_only=True, required=False, source='userprofile')
     work = SimpleWorkSerializer(many=True, source='work_set', read_only=True, required=False)
     education = SimpleEducationSerializer(many=True, source='education_set', read_only=True, required=False)
-    is_developer = serializers.BooleanField(read_only=True, required=False)
-    is_project_owner = serializers.BooleanField(read_only=True, required=False)
-    display_name = serializers.CharField(read_only=True, required=False)
     can_connect = serializers.SerializerMethodField(read_only=True, required=False)
     request = serializers.SerializerMethodField(read_only=True, required=False)
     tasks_created = serializers.SerializerMethodField(read_only=True, required=False)

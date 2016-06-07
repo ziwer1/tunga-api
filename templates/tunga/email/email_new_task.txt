@@ -11,6 +11,7 @@ Hello,
 
 {% if task.description %}{{ task.description }}{% endif %}
 
+
 Click the link below to view the task's details:
 
 {{ task_url }}

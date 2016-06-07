@@ -5,6 +5,7 @@ You applied for a task:
 
 {{ task.summary }}
 
+
 Click the link below to go to the task's detail page:
 
 {{ task_url }}

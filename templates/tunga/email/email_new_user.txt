@@ -1,0 +1,19 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello,
+
+{{ user.display_name }} has joined Tunga.
+
+Username: {{ user.username }}
+
+First Name: {{ user.first_name }}
+
+Last Name: {{ user.last_name }}
+
+User type: {% if user.type == 2 %}Project owner{% else %}Developer{% endif %}
+
+
+Click the link below to view the user's profile:
+
+{{ user_url }}
+
+{% endblock %}{% endautoescape %}

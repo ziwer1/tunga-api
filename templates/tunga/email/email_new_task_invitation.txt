@@ -5,6 +5,7 @@ Hello {{ invitee.first_name }},
 
 {{ task.summary }}
 
+
 Click the link below to view the task's details:
 
 {{ task_url }}

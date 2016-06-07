@@ -7,6 +7,7 @@ Hello,
 
 {{ message }}
 
+
 Click the link below to go to the discussion:
 
 {{ message_url }}

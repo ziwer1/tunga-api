@@ -5,6 +5,7 @@ Hello {{ owner.first_name }},
 
 {{ task.summary }}
 
+
 Click the link below to go to the workflow page:
 
 {{ task_url }}

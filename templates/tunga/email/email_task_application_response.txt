@@ -6,6 +6,7 @@ Hello {{ applicant.first_name }},
 {{ task.summary }}
 
 {% if accepted %}
+
 Click the link below to go to the workflow page:
 
 {{ task_url }}
