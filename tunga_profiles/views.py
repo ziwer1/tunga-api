@@ -3,6 +3,7 @@ from django.db.models.expressions import F, Case, When
 from django.db.models.fields import DateTimeField
 from django.db.models.query_utils import Q
 from django_countries.fields import CountryField
+from dry_rest_permissions.generics import DRYObjectPermissions, DRYPermissions
 from rest_framework import viewsets, generics, views, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -10,10 +11,12 @@ from rest_framework.response import Response
 from tunga_auth.models import USER_TYPE_PROJECT_OWNER
 from tunga_messages.filterbackends import received_messages_q_filter, received_replies_q_filter
 from tunga_messages.models import Message, Reply
+from tunga_profiles.filterbackends import ConnectionFilterBackend
 from tunga_profiles.filters import EducationFilter, WorkFilter, ConnectionFilter, SocialLinkFilter
 from tunga_profiles.models import UserProfile, Education, Work, Connection, SocialLink
 from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, WorkSerializer, ConnectionSerializer, \
     SocialLinkSerializer
+from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 
 
 class ProfileView(generics.CreateAPIView, generics.RetrieveUpdateDestroyAPIView):
@@ -22,7 +25,7 @@ class ProfileView(generics.CreateAPIView, generics.RetrieveUpdateDestroyAPIView)
     """
     queryset = UserProfile.objects.all()
     serializer_class = ProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DRYObjectPermissions]
 
     def get_object(self):
         user = self.request.user
@@ -40,7 +43,7 @@ class SocialLinkViewSet(viewsets.ModelViewSet):
     """
     queryset = SocialLink.objects.all()
     serializer_class = SocialLinkSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DRYObjectPermissions]
     filter_class = SocialLinkFilter
 
 
@@ -50,7 +53,7 @@ class EducationViewSet(viewsets.ModelViewSet):
     """
     queryset = Education.objects.all()
     serializer_class = EducationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DRYPermissions]
     filter_class = EducationFilter
     search_fields = ('institution__name', 'award')
 
@@ -61,7 +64,7 @@ class WorkViewSet(viewsets.ModelViewSet):
     """
     queryset = Work.objects.all()
     serializer_class = WorkSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DRYPermissions]
     filter_class = WorkFilter
     search_fields = ('company', 'position')
 
@@ -72,8 +75,9 @@ class ConnectionViewSet(viewsets.ModelViewSet):
     """
     queryset = Connection.objects.all()
     serializer_class = ConnectionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DRYObjectPermissions]
     filter_class = ConnectionFilter
+    filter_backends = DEFAULT_FILTER_BACKENDS + (ConnectionFilterBackend,)
     search_fields = ('from_user__username', 'to_user__username')
 
 

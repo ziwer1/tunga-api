@@ -1,14 +1,15 @@
 import json
 
 from django.shortcuts import render, redirect
-from dry_rest_permissions.generics import DRYObjectPermissions
+from dry_rest_permissions.generics import DRYPermissions, DRYObjectPermissions
 from rest_framework import viewsets
 from rest_framework.decorators import detail_route
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from tunga_tasks.filterbackends import TaskFilterBackend
+from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBackend, ParticipationFilterBackend, \
+    TaskRequestFilterBackend, SavedTaskFilterBackend
 from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TaskRequestFilter, SavedTaskFilter
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
@@ -22,7 +23,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     """
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
-    permission_classes = [IsAuthenticated, DRYObjectPermissions]
+    permission_classes = [IsAuthenticated, DRYPermissions]
     filter_class = TaskFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (TaskFilterBackend,)
     search_fields = ('title', 'description', 'skills__name')
@@ -51,8 +52,9 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     """
     queryset = Application.objects.all()
     serializer_class = ApplicationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DRYPermissions]
     filter_class = ApplicationFilter
+    filter_backends = DEFAULT_FILTER_BACKENDS + (ApplicationFilterBackend,)
     search_fields = ('task__title', 'task__skills__name', '^user__username', '^user__first_name', '^user__last_name')
 
 
@@ -62,8 +64,9 @@ class ParticipationViewSet(viewsets.ModelViewSet):
     """
     queryset = Participation.objects.all()
     serializer_class = ParticipationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DRYObjectPermissions]
     filter_class = ParticipationFilter
+    filter_backends = DEFAULT_FILTER_BACKENDS + (ParticipationFilterBackend,)
     search_fields = ('task__title', 'task__skills__name', '^user__username', '^user__first_name', '^user__last_name')
 
 
@@ -73,8 +76,9 @@ class TaskRequestViewSet(viewsets.ModelViewSet):
     """
     queryset = TaskRequest.objects.all()
     serializer_class = TaskRequestSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DRYPermissions]
     filter_class = TaskRequestFilter
+    filter_backends = DEFAULT_FILTER_BACKENDS + (TaskRequestFilterBackend,)
     search_fields = ('task__title', 'task__skills__name', '^user__username', '^user__first_name', '^user__last_name')
 
 
@@ -84,12 +88,13 @@ class SavedTaskViewSet(viewsets.ModelViewSet):
     """
     queryset = SavedTask.objects.all()
     serializer_class = SavedTaskSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, DRYPermissions]
     filter_class = SavedTaskFilter
+    filter_backends = DEFAULT_FILTER_BACKENDS + (SavedTaskFilterBackend,)
     search_fields = ('task__title', 'task__skills__name', '^user__username', '^user__first_name', '^user__last_name')
 
 
-def task_webscrapers(request, pk=None):
+def task_web_view(request, pk=None):
     try:
         task = Task.objects.get(id=pk)
         participation = json.dumps(task.meta_participation)

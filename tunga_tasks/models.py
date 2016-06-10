@@ -14,7 +14,7 @@ from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
 from tunga.settings.base import TUNGA_SHARE_PERCENTAGE, TUNGA_SHARE_EMAIL
-from tunga_auth.models import USER_TYPE_DEVELOPER
+from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_profiles.models import Skill, Connection
 from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM, VISIBILITY_CHOICES
 
@@ -91,9 +91,14 @@ class Task(models.Model):
         ordering = ['-created_at']
         unique_together = ('user', 'title', 'fee')
 
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return True
+
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):
-        if self.has_object_write_permission(request):
+        if self.has_object_update_permission(request):
             return True
         if self.visibility == VISIBILITY_DEVELOPER:
             return request.user.type == USER_TYPE_DEVELOPER
@@ -107,10 +112,30 @@ class Task(models.Model):
             return self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
         return False
 
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.type == USER_TYPE_PROJECT_OWNER
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_update_permission(request):
+        return True
+
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
-        return request.user == self.user or \
-               self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
+        return request.user == self.user
+
+    @allow_staff_or_superuser
+    def has_object_update_permission(self, request):
+        if self.has_object_write_permission(request):
+            return True
+        # Participants can edit participation info directly on task object
+        if request.method in ['PUT', 'PATCH']:
+            allowed_keys = ['assignee', 'participants', 'confirmed_participants', 'rejected_participants']
+            if not [x for x in request.data.keys() if not x in allowed_keys]:
+                return self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
+        return False
 
     def display_fee(self, amount=None):
         if amount is None:
@@ -245,6 +270,34 @@ class Application(models.Model):
     class Meta:
         unique_together = ('user', 'task')
 
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return self.has_object_update_permission(request)
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.type == USER_TYPE_DEVELOPER
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_update_permission(request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user
+
+    @allow_staff_or_superuser
+    def has_object_update_permission(self, request):
+        # Task owner can update applications
+        return request.user == self.user or request.user == self.task.user
+
 
 class Participation(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -265,6 +318,14 @@ class Participation(models.Model):
         unique_together = ('user', 'task')
         verbose_name_plural = 'participation'
 
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return self.task.has_object_read_permission(request)
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user or request.user == self.task.user
+
 
 class TaskRequest(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -275,6 +336,24 @@ class TaskRequest(models.Model):
     def __unicode__(self):
         return '%s - %s' % (self.get_type_display(), self.task.title)
 
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return self.task.has_object_read_permission(request)
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.type == USER_TYPE_DEVELOPER
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user
+
 
 class SavedTask(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -283,3 +362,21 @@ class SavedTask(models.Model):
 
     def __unicode__(self):
         return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.title)
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return request.user == self.user
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.type == USER_TYPE_DEVELOPER
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user

@@ -7,6 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
+from tunga_auth.models import USER_TYPE_DEVELOPER
 from tunga_utils.validators import validate_year
 
 MONTHS = (
@@ -39,6 +40,24 @@ class AbstractExperience(models.Model):
 
     class Meta:
         abstract = True
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return True
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.type == USER_TYPE_DEVELOPER
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user
 
 
 class GenericUpload(models.Model):

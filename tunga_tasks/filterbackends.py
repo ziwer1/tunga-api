@@ -8,6 +8,7 @@ from dry_rest_permissions.generics import DRYPermissionFiltersBase
 from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_profiles.models import UserProfile
 from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM
+from tunga_utils.filterbackends import dont_filter_staff_or_superuser
 
 
 class TaskFilterBackend(DRYPermissionFiltersBase):
@@ -21,10 +22,10 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
             queryset = queryset.filter(
                 Q(user=request.user) |
                 (
+                    Q(participation__user=request.user) &
                     (
                         Q(participation__accepted=True) | Q(participation__responded=False)
-                    ) &
-                    Q(participation__user=request.user)
+                    )
                 )
             )
         elif label_filter == 'saved':
@@ -89,3 +90,49 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
         else:
             return queryset.none()
         return queryset
+
+
+class ApplicationFilterBackend(DRYPermissionFiltersBase):
+
+    @dont_filter_staff_or_superuser
+    def filter_list_queryset(self, request, queryset, view):
+        return queryset.filter(Q(user=request.user) | Q(task__user=request.user))
+
+
+class ParticipationFilterBackend(DRYPermissionFiltersBase):
+
+    @dont_filter_staff_or_superuser
+    def filter_list_queryset(self, request, queryset, view):
+        return queryset.filter(
+            Q(user=request.user) |
+            Q(task__user=request.user) |
+            (
+                Q(task_participation__user=request.user) &
+                (
+                    Q(task_participation__accepted=True) | Q(task_participation__responded=False)
+                )
+            )
+        )
+
+
+class TaskRequestFilterBackend(DRYPermissionFiltersBase):
+
+    @dont_filter_staff_or_superuser
+    def filter_list_queryset(self, request, queryset, view):
+        return queryset.filter(
+            Q(user=request.user) |
+            Q(task__user=request.user) |
+            (
+                Q(task_participation__user=request.user) &
+                (
+                    Q(task_participation__accepted=True) | Q(task_participation__responded=False)
+                )
+            )
+        )
+
+
+class SavedTaskFilterBackend(DRYPermissionFiltersBase):
+
+    @dont_filter_staff_or_superuser
+    def filter_list_queryset(self, request, queryset, view):
+        return queryset.filter(user=request.user)

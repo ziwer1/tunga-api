@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import tagulous.models
 from django.db import models
 from django_countries.fields import CountryField
+from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
 from tunga_utils.models import AbstractExperience
@@ -53,6 +54,14 @@ class UserProfile(models.Model):
     def country_name(self):
         return self.country.name
 
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user
+
 
 class SocialPlatform(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -68,6 +77,16 @@ class SocialPlatform(models.Model):
     def __unicode__(self):
         return self.name
 
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return False
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return False
+
 
 class SocialLink(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -81,6 +100,14 @@ class SocialLink(models.Model):
 
     class Meta:
         unique_together = ('user', 'platform')
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user
 
 
 class Education(AbstractExperience):
@@ -118,3 +145,11 @@ class Connection(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return request.user == self.from_user or request.user == self.to_user
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.from_user or request.user == self.to_user

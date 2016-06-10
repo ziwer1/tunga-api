@@ -34,6 +34,14 @@ class SimpleParticipationSerializer(ContentTypeAnnotatedSerializer):
         exclude = ('created_at',)
 
 
+class NestedTaskParticipationSerializer(ContentTypeAnnotatedSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+
+    class Meta:
+        model = Participation
+        exclude = ('task', 'created_at')
+
+
 class TaskDetailsSerializer(ContentTypeAnnotatedSerializer):
     user = SimpleUserSerializer()
     skills = SkillSerializer(many=True)
@@ -72,6 +80,7 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
     participants = serializers.PrimaryKeyRelatedField(many=True, queryset=get_user_model().objects.all(), required=False, write_only=True)
     open_applications = serializers.SerializerMethodField(required=False, read_only=True)
     update_schedule_display = serializers.SerializerMethodField(required=False, read_only=True)
+    participation = NestedTaskParticipationSerializer(required=False, many=True, source='participation_set')
 
     class Meta:
         model = Task
@@ -81,14 +90,18 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
 
     def create(self, validated_data):
         skills = None
+        participation = None
         participants = None
         if 'skills' in validated_data:
             skills = validated_data.pop('skills')
+        if 'participation_set' in validated_data:
+            participation = validated_data.pop('participation_set')
         if 'participants' in validated_data:
             participants = validated_data.pop('participants')
         instance = super(TaskSerializer, self).create(validated_data)
         self.save_skills(instance, skills)
         self.save_participants(instance, participants)
+        self.save_participation(instance, participation)
 
         # Triggered here instead of in the post_save signal to allow skills to be attached first
         # TODO: Consider moving this trigger
@@ -98,14 +111,18 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
     def update(self, instance, validated_data):
         initial_apply = instance.apply
         skills = None
+        participation = None
         participants = None
         if 'skills' in validated_data:
             skills = validated_data.pop('skills')
+        if 'participation_set' in validated_data:
+            participation = validated_data.pop('participation_set')
         if 'participants' in validated_data:
             participants = validated_data.pop('participants')
         instance = super(TaskSerializer, self).update(instance, validated_data)
         self.save_skills(instance, skills)
         self.save_participants(instance, participants)
+        self.save_participation(instance, participation)
 
         # TODO: Consider moving this trigger
         if initial_apply and not instance.apply:
@@ -117,17 +134,28 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
             task.skills = skills
             task.save()
 
+    def save_participation(self, task, participation):
+        if participation:
+            new_assignee = None
+            for item in participation:
+                try:
+                    Participation.objects.update_or_create(task=task, user=item['user'], defaults=item)
+                    if 'assignee' in item and item['assignee']:
+                        new_assignee = item['user']
+                except:
+                    pass
+            if new_assignee:
+                Participation.objects.exclude(user=new_assignee).filter(task=task).update(assignee=False)
+
     def save_participants(self, task, participants):
+        # TODO: Remove and move existing code to using save_participation
         if participants:
             assignee = self.initial_data.get('assignee', None)
             confirmed_participants = self.initial_data.get('confirmed_participants', None)
             rejected_participants = self.initial_data.get('rejected_participants', None)
-            created_by = task.user
-            request = self.context.get("request", None)
-            if request:
-                user = getattr(request, "user", None)
-                if user:
-                    created_by = user
+            created_by = self.__get_current_user()
+            if not created_by:
+                created_by = task.user
 
             changed_assignee = False
             for user in participants:
