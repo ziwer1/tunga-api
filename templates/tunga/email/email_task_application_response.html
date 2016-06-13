@@ -1,0 +1,19 @@
+{% extends "tunga/email/base.html" %}
+{% load i18n %}
+{% block email_content %}
+    <p>Hello {{ applicant.first_name }},</p>
+
+    <p>
+        {{ owner.display_name }} {% if accepted %}accepted{% else %}rejected{% endif %} your application for the task:
+    </p>
+
+    <p>{{ task.summary }}</p>
+
+    {% if accepted %}
+        <p>
+            Click the link below to go to the workflow page:<br/>
+            {{ task_url }}
+        </p>
+    {% endif %}
+
+{% endblock %}

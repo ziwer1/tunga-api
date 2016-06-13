@@ -1,0 +1,15 @@
+{% extends "tunga/email/base.html" %}
+{% load i18n %}
+{% block email_content %}
+    <p>Hello {{ invitee.first_name }},</p>
+
+    <p>{{ inviter.display_name }} invited you to the task:</p>
+
+    <p>{{ task.summary }}</p>
+
+    <p>
+        Click the link below to view the task's details:<br/>
+        {{ task_url }}
+    </p>
+
+{% endblock %}

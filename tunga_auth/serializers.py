@@ -1,4 +1,3 @@
-from allauth.account.forms import ResetPasswordForm
 from django.contrib.auth import get_user_model
 from django.db.models.aggregates import Avg
 from django.db.models.query_utils import Q
@@ -123,5 +122,9 @@ class TungaTokenSerializer(TokenSerializer):
 
 class TungaPasswordResetSerializer(PasswordResetSerializer):
 
-    password_reset_form_class = ResetPasswordForm
+    def get_email_options(self):
+        return {
+            "email_template_name": "registration/password_reset_email.txt",
+            "html_email_template_name": "registration/password_reset_email.html"
+        }
 

@@ -52,6 +52,5 @@ class UserSettingsView(generics.GenericAPIView):
         serializer = UserSettingsUpdateSerializer(data=settings, context={'request': request})
         serializer.is_valid(raise_exception=True)
         user_settings = serializer.save()
-        print user_settings
         read_serializer = UserSettingsSerializer(user_settings)
         return Response(read_serializer.data)

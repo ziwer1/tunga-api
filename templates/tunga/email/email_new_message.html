@@ -1,0 +1,15 @@
+{% extends "tunga/email/base.html" %}
+{% block email_content %}
+    <p>Hello,</p>
+
+    <p>{{ sender }} sent you a new message:</p>
+
+    <p>"RE: {{ subject }}"</p>
+
+    <p>{{ message }}</p>
+
+    <p>
+        Click the link below to go to the discussion:<br/>
+        {{ message_url }}
+    </p>
+{% endblock %}

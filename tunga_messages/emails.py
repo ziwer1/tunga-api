@@ -1,10 +1,9 @@
 from django.contrib.auth import get_user_model
-from django.core.mail import EmailMessage
 from django.db.models.query_utils import Q
-from django.template.loader import render_to_string
 
 from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL
 from tunga_utils.decorators import catch_all_exceptions
+from tunga_utils.emails import send_mail
 
 
 @catch_all_exceptions
@@ -27,16 +26,13 @@ def send_new_message_email(instance, to=None):
             to = [recipient.email for recipient in recipients]
     if to and isinstance(to, (list, tuple)):
         subject = "%s New message from %s" % (EMAIL_SUBJECT_PREFIX, instance.user.first_name)
-        message = render_to_string(
-            'tunga/email/email_new_message.txt',
-            {
-                'sender': instance.user.first_name,
-                'subject': instance.subject,
-                'message': instance.body,
-                'message_url': '%s/message/%s/' % (TUNGA_URL, instance.id)
-            }
-        )
-        EmailMessage(subject, message, to=to).send()
+        ctx = {
+            'sender': instance.user.first_name,
+            'subject': instance.subject,
+            'message': instance.body,
+            'message_url': '%s/message/%s/' % (TUNGA_URL, instance.id)
+        }
+        send_mail(subject, 'tunga/email/email_new_message', to, ctx)
 
 
 @catch_all_exceptions
@@ -49,14 +45,10 @@ def send_new_reply_email(instance):
     if recipients:
         subject = "%s New message from %s" % (EMAIL_SUBJECT_PREFIX, instance.user.first_name)
         to = [recipient.email for recipient in recipients]
-
-        message = render_to_string(
-            'tunga/email/email_new_message.txt',
-            {
-                'sender': instance.user.first_name,
-                'subject': instance.message.subject,
-                'message': instance.body,
-                'message_url': '%s/message/%s/' % (TUNGA_URL, instance.message.id)
-            }
-        )
-        EmailMessage(subject, message, to=to).send()
+        ctx = {
+            'sender': instance.user.first_name,
+            'subject': instance.message.subject,
+            'message': instance.body,
+            'message_url': '%s/message/%s/' % (TUNGA_URL, instance.message.id)
+        }
+        send_mail(subject, 'tunga/email/email_new_message', to, ctx)

@@ -1,0 +1,10 @@
+{% extends "tunga/email/base.html" %}
+{% load i18n %}
+{% block email_content %}
+    <p>Hello,</p>
+    <p>
+        Your application has not been accepted for task:<br/>
+        {{ task.summary }}
+    </p>
+
+{% endblock %}

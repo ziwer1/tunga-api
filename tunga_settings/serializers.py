@@ -78,7 +78,5 @@ class UserSettingsSerializer(serializers.Serializer):
         visibility = obj.get('visibility', [])
 
         for item in visibility:
-            print type(item)
-            print item
             settings.update({item.setting.slug: item.value})
         return settings

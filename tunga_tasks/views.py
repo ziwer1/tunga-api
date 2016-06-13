@@ -1,5 +1,6 @@
 import json
 
+from django.contrib.contenttypes.models import ContentType
 from django.shortcuts import render, redirect
 from dry_rest_permissions.generics import DRYPermissions, DRYObjectPermissions
 from rest_framework import viewsets
@@ -15,6 +16,7 @@ from tunga_tasks.models import Task, Application, Participation, TaskRequest, Sa
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TaskRequestSerializer, SavedTaskSerializer
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
+from tunga_utils.models import Upload
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -44,6 +46,21 @@ class TaskViewSet(viewsets.ModelViewSet):
         payment_meta['task_url'] = '%s://%s%s' % (request.scheme, request.get_host(), payment_meta['task_url'])
         payment = json.dumps(payment_meta)
         return Response({'task': task.id, 'participation': participation, 'payment': payment})
+
+    def perform_create(self, serializer):
+        self.save_uploads(serializer)
+
+    def perform_update(self, serializer):
+        self.save_uploads(serializer)
+
+    def save_uploads(self, serializer):
+        task = serializer.save()
+        uploads = self.request.FILES
+        content_type = ContentType.objects.get_for_model(Task)
+        if uploads:
+            for file in uploads.itervalues():
+                upload = Upload(object_id=task.id, content_type=content_type, file=file, user=self.request.user)
+                upload.save()
 
 
 class ApplicationViewSet(viewsets.ModelViewSet):
