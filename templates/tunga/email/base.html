@@ -4,72 +4,19 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
-    <style>
-	body {
-		font-family: sans-serif;
-		padding: 0;
-		margin: 0;
-	}
-	img {
-		vertical-align: middle;
-	}
-	.container {
-		max-width: 800px;
-		margin: 0 auto;
-	}
-	.logo {
-		text-align: center;
-		margin: 10px 0;
-	}
-	.logo img {
-		height: 100px;
-	}
-	.content {
-		text-align: center;
-		margin: 20px 0 10px;
-	}
-	.signature {
-		margin: 30px 0 10px;
-	}
-	.footer {
-		color: #fff;
-		background-color: #f41152;
-		padding: 15px;
-		margin-top:50px;
-	}
-	.small {
-		font-size: 12px;
-	}
-	.links {
-		margin-top: 25px;
-	}
-	.links a {
-		margin: 0 2px;
-	}
-	.links a img {
-		height: 30px;
-	}
-	.pull-left {
-		float: left;
-	}
-	.pull-right {
-		float: right;
-	}
-	.clear {
-		clear: both;
-	}
-
-	</style>
 </head>
-<body>
-	<div class="container">
-		<div class="logo"><img src="https://tunga.io/static/tunga/img/email/tunga_round.png" alt="Tunga"/></div>
-		<div class="content">
+{% with container="max-width: 800px;margin: 0 auto;" img="vertical-align: middle;" img_small="30px;" links_a="margin: 0 2px;" links_a_img="vertical-align: middle;" %}
+<body style="font-family: sans-serif;padding: 0;margin: 0;">
+	<div style="{{ container }}">
+		<div style="text-align: center;margin: 10px 0;">
+            <img height="100px" src="https://tunga.io/static/tunga/img/email/tunga_round.png" alt="Tunga"/>
+        </div>
+		<div style="text-align: center;margin: 20px 0 10px;">
 			{% block email_content %}
 			<div>Hello,</div>
 			{% endblock %}
 
-			<div class="signature">
+			<div style="margin: 30px 0 10px;">
 				{% block signature %}
 				<p>Kind regards,</p>
 				<p>The Tunga team</p>
@@ -77,23 +24,32 @@
 			</div>
 		</div>
 	</div>
-	<div class="footer">
-		<div class="container">
-			<div class="pull-left">
-				<img src="https://tunga.io/static/tunga/img/email/noun.png" height="30px"/> Need help?
-				<p class="small">
+	<div style="color: #fff;background-color: #f41152;padding: 15px;margin-top:50px;">
+		<div style="{{ container }}">
+			<div style="float: left;">
+				<img style="{{ img }}" src="https://tunga.io/static/tunga/img/email/noun.png" height="{{ img_small }}"/> Need help?
+				<p style="font-size: 12px;">
 				If you have a question or need assistance, email us!<br/>
 				We are more than happy to help out.
 				</p>
 			</div>
-			<div class="links pull-right">
-				<a href="https://www.facebook.com/tunga.io/"><img src="https://tunga.io/static/tunga/img/email/fb.png" alt="Facebook"/></a>
-				<a href="https://twitter.com/tunga_io"><img src="https://tunga.io/static/tunga/img/email/twitter.png" alt="Twitter"/></a>
-				<a href="https://medium.com/the-tunga-blog"><img src="https://tunga.io/static/tunga/img/email/blog.png" alt="Blog"/></a>
-				<a href="mailto:bart@tunga.io"><img src="https://tunga.io/static/tunga/img/email/mail.png" alt="E-mail"/></a>
+			<div style="margin-top: 25px;float: right;">
+				<a style="{{ links_a }}" href="https://www.facebook.com/tunga.io/">
+                    <img style="{{ links_a_img }}" height="{{ img_small }}" src="https://tunga.io/static/tunga/img/email/fb.png" alt="Facebook"/>
+                </a>
+				<a style="{{ links_a }}" href="https://twitter.com/tunga_io">
+                    <img style="{{ links_a_img }}" height="{{ img_small }}" src="https://tunga.io/static/tunga/img/email/twitter.png" alt="Twitter"/>
+                </a>
+				<a style="{{ links_a }}" href="https://medium.com/the-tunga-blog">
+                    <img style="{{ links_a_img }}" height="{{ img_small }}" src="https://tunga.io/static/tunga/img/email/blog.png" alt="Blog"/>
+                </a>
+				<a style="{{ links_a }}" href="mailto:bart@tunga.io">
+                    <img style="{{ links_a_img }}" height="{{ img_small }}" src="https://tunga.io/static/tunga/img/email/mail.png" alt="E-mail"/>
+                </a>
 			</div>
-			<div class="clear"></div>
+			<div style="clear:both;"></div>
 		</div>
 	</div>
 </body>
+{% endwith %}
 </html>
