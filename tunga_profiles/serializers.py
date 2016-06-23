@@ -2,8 +2,8 @@ from django_countries.serializer_fields import CountryField
 from rest_framework import serializers
 
 from tunga_profiles.models import UserProfile, Education, Work, Connection, SocialPlatform, SocialLink
-from tunga_utils.serializers import SimpleProfileSerializer, CreateOnlyCurrentUserDefault, DetailAnnotatedSerializer, \
-    SimpleUserSerializer, AbstractExperienceSerializer
+from tunga_utils.serializers import SimpleProfileSerializer, CreateOnlyCurrentUserDefault, SimpleUserSerializer, AbstractExperienceSerializer, \
+    DetailAnnotatedModelSerializer
 
 
 class ProfileDetailsSerializer(SimpleProfileSerializer):
@@ -14,7 +14,7 @@ class ProfileDetailsSerializer(SimpleProfileSerializer):
         fields = ('user', 'city', 'skills')
 
 
-class ProfileSerializer(DetailAnnotatedSerializer):
+class ProfileSerializer(DetailAnnotatedModelSerializer):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     city = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     skills = serializers.CharField(required=False, allow_blank=True, allow_null=True)
@@ -67,7 +67,7 @@ class SocialPlatformSerializer(serializers.ModelSerializer):
         exclude = ('created_at',)
 
 
-class SocialLinkDetailsSerializer(DetailAnnotatedSerializer):
+class SocialLinkDetailsSerializer(DetailAnnotatedModelSerializer):
     user = SimpleUserSerializer()
     platform = SocialPlatformSerializer()
 
@@ -76,7 +76,7 @@ class SocialLinkDetailsSerializer(DetailAnnotatedSerializer):
         fields = ('user', 'platform')
 
 
-class SocialLinkSerializer(DetailAnnotatedSerializer):
+class SocialLinkSerializer(DetailAnnotatedModelSerializer):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
@@ -106,7 +106,7 @@ class ConnectionDetailsSerializer(serializers.ModelSerializer):
         fields = ('from_user', 'to_user')
 
 
-class ConnectionSerializer(DetailAnnotatedSerializer):
+class ConnectionSerializer(DetailAnnotatedModelSerializer):
     from_user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:

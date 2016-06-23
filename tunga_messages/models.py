@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models.query_utils import Q
@@ -10,6 +10,20 @@ from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
 from tunga_profiles.models import Connection
+
+
+class Attachment(models.Model):
+    file = models.FileField(verbose_name='Attachment', upload_to='attachments/%Y/%m/%d')
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name=_('content type'))
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __unicode__(self):
+        return self.file.name
+
+    class Meta:
+        ordering = ['-created_at']
 
 
 class Message(models.Model):
@@ -22,6 +36,7 @@ class Message(models.Model):
     body = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(blank=True, null=True)
+    attachments = GenericRelation(Attachment, related_query_name='messages')
 
     def __unicode__(self):
         return '%s - %s' % (self.user.get_short_name() or self.user.username, self.subject)
@@ -69,6 +84,7 @@ class Reply(models.Model):
     is_broadcast = models.BooleanField(default=True)
     body = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    attachments = GenericRelation(Attachment, related_query_name='replies')
 
     def __unicode__(self):
         return '%s -> %s' % (self.user.get_short_name() or self.user.username, self.body)
@@ -93,17 +109,4 @@ class Reply(models.Model):
     def excerpt(self):
         return strip_tags(self.body)
 
-
-class Attachment(models.Model):
-    file = models.FileField(verbose_name='Attachment', upload_to='attachments/%Y/%m/%d')
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name=_('content type'))
-    object_id = models.PositiveIntegerField()
-    content_object = GenericForeignKey('content_type', 'object_id')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __unicode__(self):
-        return self.file.name
-
-    class Meta:
-        ordering = ['-created_at']
 

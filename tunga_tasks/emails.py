@@ -77,9 +77,24 @@ def send_new_task_invitation_email(instance):
         'inviter': instance.created_by,
         'invitee': instance.user,
         'task': instance.task,
-        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
+        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.task.id)
     }
     send_mail(subject, 'tunga/email/email_new_task_invitation', to, ctx)
+
+
+@catch_all_exceptions
+def send_new_task_invitation_response_email(instance):
+    subject = "%s Task invitation %s by %s" % (
+        EMAIL_SUBJECT_PREFIX, instance.accepted and 'accepted' or 'rejected', instance.user.first_name)
+    to = [instance.created_by.email]
+    ctx = {
+        'inviter': instance.created_by,
+        'invitee': instance.user,
+        'accepted': instance.accepted,
+        'task': instance.task,
+        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.task.id)
+    }
+    send_mail(subject, 'tunga/email/email_task_invitation_response', to, ctx)
 
 
 @catch_all_exceptions
@@ -96,13 +111,13 @@ def send_new_task_application_email(instance):
 
 
 @catch_all_exceptions
-def send_new_task_application_response_email(instance, accepted=False):
-    subject = "%s Task application %s by %s" % (EMAIL_SUBJECT_PREFIX, accepted and 'accepted' or 'rejected', instance.task.user.first_name)
+def send_new_task_application_response_email(instance):
+    subject = "%s Task application %s" % (EMAIL_SUBJECT_PREFIX, instance.accepted and 'accepted' or 'rejected')
     to = [instance.user.email]
     ctx = {
         'owner': instance.task.user,
         'applicant': instance.user,
-        'accepted': accepted,
+        'accepted': instance.accepted,
         'task': instance.task,
         'task_url': '%s/task/%s/' % (TUNGA_URL, instance.task.id)
     }
@@ -123,7 +138,7 @@ def send_new_task_application_applicant_email(instance):
 
 
 @catch_all_exceptions
-def send_task_application_not_accepted_email(instance):
+def send_task_application_not_selected_email(instance):
     rejected_applicants = instance.application_set.filter(responded=False)
     if rejected_applicants:
         subject = "%s Your application was not accepted for: %s" % (EMAIL_SUBJECT_PREFIX, instance.summary)
@@ -133,4 +148,4 @@ def send_task_application_not_accepted_email(instance):
             'task': instance,
             'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
         }
-        send_mail(subject, 'tunga/email/email_task_application_not_accepted', to, ctx, bcc=bcc)
+        send_mail(subject, 'tunga/email/email_task_application_not_selected', to, ctx, bcc=bcc)

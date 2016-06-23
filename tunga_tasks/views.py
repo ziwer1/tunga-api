@@ -1,6 +1,5 @@
 import json
 
-from django.contrib.contenttypes.models import ContentType
 from django.shortcuts import render, redirect
 from dry_rest_permissions.generics import DRYPermissions, DRYObjectPermissions
 from rest_framework import viewsets
@@ -10,16 +9,31 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBackend, ParticipationFilterBackend, \
-    TaskRequestFilterBackend, SavedTaskFilterBackend
-from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TaskRequestFilter, SavedTaskFilter
-from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask
+    TaskRequestFilterBackend, SavedTaskFilterBackend, ProjectFilterBackend, ProgressReportFilterBackend, \
+    ProgressEventFilterBackend
+from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TaskRequestFilter, SavedTaskFilter, \
+    ProjectFilter, ProgressReportFilter, ProgressEventFilter
+from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, Project, ProgressReport, ProgressEvent, \
+    PROGRESS_EVENT_TYPE_MILESTONE
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
-    TaskRequestSerializer, SavedTaskSerializer
+    TaskRequestSerializer, SavedTaskSerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
-from tunga_utils.models import Upload
+from tunga_utils.mixins import SaveUploadsMixin
 
 
-class TaskViewSet(viewsets.ModelViewSet):
+class ProjectViewSet(viewsets.ModelViewSet):
+    """
+    Project Resource
+    """
+    queryset = Project.objects.all()
+    serializer_class = ProjectSerializer
+    permission_classes = [IsAuthenticated, DRYPermissions]
+    filter_class = ProjectFilter
+    filter_backends = DEFAULT_FILTER_BACKENDS + (ProjectFilterBackend,)
+    search_fields = ('title', 'description')
+
+
+class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
     """
     Task Resource
     """
@@ -46,21 +60,6 @@ class TaskViewSet(viewsets.ModelViewSet):
         payment_meta['task_url'] = '%s://%s%s' % (request.scheme, request.get_host(), payment_meta['task_url'])
         payment = json.dumps(payment_meta)
         return Response({'task': task.id, 'participation': participation, 'payment': payment})
-
-    def perform_create(self, serializer):
-        self.save_uploads(serializer)
-
-    def perform_update(self, serializer):
-        self.save_uploads(serializer)
-
-    def save_uploads(self, serializer):
-        task = serializer.save()
-        uploads = self.request.FILES
-        content_type = ContentType.objects.get_for_model(Task)
-        if uploads:
-            for file in uploads.itervalues():
-                upload = Upload(object_id=task.id, content_type=content_type, file=file, user=self.request.user)
-                upload.save()
 
 
 class ApplicationViewSet(viewsets.ModelViewSet):
@@ -109,6 +108,36 @@ class SavedTaskViewSet(viewsets.ModelViewSet):
     filter_class = SavedTaskFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (SavedTaskFilterBackend,)
     search_fields = ('task__title', 'task__skills__name', '^user__username', '^user__first_name', '^user__last_name')
+
+
+class ProgressEventViewSet(viewsets.ModelViewSet):
+    """
+    Progress Event Resource
+    """
+    queryset = ProgressEvent.objects.filter(type=PROGRESS_EVENT_TYPE_MILESTONE)
+    serializer_class = ProgressEventSerializer
+    permission_classes = [IsAuthenticated, DRYPermissions]
+    filter_class = ProgressEventFilter
+    filter_backends = DEFAULT_FILTER_BACKENDS + (ProgressEventFilterBackend,)
+    search_fields = (
+        'title', 'description', 'task__title', 'task__skills__name',
+        '^created_by__user__username', '^created_by__user__first_name', '^created_by__user__last_name',
+    )
+
+
+class ProgressReportViewSet(viewsets.ModelViewSet):
+    """
+    Progress Report Resource
+    """
+    queryset = ProgressReport.objects.all()
+    serializer_class = ProgressReportSerializer
+    permission_classes = [IsAuthenticated, DRYPermissions]
+    filter_class = ProgressReportFilter
+    filter_backends = DEFAULT_FILTER_BACKENDS + (ProgressReportFilterBackend,)
+    search_fields = (
+        '^user__username', '^user__first_name', '^user__last_name', 'accomplished', 'next_steps', 'remarks',
+        'event__task__title', 'event__task__skills__name'
+    )
 
 
 def task_web_view(request, pk=None):

@@ -1,16 +1,28 @@
+import datetime
+
 from django.contrib.auth import get_user_model
 from django.db.models.query_utils import Q
 from rest_framework import serializers
 
 from tunga.settings.base import TUNGA_SHARE_PERCENTAGE
-from tunga_auth.serializers import SimpleUserSerializer, UserSerializer
-from tunga_tasks.emails import send_new_task_email, send_task_application_not_accepted_email
-from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, UPDATE_SCHEDULE_DAILY
-from tunga_utils.serializers import ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer, SkillSerializer, \
-    CreateOnlyCurrentUserDefault, SimpleUserSerializer
+from tunga_auth.serializers import UserSerializer
+from tunga_tasks.emails import send_new_task_email, send_task_application_not_selected_email
+from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, ProgressEvent, ProgressReport, PROGRESS_EVENT_TYPE_MILESTONE, \
+    Project
+from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed
+from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
+from tunga_utils.serializers import ContentTypeAnnotatedModelSerializer, SkillSerializer, \
+    CreateOnlyCurrentUserDefault, SimpleUserSerializer, UploadSerializer, DetailAnnotatedModelSerializer
 
 
-class SimpleTaskSerializer(ContentTypeAnnotatedSerializer):
+class SimpleProjectSerializer(ContentTypeAnnotatedModelSerializer):
+    user = SimpleUserSerializer()
+
+    class Meta:
+        model = Project
+
+
+class SimpleTaskSerializer(ContentTypeAnnotatedModelSerializer):
     user = SimpleUserSerializer()
 
     class Meta:
@@ -18,7 +30,7 @@ class SimpleTaskSerializer(ContentTypeAnnotatedSerializer):
         fields = ('id', 'user', 'title', 'currency', 'fee', 'closed', 'paid', 'display_fee')
 
 
-class SimpleApplicationSerializer(ContentTypeAnnotatedSerializer):
+class SimpleApplicationSerializer(ContentTypeAnnotatedModelSerializer):
     user = SimpleUserSerializer()
 
     class Meta:
@@ -26,7 +38,14 @@ class SimpleApplicationSerializer(ContentTypeAnnotatedSerializer):
         exclude = ('created_at',)
 
 
-class SimpleParticipationSerializer(ContentTypeAnnotatedSerializer):
+class BasicParticipationSerializer(ContentTypeAnnotatedModelSerializer):
+
+    class Meta:
+        model = Participation
+        exclude = ('created_at',)
+
+
+class SimpleParticipationSerializer(BasicParticipationSerializer):
     user = SimpleUserSerializer()
 
     class Meta:
@@ -34,38 +53,78 @@ class SimpleParticipationSerializer(ContentTypeAnnotatedSerializer):
         exclude = ('created_at',)
 
 
-class NestedTaskParticipationSerializer(ContentTypeAnnotatedSerializer):
-    created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+class SimpleProgressEventSerializer(ContentTypeAnnotatedModelSerializer):
+    created_by = SimpleUserSerializer()
+
+    class Meta:
+        model = ProgressEvent
+        exclude = ('created_at',)
+
+
+class SimpleProgressReportSerializer(ContentTypeAnnotatedModelSerializer):
+    user = SimpleUserSerializer()
+    event = SimpleProgressEventSerializer()
+
+    class Meta:
+        model = ProgressReport
+        exclude = ('created_at',)
+
+
+class NestedTaskParticipationSerializer(ContentTypeAnnotatedModelSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(
+        required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
+    )
 
     class Meta:
         model = Participation
         exclude = ('task', 'created_at')
 
 
-class TaskDetailsSerializer(ContentTypeAnnotatedSerializer):
+class NestedProgressEventSerializer(ContentTypeAnnotatedModelSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(
+        required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
+    )
+
+    class Meta:
+        model = ProgressEvent
+        exclude = ('task', 'created_at')
+
+
+class ProjectDetailsSerializer(ContentTypeAnnotatedModelSerializer):
+    user = SimpleUserSerializer()
+    tasks = SimpleTaskSerializer(many=True)
+
+    class Meta:
+        model = Project
+        fields = ('user', 'tasks')
+
+
+class ProjectSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    excerpt = serializers.CharField(required=False, read_only=True)
+    deadline = serializers.DateTimeField(required=False, allow_null=True)
+    tasks = serializers.PrimaryKeyRelatedField(required=False, read_only=True, many=True)
+
+    class Meta:
+        model = Project
+        read_only_fields = ('created_at',)
+        details_serializer = ProjectDetailsSerializer
+
+
+class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
+    project = SimpleProjectSerializer()
     user = SimpleUserSerializer()
     skills = SkillSerializer(many=True)
-    assignee = serializers.SerializerMethodField(required=False, read_only=True)
+    assignee = SimpleParticipationSerializer(required=False, read_only=True)
     applications = SimpleApplicationSerializer(many=True, source='application_set')
     participation = SimpleParticipationSerializer(many=True, source='participation_set')
 
     class Meta:
         model = Task
-        fields = ('user', 'skills', 'assignee', 'applications', 'participation')
-
-    def get_assignee(self, obj):
-        try:
-            assignee = obj.participation_set.get((Q(accepted=True) | Q(responded=False)), assignee=True)
-            return {
-                'user': SimpleUserSerializer(assignee.user).data,
-                'accepted': assignee.accepted,
-                'responded': assignee.responded
-            }
-        except:
-            return None
+        fields = ('project', 'user', 'skills', 'assignee', 'applications', 'participation')
 
 
-class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
+class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     display_fee = serializers.SerializerMethodField(required=False, read_only=True)
     excerpt = serializers.CharField(required=False, read_only=True)
@@ -76,11 +135,17 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
     is_participant = serializers.SerializerMethodField(read_only=True, required=False)
     my_participation = serializers.SerializerMethodField(read_only=True, required=False)
     summary = serializers.CharField(read_only=True, required=False)
-    assignee = serializers.SerializerMethodField(required=False, read_only=True)
-    participants = serializers.PrimaryKeyRelatedField(many=True, queryset=get_user_model().objects.all(), required=False, write_only=True)
+    assignee = BasicParticipationSerializer(required=False, read_only=True)
+    participants = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=get_user_model().objects.all(), required=False, write_only=True
+    )
     open_applications = serializers.SerializerMethodField(required=False, read_only=True)
-    update_schedule_display = serializers.SerializerMethodField(required=False, read_only=True)
-    participation = NestedTaskParticipationSerializer(required=False, many=True, source='participation_set')
+    update_schedule_display = serializers.CharField(required=False, read_only=True)
+    participation = NestedTaskParticipationSerializer(required=False, read_only=False, many=True)
+    milestones = NestedProgressEventSerializer(required=False, read_only=False, many=True)
+    progress_events = NestedProgressEventSerializer(required=False, read_only=True, many=True)
+    uploads = UploadSerializer(required=False, read_only=True, many=True)
+    all_uploads = UploadSerializer(required=False, read_only=True, many=True)
 
     class Meta:
         model = Task
@@ -91,17 +156,21 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
     def create(self, validated_data):
         skills = None
         participation = None
+        milestones = None
         participants = None
         if 'skills' in validated_data:
             skills = validated_data.pop('skills')
-        if 'participation_set' in validated_data:
-            participation = validated_data.pop('participation_set')
+        if 'participation' in validated_data:
+            participation = validated_data.pop('participation')
+        if 'milestones' in validated_data:
+            milestones = validated_data.pop('milestones')
         if 'participants' in validated_data:
             participants = validated_data.pop('participants')
         instance = super(TaskSerializer, self).create(validated_data)
         self.save_skills(instance, skills)
         self.save_participants(instance, participants)
         self.save_participation(instance, participation)
+        self.save_milestones(instance, milestones)
 
         # Triggered here instead of in the post_save signal to allow skills to be attached first
         # TODO: Consider moving this trigger
@@ -110,23 +179,38 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
 
     def update(self, instance, validated_data):
         initial_apply = instance.apply
+        initial_closed = instance.closed
+
         skills = None
         participation = None
+        milestones = None
         participants = None
         if 'skills' in validated_data:
             skills = validated_data.pop('skills')
-        if 'participation_set' in validated_data:
-            participation = validated_data.pop('participation_set')
+        if 'participation' in validated_data:
+            participation = validated_data.pop('participation')
+        if 'milestones' in validated_data:
+            milestones = validated_data.pop('milestones')
         if 'participants' in validated_data:
             participants = validated_data.pop('participants')
+
+        if not instance.closed and validated_data.get('closed'):
+            validated_data['closed_at'] = datetime.datetime.utcnow()
+
+        if not instance.paid and validated_data.get('paid'):
+            validated_data['paid_at'] = datetime.datetime.utcnow()
+
         instance = super(TaskSerializer, self).update(instance, validated_data)
         self.save_skills(instance, skills)
         self.save_participants(instance, participants)
         self.save_participation(instance, participation)
+        self.save_milestones(instance, milestones)
 
-        # TODO: Consider moving this trigger
         if initial_apply and not instance.apply:
-            send_task_application_not_accepted_email(instance)
+            task_applications_closed.send(sender=Task, task=instance)
+
+        if not initial_closed and instance.closed:
+            task_closed.send(sender=Task, task=instance)
         return instance
 
     def save_skills(self, task, skills):
@@ -147,13 +231,26 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
             if new_assignee:
                 Participation.objects.exclude(user=new_assignee).filter(task=task).update(assignee=False)
 
+    def save_milestones(self, task, milestones):
+        if milestones:
+            for item in milestones:
+                event_type = item.get('type', PROGRESS_EVENT_TYPE_MILESTONE)
+                if event_type != PROGRESS_EVENT_TYPE_MILESTONE:
+                    continue
+                defaults = {'created_by': self.get_current_user() or task.user}
+                defaults.update(item)
+                try:
+                    ProgressEvent.objects.update_or_create(task=task, type=event_type, due_at=item['due_at'], defaults=defaults)
+                except:
+                    pass
+
     def save_participants(self, task, participants):
         # TODO: Remove and move existing code to using save_participation
         if participants:
             assignee = self.initial_data.get('assignee', None)
             confirmed_participants = self.initial_data.get('confirmed_participants', None)
             rejected_participants = self.initial_data.get('rejected_participants', None)
-            created_by = self.__get_current_user()
+            created_by = self.get_current_user()
             if not created_by:
                 created_by = task.user
 
@@ -178,14 +275,8 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
             if assignee and changed_assignee:
                 Participation.objects.exclude(user__id=assignee).filter(task=task).update(assignee=False)
 
-    def __get_current_user(self):
-        request = self.context.get("request", None)
-        if request:
-            return getattr(request, "user", None)
-        return None
-
     def get_display_fee(self, obj):
-        user = self.__get_current_user()
+        user = self.get_current_user()
         amount = None
         if user and user.is_developer:
             amount = obj.fee*(1 - TUNGA_SHARE_PERCENTAGE*0.01)
@@ -194,75 +285,46 @@ class TaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
     def get_can_apply(self, obj):
         if obj.closed or not obj.apply:
             return False
-        request = self.context.get("request", None)
-        if request:
-            user = getattr(request, "user", None)
-            if user:
-                if obj.user == user:
-                    return False
-                return obj.applicants.filter(id=user.id).count() == 0 and \
-                       obj.participation_set.filter(user=user).count() == 0
+        user = self.get_current_user()
+        if user:
+            if obj.user == user:
+                return False
+            return obj.applicants.filter(id=user.id).count() == 0 and \
+                   obj.participation_set.filter(user=user).count() == 0
         return False
 
     def get_can_save(self, obj):
-        request = self.context.get("request", None)
-        if request:
-            user = getattr(request, "user", None)
-            if user:
-                if obj.user == user:
-                    return False
-                return obj.savedtask_set.filter(user=user).count() == 0
+        user = self.get_current_user()
+        if user:
+            if obj.user == user:
+                return False
+            return obj.savedtask_set.filter(user=user).count() == 0
         return False
 
     def get_is_participant(self, obj):
-        request = self.context.get("request", None)
-        if request:
-            user = getattr(request, "user", None)
-            if user:
-                return obj.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=user).count() == 1
+        user = self.get_current_user()
+        if user:
+            return obj.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=user).count() == 1
         return False
 
     def get_my_participation(self, obj):
-        request = self.context.get("request", None)
-        if request:
-            user = getattr(request, "user", None)
-            if user:
-                try:
-                    participation = obj.participation_set.get(user=user)
-                    return {
-                        'id': participation.id,
-                        'user': participation.user.id,
-                        'assignee': participation.assignee,
-                        'accepted': participation.accepted,
-                        'responded': participation.responded
-                    }
-                except:
-                    pass
+        user = self.get_current_user()
+        if user:
+            try:
+                participation = obj.participation_set.get(user=user)
+                return {
+                    'id': participation.id,
+                    'user': participation.user.id,
+                    'assignee': participation.assignee,
+                    'accepted': participation.accepted,
+                    'responded': participation.responded
+                }
+            except:
+                pass
         return None
-
-    def get_assignee(self, obj):
-        try:
-            assignee = obj.participation_set.get((Q(accepted=True) | Q(responded=False)), assignee=True)
-            return {
-                'user': assignee.user.id,
-                'accepted': assignee.accepted,
-                'responded': assignee.responded
-            }
-        except:
-            return None
 
     def get_open_applications(self, obj):
         return obj.application_set.filter(responded=False).count()
-
-    def get_update_schedule_display(self, obj):
-        if obj.update_interval and obj.update_interval_units:
-            if obj.update_interval == 1 and obj.update_interval_units == UPDATE_SCHEDULE_DAILY:
-                return 'Daily'
-            interval_units = str(obj.get_update_interval_units_display()).lower()
-            if obj.update_interval == 1:
-                return 'Every %s' % interval_units
-            return 'Every %s %ss' % (obj.update_interval, interval_units)
-        return None
 
 
 class ApplicationDetailsSerializer(SimpleApplicationSerializer):
@@ -274,7 +336,7 @@ class ApplicationDetailsSerializer(SimpleApplicationSerializer):
         fields = ('user', 'task')
 
 
-class ApplicationSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
+class ApplicationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
@@ -287,6 +349,15 @@ class ApplicationSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSeria
             'deliver_at': {'required': True, 'allow_null': False}
         }
 
+    def update(self, instance, validated_data):
+        initial_responded = instance.responded
+        if validated_data.get('accepted'):
+            validated_data['responded'] = True
+        instance = super(ApplicationSerializer, self).update(instance, validated_data)
+        if not initial_responded and instance.accepted or instance.responded:
+            application_response.send(sender=Application, application=instance)
+        return instance
+
 
 class ParticipationDetailsSerializer(SimpleParticipationSerializer):
     created_by = SimpleUserSerializer()
@@ -297,13 +368,23 @@ class ParticipationDetailsSerializer(SimpleParticipationSerializer):
         fields = ('user', 'task', 'created_by')
 
 
-class ParticipationSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
+class ParticipationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
     created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = Participation
         exclude = ('created_at',)
         details_serializer = ParticipationDetailsSerializer
+
+    def update(self, instance, validated_data):
+        initial_responded = instance.responded
+        if validated_data.get('accepted'):
+            validated_data['responded'] = True
+            validated_data['activated_at'] = datetime.datetime.utcnow()
+        instance = super(ParticipationSerializer, self).update(instance, validated_data)
+        if not initial_responded and instance.accepted or instance.responded:
+            participation_response.send(sender=Participation, participation=instance)
+        return instance
 
 
 class TaskRequestDetailsSerializer(serializers.ModelSerializer):
@@ -315,7 +396,7 @@ class TaskRequestDetailsSerializer(serializers.ModelSerializer):
         fields = ('user', 'task')
 
 
-class TaskRequestSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
+class TaskRequestSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
@@ -333,10 +414,47 @@ class SavedTaskDetailsSerializer(serializers.ModelSerializer):
         fields = ('user', 'task')
 
 
-class SavedTaskSerializer(ContentTypeAnnotatedSerializer, DetailAnnotatedSerializer):
+class SavedTaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = SavedTask
         exclude = ('created_at',)
         details_serializer = SavedTaskDetailsSerializer
+
+
+class ProgressEventDetailsSerializer(serializers.ModelSerializer):
+    task = SimpleTaskSerializer()
+    created_by = SimpleUserSerializer()
+
+    class Meta:
+        model = ProgressEvent
+        fields = ('task', 'created_by')
+
+
+class ProgressEventSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+
+    class Meta:
+        model = ProgressEvent
+        exclude = ('created_at',)
+        details_serializer = ProgressEventDetailsSerializer
+
+
+class ProgressReportDetailsSerializer(serializers.ModelSerializer):
+    user = SimpleUserSerializer()
+    event = SimpleProgressEventSerializer()
+
+    class Meta:
+        model = SavedTask
+        fields = ('user', 'event')
+
+
+class ProgressReportSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    uploads = UploadSerializer(required=False, read_only=True, many=True)
+
+    class Meta:
+        model = ProgressReport
+        exclude = ('created_at',)
+        details_serializer = ProgressReportDetailsSerializer

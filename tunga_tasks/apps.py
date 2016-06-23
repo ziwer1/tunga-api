@@ -12,6 +12,6 @@ class TungaTasksConfig(AppConfig):
         from tunga_tasks import signals
 
         registry.register(
-                self.get_model('Task'), self.get_model('Application'), self.get_model('Participation'),
-                self.get_model('TaskRequest')
+            self.get_model('Task'), self.get_model('Application'), self.get_model('Participation'),
+            self.get_model('TaskRequest'), self.get_model('ProgressEvent'), self.get_model('ProgressReport')
         )

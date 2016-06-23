@@ -1,10 +1,13 @@
+import datetime
+
 from django.contrib.auth import get_user_model
 from django.test.client import RequestFactory
 from rest_framework import status
 from rest_framework.reverse import reverse
-from rest_framework.test import APITestCase, APIClient
+from rest_framework.test import APITestCase
+
 from tunga_auth.models import USER_TYPE_PROJECT_OWNER, USER_TYPE_DEVELOPER
-from tunga_tasks.models import Task, Participation
+from tunga_tasks.models import Task
 
 
 class APITaskTestCase(APITestCase):
@@ -56,6 +59,13 @@ class APITaskTestCase(APITestCase):
         self.assertEqual(response.data['participation'][0]['user'], self.developer.id)
         self.assertTrue(response.data['participation'][0]['assignee'])
 
+        data['title'] = 'Task 4'
+        data['milestones'] = [{'due_at': datetime.datetime.now(), 'title': 'Milestone 1', 'description': 'Do some stuff'}]
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(len(response.data['milestones']), 1)
+        self.assertEqual(response.data['milestones'][0]['title'], 'Milestone 1')
+
     def test_update_task(self):
         """
         Only the task creator or admin can update tasks
@@ -93,18 +103,32 @@ class APITaskTestCase(APITestCase):
         self.assertEqual(response.data['participation'][0]['user'], self.developer.id)
         self.assertTrue(response.data['participation'][0]['assignee'])
 
+        milestone_data = {
+            'milestones': [
+                {'due_at': datetime.datetime.now(), 'title': 'Milestone 1', 'description': 'Do some stuff'}
+            ]
+        }
+        response = self.client.patch(url, milestone_data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['milestones']), 1)
+        self.assertEqual(response.data['milestones'][0]['title'], 'Milestone 1')
+
         self.client.force_authenticate(user=self.developer)
-        response = self.client.patch(url, {'participants': [self.developer.id], 'confirmed_participants': [self.developer.id]})
+        response = self.client.patch(
+            url, {'participants': [self.developer.id], 'confirmed_participants': [self.developer.id]}
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['participation']), 1)
         self.assertEqual(response.data['participation'][0]['user'], self.developer.id)
         self.assertTrue(response.data['participation'][0]['accepted'])
 
-        response = self.client.patch(url, {'participants': [self.developer.id], 'rejected_participants': [self.developer.id]})
+        response = self.client.patch(
+            url, {'participants': [self.developer.id], 'rejected_participants': [self.developer.id]}
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['participation']), 1)
-        self.assertEqual(response.data['participation'][0]['user'], self.developer.id)
-        self.assertFalse(response.data['participation'][0]['accepted'])
+        self.assertEqual(len(response.data['details']['participation']), 1)
+        self.assertEqual(response.data['details']['participation'][0]['user']['id'], self.developer.id)
+        self.assertFalse(response.data['details']['participation'][0]['accepted'])
 
         task.user = self.admin
         task.save()

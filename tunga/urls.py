@@ -28,17 +28,20 @@ from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, Con
     NotificationView, CountryListView
 from tunga_settings.views import UserSettingsView
 from tunga_tasks.views import TaskViewSet, ApplicationViewSet, ParticipationViewSet, TaskRequestViewSet, \
-    SavedTaskViewSet, task_web_view
+    SavedTaskViewSet, task_web_view, ProjectViewSet, ProgressReportViewSet, ProgressEventViewSet
 from tunga_activity.views import ActionViewSet
 from tunga_utils.views import SkillViewSet, ContactRequestView
 
 router = DefaultRouter()
 router.register(r'user', UserViewSet)
+router.register(r'project', ProjectViewSet)
 router.register(r'task', TaskViewSet)
 router.register(r'application', ApplicationViewSet)
 router.register(r'participation', ParticipationViewSet)
 router.register(r'task-request', TaskRequestViewSet)
 router.register(r'saved-task', SavedTaskViewSet)
+router.register(r'progress-event', ProgressEventViewSet)
+router.register(r'progress-report', ProgressReportViewSet)
 router.register(r'me/social-link', SocialLinkViewSet)
 router.register(r'me/education', EducationViewSet)
 router.register(r'me/work', WorkViewSet)

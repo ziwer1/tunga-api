@@ -4,16 +4,24 @@ from django.db.models.expressions import Case, When
 from django.db.models.fields import IntegerField
 from django.db.models.query_utils import Q
 from dry_rest_permissions.generics import DRYPermissionFiltersBase
-
 from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_profiles.models import UserProfile
 from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM
 from tunga_utils.filterbackends import dont_filter_staff_or_superuser
 
 
-class TaskFilterBackend(DRYPermissionFiltersBase):
+class ProjectFilterBackend(DRYPermissionFiltersBase):
+    # @dont_filter_staff_or_superuser
+    def filter_list_queryset(self, request, queryset, view):
+        queryset = queryset.filter(user=request.user)
+        label_filter = request.query_params.get('filter', None)
+        if label_filter == 'running':
+            queryset = queryset.filter(closed=False)
+        return queryset
 
-    #@dont_filter_staff_or_superuser
+
+class TaskFilterBackend(DRYPermissionFiltersBase):
+    # @dont_filter_staff_or_superuser
     def filter_list_queryset(self, request, queryset, view):
         label_filter = request.query_params.get('filter', None)
         if label_filter in ['running', 'my-tasks']:
@@ -37,9 +45,9 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                 when = []
                 for skill in user_skills:
                     new_when = When(
-                            skills=skill,
-                            then=1
-                        )
+                        skills=skill,
+                        then=1
+                    )
                     when.append(new_when)
                 queryset = queryset.annotate(matches=Sum(
                     Case(
@@ -93,46 +101,72 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
 
 
 class ApplicationFilterBackend(DRYPermissionFiltersBase):
-
     @dont_filter_staff_or_superuser
     def filter_list_queryset(self, request, queryset, view):
         return queryset.filter(Q(user=request.user) | Q(task__user=request.user))
 
 
 class ParticipationFilterBackend(DRYPermissionFiltersBase):
-
     @dont_filter_staff_or_superuser
     def filter_list_queryset(self, request, queryset, view):
         return queryset.filter(
             Q(user=request.user) |
             Q(task__user=request.user) |
             (
-                Q(task_participation__user=request.user) &
+                Q(task__participation__user=request.user) &
                 (
-                    Q(task_participation__accepted=True) | Q(task_participation__responded=False)
+                    Q(task__participation__accepted=True) | Q(task__participation__responded=False)
                 )
             )
         )
 
 
 class TaskRequestFilterBackend(DRYPermissionFiltersBase):
-
     @dont_filter_staff_or_superuser
     def filter_list_queryset(self, request, queryset, view):
         return queryset.filter(
             Q(user=request.user) |
             Q(task__user=request.user) |
             (
-                Q(task_participation__user=request.user) &
+                Q(task__participation__user=request.user) &
                 (
-                    Q(task_participation__accepted=True) | Q(task_participation__responded=False)
+                    Q(task__participation__accepted=True) | Q(task__participation__responded=False)
                 )
             )
         )
 
 
 class SavedTaskFilterBackend(DRYPermissionFiltersBase):
-
     @dont_filter_staff_or_superuser
     def filter_list_queryset(self, request, queryset, view):
         return queryset.filter(user=request.user)
+
+
+class ProgressEventFilterBackend(DRYPermissionFiltersBase):
+    @dont_filter_staff_or_superuser
+    def filter_list_queryset(self, request, queryset, view):
+        return queryset.filter(
+            Q(created_by=request.user) |
+            Q(task__user=request.user) |
+            (
+                Q(task__participation__user=request.user) &
+                (
+                    Q(task__participation__accepted=True) | Q(task__participation__responded=False)
+                )
+            )
+        )
+
+
+class ProgressReportFilterBackend(DRYPermissionFiltersBase):
+    @dont_filter_staff_or_superuser
+    def filter_list_queryset(self, request, queryset, view):
+        return queryset.filter(
+            Q(user=request.user) |
+            Q(event__task__user=request.user) |
+            (
+                Q(event__task__participation__user=request.user) &
+                (
+                    Q(event__task__participation__accepted=True) | Q(event__task__participation__responded=False)
+                )
+            )
+        )

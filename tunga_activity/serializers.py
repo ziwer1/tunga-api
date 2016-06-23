@@ -1,9 +1,9 @@
 from actstream.models import Action
 
-from tunga_utils.serializers import ContentTypeAnnotatedSerializer
+from tunga_utils.serializers import ContentTypeAnnotatedModelSerializer
 
 
-class ActionSerializer(ContentTypeAnnotatedSerializer):
+class ActionSerializer(ContentTypeAnnotatedModelSerializer):
 
     class Meta:
         model = Action

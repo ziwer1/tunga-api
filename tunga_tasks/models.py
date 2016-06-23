@@ -6,6 +6,8 @@ import urllib
 
 import requests
 import tagulous.models
+from django.contrib.contenttypes.fields import GenericRelation
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.query_utils import Q
 from django.template.defaultfilters import floatformat
@@ -15,8 +17,10 @@ from dry_rest_permissions.generics import allow_staff_or_superuser
 from tunga import settings
 from tunga.settings.base import TUNGA_SHARE_PERCENTAGE, TUNGA_SHARE_EMAIL
 from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
+from tunga_comments.models import Comment
 from tunga_profiles.models import Skill, Connection
 from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM, VISIBILITY_CHOICES
+from tunga_utils.models import Upload
 
 CURRENCY_EUR = 'EUR'
 CURRENCY_USD = 'USD'
@@ -48,19 +52,53 @@ UPDATE_SCHEDULE_CHOICES = (
 )
 
 
-TASK_REQUEST_CLOSE = 1
-TASK_REQUEST_PAY = 2
+class Project(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='projects_created', on_delete=models.DO_NOTHING)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    deadline = models.DateTimeField(blank=True, null=True)
+    closed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    closed_at = models.DateTimeField(blank=True, null=True)
 
-TASK_REQUEST_CHOICES = (
-    (TASK_REQUEST_CLOSE, 'Close Request'),
-    (TASK_REQUEST_PAY, 'Payment Request')
-)
+    def __unicode__(self):
+        return self.title
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ('user', 'title')
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return request.user.type == USER_TYPE_PROJECT_OWNER
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return request.user == self.user
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.type == USER_TYPE_PROJECT_OWNER
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user
+
+    @property
+    def excerpt(self):
+        try:
+            return strip_tags(self.description).strip()
+        except:
+            return None
 
 
 class Task(models.Model):
+    project = models.ForeignKey(Project, related_name='tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='tasks_created', on_delete=models.DO_NOTHING)
     title = models.CharField(max_length=200)
-    description = models.CharField(max_length=1000, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
     url = models.URLField(blank=True, null=True)
     fee = models.BigIntegerField()
     currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
@@ -83,6 +121,8 @@ class Task(models.Model):
     apply_closed_at = models.DateTimeField(blank=True, null=True)
     closed_at = models.DateTimeField(blank=True, null=True)
     paid_at = models.DateTimeField(blank=True, null=True)
+    comments = GenericRelation(Comment, related_query_name='tasks')
+    uploads = GenericRelation(Upload, related_query_name='tasks')
 
     def __unicode__(self):
         return self.summary
@@ -155,14 +195,61 @@ class Task(models.Model):
         except:
             return None
 
+    @property
+    def skills_list(self):
+        return str(self.skills)
+
+    @property
+    def milestones(self):
+        return self.progressevent_set.filter(type__in=[PROGRESS_EVENT_TYPE_MILESTONE, PROGRESS_EVENT_TYPE_SUBMIT])
+
+    @property
+    def progress_events(self):
+        return self.progressevent_set.all()
+
+    @property
+    def participation(self):
+        return self.participation_set.filter(Q(accepted=True) | Q(responded=False))
+
+    @property
+    def assignee(self):
+        try:
+            return self.participation_set.get((Q(accepted=True) | Q(responded=False)), assignee=True)
+        except:
+            return None
+
+    @property
+    def update_schedule_display(self):
+        if self.update_interval and self.update_interval_units:
+            if self.update_interval == 1 and self.update_interval_units == UPDATE_SCHEDULE_DAILY:
+                return 'Daily'
+            interval_units = str(self.get_update_interval_units_display()).lower()
+            if self.update_interval == 1:
+                return 'Every %s' % interval_units
+            return 'Every %s %ss' % (self.update_interval, interval_units)
+        return None
+
+    @property
+    def applications(self):
+        return self.application_set.filter(responded=False)
+
+    @property
+    def all_uploads(self):
+        return Upload.objects.filter(Q(tasks=self) | Q(comments__tasks=self) | Q(progress_reports__event__task=self))
+
+    @property
+    def meta_payment(self):
+        return {'task_url': '/task/%s/' % self.id, 'amount': self.fee, 'currency': self.currency}
+
     def get_default_participation(self):
         tags = ['tunga.io', 'tunga']
         if self.skills:
             tags.extend(str(self.skills).split(','))
+        tunga_share = '{share}%'.format(**{'share': TUNGA_SHARE_PERCENTAGE})
         return {
             'type': 'payment', 'language': 'EN', 'title': self.summary, 'description': self.excerpt or self.summary,
             'keywords': tags, 'participants': [
-                {'id': 'mailto:%s' % TUNGA_SHARE_EMAIL, 'role': 'owner', 'share': '{share}%'.format(**{'share': TUNGA_SHARE_PERCENTAGE})}
+                {'id': 'mailto:%s' % TUNGA_SHARE_EMAIL, 'role': 'owner', 'share': tunga_share}
             ]
         }
 
@@ -244,14 +331,6 @@ class Task(models.Model):
                 )
         return participation_meta
 
-    @property
-    def meta_payment(self):
-        return {'task_url': '/task/%s/' % self.id, 'amount': self.fee, 'currency': self.currency}
-
-    @property
-    def skills_list(self):
-        return str(self.skills)
-
 
 class Application(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -265,7 +344,7 @@ class Application(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __unicode__(self):
-        return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.title)
+        return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.summary)
 
     class Meta:
         unique_together = ('user', 'task')
@@ -300,7 +379,7 @@ class Application(models.Model):
 
 
 class Participation(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     accepted = models.BooleanField(default=False)
     responded = models.BooleanField(default=False)
@@ -310,6 +389,7 @@ class Participation(models.Model):
     satisfaction = models.SmallIntegerField(blank=True, null=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='participants_added')
     created_at = models.DateTimeField(auto_now_add=True)
+    activated_at = models.DateTimeField(blank=True, null=True)
 
     def __unicode__(self):
         return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.title)
@@ -327,14 +407,26 @@ class Participation(models.Model):
         return request.user == self.user or request.user == self.task.user
 
 
+TASK_REQUEST_CLOSE = 1
+TASK_REQUEST_PAY = 2
+
+TASK_REQUEST_CHOICES = (
+    (TASK_REQUEST_CLOSE, 'Close Request'),
+    (TASK_REQUEST_PAY, 'Payment Request')
+)
+
+
 class TaskRequest(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    type = models.PositiveSmallIntegerField(choices=TASK_REQUEST_CHOICES, help_text=','.join(['%s - %s' % (item[0], item[1]) for item in TASK_REQUEST_CHOICES]))
+    type = models.PositiveSmallIntegerField(
+        choices=TASK_REQUEST_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in TASK_REQUEST_CHOICES])
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __unicode__(self):
-        return '%s - %s' % (self.get_type_display(), self.task.title)
+        return '%s - %s' % (self.get_type_display(), self.task.summary)
 
     @staticmethod
     @allow_staff_or_superuser
@@ -361,7 +453,7 @@ class SavedTask(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __unicode__(self):
-        return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.title)
+        return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.summary)
 
     @staticmethod
     @allow_staff_or_superuser
@@ -371,6 +463,104 @@ class SavedTask(models.Model):
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):
         return request.user == self.user
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.type == USER_TYPE_DEVELOPER
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user
+
+
+PROGRESS_EVENT_TYPE_DEFAULT = 1
+PROGRESS_EVENT_TYPE_PERIODIC = 2
+PROGRESS_EVENT_TYPE_MILESTONE = 3
+PROGRESS_EVENT_TYPE_SUBMIT = 4
+
+PROGRESS_EVENT_TYPE_CHOICES = (
+    (PROGRESS_EVENT_TYPE_DEFAULT, 'Update'),
+    (PROGRESS_EVENT_TYPE_PERIODIC, 'Periodic Update'),
+    (PROGRESS_EVENT_TYPE_MILESTONE, 'Milestone'),
+    (PROGRESS_EVENT_TYPE_SUBMIT, 'Submission')
+)
+
+
+class ProgressEvent(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    type = models.PositiveSmallIntegerField(
+        choices=PROGRESS_EVENT_TYPE_CHOICES, default=PROGRESS_EVENT_TYPE_DEFAULT,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in PROGRESS_EVENT_TYPE_CHOICES])
+    )
+    due_at = models.DateTimeField()
+    title = models.CharField(max_length=200, blank=True, null=True)
+    description = models.CharField(max_length=1000, blank=True, null=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='progress_events_created', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __unicode__(self):
+        return '%s | %s - %s' % (self.get_type_display(), self.task.summary, self.due_at)
+
+    class Meta:
+        unique_together = ('task', 'due_at')
+        ordering = ['due_at']
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return self.task.has_object_read_permission(request)
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.type == USER_TYPE_PROJECT_OWNER
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.task.user
+
+
+PROGRESS_REPORT_STATUS_ON_SCHEDULE = 1
+PROGRESS_REPORT_STATUS_BEHIND = 2
+PROGRESS_REPORT_STATUS_STUCK = 3
+
+PROGRESS_REPORT_STATUS_CHOICES = (
+    (PROGRESS_REPORT_STATUS_ON_SCHEDULE, 'On schedule'),
+    (PROGRESS_REPORT_STATUS_BEHIND, 'Behind'),
+    (PROGRESS_REPORT_STATUS_STUCK, 'Stuck')
+)
+
+
+class ProgressReport(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
+    event = models.ForeignKey(ProgressEvent, on_delete=models.CASCADE)
+    status = models.PositiveSmallIntegerField(
+        choices=PROGRESS_REPORT_STATUS_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in PROGRESS_REPORT_STATUS_CHOICES])
+    )
+    percentage = models.PositiveIntegerField(validators=[MaxValueValidator(100), MinValueValidator(0)])
+    accomplished = models.TextField()
+    next_steps = models.TextField(blank=True, null=True)
+    remarks = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    uploads = GenericRelation(Upload, related_query_name='progress_reports')
+
+    def __unicode__(self):
+        return '{0} - {1}%'.format(self.event, self.percentage)
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return self.event.task.has_object_read_permission(request)
 
     @staticmethod
     @allow_staff_or_superuser

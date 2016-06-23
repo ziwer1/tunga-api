@@ -1,0 +1,15 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello {{ inviter.first_name }},
+
+{{ invitee.display_name }} {% if accepted %}accepted{% else %}rejected{% endif %} your invitation for the task:
+
+{{ task.summary }}
+
+{% if accepted %}
+
+Click the link below to go to the workflow page:
+
+{{ task_url }}
+{% endif %}
+
+{% endblock %}{% endautoescape %}

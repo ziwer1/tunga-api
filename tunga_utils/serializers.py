@@ -21,14 +21,14 @@ class CreateOnlyCurrentUserDefault(serializers.CurrentUserDefault):
         return super(CreateOnlyCurrentUserDefault, self).__call__()
 
 
-class ContentTypeAnnotatedSerializer(serializers.ModelSerializer):
+class ContentTypeAnnotatedModelSerializer(serializers.ModelSerializer):
     content_type = serializers.SerializerMethodField(read_only=True, required=False)
 
     def get_content_type(self, obj):
         return ContentType.objects.get_for_model(self.Meta.model).id
 
 
-class DetailAnnotatedSerializer(serializers.ModelSerializer):
+class DetailAnnotatedModelSerializer(serializers.ModelSerializer):
     details = serializers.SerializerMethodField(read_only=True, required=False)
 
     class Meta:
