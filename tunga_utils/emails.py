@@ -32,7 +32,7 @@ def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None,
 
 def send_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, **kwargs):
     msg = render_mail(subject, template_prefix, to_emails, context, bcc=bcc, cc=cc, **kwargs)
-    msg.send()
+    return msg.send()
 
 
 @catch_all_exceptions

@@ -1,3 +1,4 @@
+import datetime
 from django.contrib.auth import get_user_model
 from django.db.models import When, Case, IntegerField
 from django.db.models.aggregates import Sum
@@ -149,3 +150,21 @@ def send_task_application_not_selected_email(instance):
             'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
         }
         send_mail(subject, 'tunga/email/email_task_application_not_selected', to, ctx, bcc=bcc)
+
+
+@catch_all_exceptions
+def send_progress_event_reminder_email(instance):
+    subject = "%s Upcoming Task Update" % (EMAIL_SUBJECT_PREFIX,)
+    participants = instance.task.participation_set.filter(accepted=True)
+    print participants
+    if participants:
+        to = [participants[0].user.email]
+        bcc = [participant.user.email for participant in participants[1:]] if participants.count() > 1 else None
+        ctx = {
+            'owner': instance.task.user,
+            'event': instance,
+            'update_url': '%s/task/%s/event/%s/' % (TUNGA_URL, instance.task.id, instance.id)
+        }
+        if send_mail(subject, 'tunga/email/email_progress_event_reminder', to, ctx, bcc=bcc):
+            instance.last_reminder_at = datetime.datetime.utcnow()
+            instance.save()

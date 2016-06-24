@@ -1,0 +1,19 @@
+{% extends "tunga/email/base.html" %}
+{% load i18n %}
+{% block email_content %}
+    <p>Hello,</p>
+
+    <p>{{ owner.display_name }} requested for a task update:</p>
+
+    <p>Due date: {{ event.due_at | date:'jS F Y \a\t H:i' }} GMT</p>
+
+    {% if event.title %}<p>Title: {{ event.title }}</p>{% endif %}
+
+    <p>Task: {{ event.task.summary }}</p>
+
+    <p>
+        Click the link below to view the fill the update form:<br/>
+        {{ update_url }}
+    </p>
+
+{% endblock %}

@@ -222,6 +222,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         if participation:
             new_assignee = None
             for item in participation:
+                if item.get('accepted', False):
+                    item['activated_at'] = datetime.datetime.utcnow()
                 try:
                     Participation.objects.update_or_create(task=task, user=item['user'], defaults=item)
                     if 'assignee' in item and item['assignee']:
@@ -240,7 +242,9 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                 defaults = {'created_by': self.get_current_user() or task.user}
                 defaults.update(item)
                 try:
-                    ProgressEvent.objects.update_or_create(task=task, type=event_type, due_at=item['due_at'], defaults=defaults)
+                    ProgressEvent.objects.update_or_create(
+                        task=task, type=event_type, due_at=item['due_at'], defaults=defaults
+                    )
                 except:
                     pass
 
@@ -266,6 +270,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                     if confirmed_participants and user.id in confirmed_participants:
                         defaults['accepted'] = True
                         defaults['responded'] = True
+                        defaults['activated_at'] = datetime.datetime.utcnow()
 
                     Participation.objects.update_or_create(task=task, user=user, defaults=defaults)
                     if user.id == assignee:

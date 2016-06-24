@@ -498,6 +498,7 @@ class ProgressEvent(models.Model):
     description = models.CharField(max_length=1000, blank=True, null=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='progress_events_created', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    last_reminder_at = models.DateTimeField(blank=True, null=True)
 
     def __unicode__(self):
         return '%s | %s - %s' % (self.get_type_display(), self.task.summary, self.due_at)
