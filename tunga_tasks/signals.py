@@ -2,6 +2,7 @@ from actstream.signals import action
 from django.db.models.signals import post_save
 from django.dispatch.dispatcher import receiver, Signal
 
+from tunga_messages.tasks import create_channel
 from tunga_tasks.emails import send_new_task_application_email, send_new_task_application_applicant_email, \
     send_new_task_invitation_email, send_new_task_application_response_email, send_new_task_invitation_response_email, \
     send_task_application_not_selected_email
@@ -43,6 +44,15 @@ def activity_handler_task_closed(sender, task, **kwargs):
 def activity_handler_new_application(sender, instance, created, **kwargs):
     if created:
         action.send(instance.user, verb='applied for task', action_object=instance, target=instance.task)
+
+        if instance.remarks:
+            # Send the developer's remarks as a message to the client
+            subject = 'Developer comment on %s' % instance.task.summary
+            create_channel(
+                initiator=instance.user, participants=[instance.task.user],
+                subject=subject, messages=[{'user': instance.user, 'body': instance.remarks}],
+                content_object=instance
+            )
 
         # Send email notification to project owner
         send_new_task_application_email(instance)

@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
@@ -89,3 +90,36 @@ class ContactRequest(models.Model):
 
     def __unicode__(self):
         return '%s on %s' % (self.email, self.created_at)
+
+
+RATING_CRITERIA_CODING = 1
+RATING_CRITERIA_COMMUNICATION = 2
+RATING_CRITERIA_SPEED = 3
+
+RATING_CRITERIA_CHOICES = (
+    (RATING_CRITERIA_CODING, 'Coding skills'),
+    (RATING_CRITERIA_COMMUNICATION, 'Communication skills'),
+    (RATING_CRITERIA_SPEED, 'Speed'),
+)
+
+
+class Rating(models.Model):
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name=_('content type'))
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+    score = models.SmallIntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
+    criteria = models.PositiveSmallIntegerField(
+        choices=RATING_CRITERIA_CHOICES, blank=True, null=True,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in RATING_CRITERIA_CHOICES])
+    )
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='ratings_created', on_delete=models.DO_NOTHING)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __unicode__(self):
+        criteria = self.get_criteria_display()
+        return '{0}{1} - {:0,.0f}%'.format(
+            self.content_object, (criteria and ' - {0}'.format(criteria) or ''), self.score
+        )
+
+    class Meta:
+        unique_together = ('content_type', 'object_id', 'criteria', 'created_by')

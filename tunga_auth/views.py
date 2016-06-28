@@ -61,4 +61,4 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
     filter_class = UserFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (UserFilterBackend,)
-    search_fields = ('username', 'first_name', 'last_name', 'email', 'userprofile__skills__name')
+    search_fields = ('^username', '^first_name', '^last_name', '=email', 'userprofile__skills__name')

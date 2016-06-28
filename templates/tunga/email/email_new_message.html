@@ -4,9 +4,9 @@
 
     <p>{{ sender }} sent you a new message:</p>
 
-    <p>"RE: {{ subject }}"</p>
+    {% if subject %}<p>"RE: {{ subject }}"</p>{% endif %}
 
-    <p>{{ message }}</p>
+    <p>{{ message.body }}</p>
 
     <p>
         Click the link below to go to the discussion:<br/>

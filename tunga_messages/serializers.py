@@ -1,11 +1,10 @@
 from django.contrib.auth import get_user_model
-from django.db.models.aggregates import Max
-from django.db.models.expressions import F, Value, Case, When
-from django.db.models.fields import DateTimeField
-from django.db.models.query_utils import Q
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
-from tunga_messages.models import Message, Reply, Reception, Attachment
+from tunga_messages.filterbackends import new_messages_filter
+from tunga_messages.models import Message, Attachment, Channel, ChannelUser
+from tunga_messages.tasks import get_or_create_direct_channel
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.serializers import CreateOnlyCurrentUserDefault, SimpleUploadSerializer, \
     SimpleUserSerializer, DetailAnnotatedModelSerializer
@@ -17,93 +16,108 @@ class SimpleAttachmentSerializer(SimpleUploadSerializer):
         model = Attachment
 
 
-class MessageDetailsSerializer(serializers.ModelSerializer):
-    user = SimpleUserSerializer()
-    recipients = SimpleUserSerializer(many=True)
+class DirectChannelSerializer(serializers.Serializer):
+    user = serializers.PrimaryKeyRelatedField(required=True, queryset=get_user_model().objects.all())
+
+
+class ChannelDetailsSerializer(serializers.ModelSerializer):
+    created_by = SimpleUserSerializer()
+    participants = SimpleUserSerializer(many=True)
 
     class Meta:
-        model = Message
-        fields = ('user', 'recipients')
+        model = Channel
+        fields = ('created_by', 'participants')
 
 
-class MessageSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
-    recipients = serializers.PrimaryKeyRelatedField(many=True, queryset=get_user_model().objects.all(),
-                                                    allow_null=True, allow_empty=True)
-    excerpt = serializers.CharField(required=False, read_only=True)
-    is_read = serializers.SerializerMethodField(read_only=True, required=False)
+class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
+    created_by = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    display_type = serializers.CharField(required=False, read_only=True, source='get_type_display')
+    participants = serializers.PrimaryKeyRelatedField(
+        required=True, many=True, queryset=get_user_model().objects.all()
+    )
     attachments = SimpleAttachmentSerializer(read_only=True, required=False, many=True)
+    user = serializers.SerializerMethodField(read_only=True, required=False)
+    new = serializers.SerializerMethodField(read_only=True, required=False)
+    last_read = serializers.SerializerMethodField(read_only=True, required=False)
 
     class Meta:
-        model = Message
-        read_only_fields = ('created_at',)
-        details_serializer = MessageDetailsSerializer
+        model = Channel
+        read_only_fields = ('created_at', 'type')
+        details_serializer = ChannelDetailsSerializer
+
+    def validate_participants(self, value):
+        if not isinstance(value, list) or not value:
+            raise ValidationError('Select some participants for this conversation')
+        return value
 
     def create(self, validated_data):
-        to_users = None
-        to_users = validated_data.pop('recipients')
-        message = Message.objects.create(**validated_data)
-        self.save_recipents(message, to_users)
-        return message
+        participants = None
+        if 'participants' in validated_data:
+            participants = validated_data.pop('participants')
+        subject = validated_data.get('subject', None)
+        if not subject and isinstance(participants, list) and len(participants) == 1:
+            # Create or get a direct channel
+            # if only one other participant is given and no subject is stated for the communication
+            current_user = self.get_current_user()
+            channel = get_or_create_direct_channel(current_user, participants[0])
+        else:
+            if not subject:
+                raise ValidationError({'subject': 'Enter a subject for this conversation'})
+            channel = Channel.objects.create(**validated_data)
+        self.save_participants(channel, participants)
+        return channel
 
     def update(self, instance, validated_data):
-        to_users = None
-        if 'recipients' in validated_data:
-            to_users = validated_data.pop('recipients')
+        participants = None
+        if 'participants' in validated_data:
+            participants = validated_data.pop('participants')
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-        self.save_recipents(instance, to_users)
+        self.save_participants(instance, participants)
         return instance
 
-    def save_recipents(self, message, to_users):
-        if to_users:
-            for user in to_users:
+    def save_participants(self, instance, participants):
+        if participants:
+            participants.append(instance.created_by)
+            for user in participants:
                 try:
-                    Reception.objects.update_or_create(message=message, user=user)
+                    ChannelUser.objects.update_or_create(channel=instance, user=user)
                 except:
                     pass
 
-    def get_is_read(self, obj):
+    def get_user(self, obj):
         user = self.get_current_user()
         if user:
-            if obj.user == user:
-                replies = obj.replies.exclude(user=user)
-                if obj.read_at:
-                    return replies.filter(created_at__gt=obj.read_at).count() == 0
-                return replies.count() == 0
-            return obj.reception_set.filter(
-                user=user, read_at__isnull=False
-            ).annotate(
-                latest_created_at=Max(
-                    Case(
-                        When(
-                            ~Q(message__replies__user=user),
-                            then='message__replies__created_at'
-                        ),
-                        default=Value(obj.created_at),
-                        output_field=DateTimeField()
-                    )
-                )
-            ).filter(Q(latest_created_at__isnull=True) | Q(read_at__gt=F('latest_created_at')), read_at__gt=obj.created_at).count() >= 1
-        return False
+            if obj.participants.count() == 2:
+                for participant in obj.participants.all():
+                    if participant.id != user.id:
+                        return SimpleUserSerializer(participant).data
+        return None
+
+    def get_new(self, obj):
+        user = self.get_current_user()
+        if user:
+            return new_messages_filter(queryset=obj.messages.all(), user=user).count()
+        return 0
+
+    def get_last_read(self, obj):
+        user = self.get_current_user()
+        if user:
+            try:
+                return obj.channeluser_set.get(user=user).last_read
+            except:
+                pass
+        return 0
 
 
-class ReplyDetailsSerializer(serializers.ModelSerializer):
-    user = SimpleUserSerializer()
-
-    class Meta:
-        model = Reply
-        fields = ('user',)
-
-
-class ReplySerializer(DetailAnnotatedModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+class MessageSerializer(serializers.ModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
+    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     excerpt = serializers.CharField(required=False, read_only=True)
     attachments = SimpleAttachmentSerializer(read_only=True, required=False, many=True)
 
     class Meta:
-        model = Reply
+        model = Message
         read_only_fields = ('created_at',)
-        details_serializer = ReplyDetailsSerializer
+
 

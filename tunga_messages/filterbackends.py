@@ -1,58 +1,45 @@
 from django.db.models.aggregates import Count
+from django.db.models.expressions import Case, When, F
+from django.db.models.fields import IntegerField
 from django.db.models.query_utils import Q
 from dry_rest_permissions.generics import DRYPermissionFiltersBase
 
 
 def received_messages_q_filter(user):
     return (
-        Q(recipients=user) |
-        (
-            Q(is_broadcast=True) &
-            (
-                (
-                    Q(user__connections_initiated__accepted=True) &
-                    Q(user__connections_initiated__to_user=user)
-                ) |
-                (
-                    Q(user__connection_requests__from_user=user) &
-                    Q(user__connection_requests__accepted=True)
-                )
-            )
-        )
+        ~Q(user=user) & Q(channel__channeluser__user=user)
     )
 
 
 def all_messages_q_filter(user):
-    return Q(user=user) | received_messages_q_filter(user)
+    return Q(user=user) | Q(channel__channeluser__user=user)
 
 
-def received_replies_q_filter(user):
-    return (
-        Q(message__user=user) |
-        (
-            Q(is_broadcast=True) &
-            (
-                Q(message__recipients=user) |
-                (
-                    Q(message__is_broadcast=True) &
-                    (
-                        (
-                            Q(message__user__connections_initiated__accepted=True) &
-                            Q(message__user__connections_initiated__to_user=user)
-                        ) |
-                        (
-                            Q(message__user__connection_requests__from_user=user) &
-                            Q(message__user__connection_requests__accepted=True)
-                        )
-                    )
-                )
-            )
-        )
+def channel_last_read_annotation(user):
+    return Case(
+        When(
+            channel__channeluser__user=user,
+            then='channel__channeluser__last_read'
+        ),
+        default=0,
+        output_field=IntegerField()
     )
 
 
-def all_replies_q_filter(user):
-    return Q(user=user) | received_replies_q_filter(user)
+def new_messages_filter(queryset, user):
+    return queryset.filter(
+        received_messages_q_filter(user)
+    ).annotate(
+        channel_last_read=channel_last_read_annotation(user)
+    ).filter(
+        Q(channel_last_read=None) | Q(id__gt=F('channel_last_read'))
+    )
+
+
+class ChannelFilterBackend(DRYPermissionFiltersBase):
+
+    def filter_list_queryset(self, request, queryset, view):
+        return queryset.filter(channeluser__user=request.user)
 
 
 class MessageFilterBackend(DRYPermissionFiltersBase):
@@ -66,9 +53,3 @@ class MessageFilterBackend(DRYPermissionFiltersBase):
                 all_messages_q_filter(request.user)
             ).annotate(reply_count=Count('replies')).exclude(user=request.user, reply_count=0)
         return queryset.filter(all_messages_q_filter(request.user))
-
-
-class ReplyFilterBackend(DRYPermissionFiltersBase):
-
-    def filter_list_queryset(self, request, queryset, view):
-        return queryset.filter(all_replies_q_filter(request.user)).distinct()

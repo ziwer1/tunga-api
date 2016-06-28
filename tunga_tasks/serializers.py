@@ -1,6 +1,7 @@
 import datetime
 
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.db.models.query_utils import Q
 from rest_framework import serializers
 
@@ -11,8 +12,10 @@ from tunga_tasks.models import Task, Application, Participation, TaskRequest, Sa
     Project
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
+from tunga_utils.models import Rating
 from tunga_utils.serializers import ContentTypeAnnotatedModelSerializer, SkillSerializer, \
-    CreateOnlyCurrentUserDefault, SimpleUserSerializer, UploadSerializer, DetailAnnotatedModelSerializer
+    CreateOnlyCurrentUserDefault, SimpleUserSerializer, UploadSerializer, DetailAnnotatedModelSerializer, \
+    SimpleRatingSerializer
 
 
 class SimpleProjectSerializer(ContentTypeAnnotatedModelSerializer):
@@ -63,11 +66,11 @@ class SimpleProgressEventSerializer(ContentTypeAnnotatedModelSerializer):
 
 class SimpleProgressReportSerializer(ContentTypeAnnotatedModelSerializer):
     user = SimpleUserSerializer()
-    event = SimpleProgressEventSerializer()
+    status_display = serializers.CharField(required=False, read_only=True, source='get_status_display')
+    uploads = UploadSerializer(required=False, read_only=True, many=True)
 
     class Meta:
         model = ProgressReport
-        exclude = ('created_at',)
 
 
 class NestedTaskParticipationSerializer(ContentTypeAnnotatedModelSerializer):
@@ -144,6 +147,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     participation = NestedTaskParticipationSerializer(required=False, read_only=False, many=True)
     milestones = NestedProgressEventSerializer(required=False, read_only=False, many=True)
     progress_events = NestedProgressEventSerializer(required=False, read_only=True, many=True)
+    ratings = SimpleRatingSerializer(required=False, read_only=False, many=True)
     uploads = UploadSerializer(required=False, read_only=True, many=True)
     all_uploads = UploadSerializer(required=False, read_only=True, many=True)
 
@@ -158,6 +162,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         participation = None
         milestones = None
         participants = None
+        ratings = None
         if 'skills' in validated_data:
             skills = validated_data.pop('skills')
         if 'participation' in validated_data:
@@ -166,11 +171,14 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             milestones = validated_data.pop('milestones')
         if 'participants' in validated_data:
             participants = validated_data.pop('participants')
+        if 'ratings' in validated_data:
+            ratings = validated_data.pop('ratings')
         instance = super(TaskSerializer, self).create(validated_data)
         self.save_skills(instance, skills)
         self.save_participants(instance, participants)
         self.save_participation(instance, participation)
         self.save_milestones(instance, milestones)
+        self.save_ratings(instance, ratings)
 
         # Triggered here instead of in the post_save signal to allow skills to be attached first
         # TODO: Consider moving this trigger
@@ -185,6 +193,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         participation = None
         milestones = None
         participants = None
+        ratings = None
         if 'skills' in validated_data:
             skills = validated_data.pop('skills')
         if 'participation' in validated_data:
@@ -193,6 +202,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             milestones = validated_data.pop('milestones')
         if 'participants' in validated_data:
             participants = validated_data.pop('participants')
+        if 'ratings' in validated_data:
+            ratings = validated_data.pop('ratings')
 
         if not instance.closed and validated_data.get('closed'):
             validated_data['closed_at'] = datetime.datetime.utcnow()
@@ -205,6 +216,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         self.save_participants(instance, participants)
         self.save_participation(instance, participation)
         self.save_milestones(instance, milestones)
+        self.save_ratings(instance, ratings)
 
         if initial_apply and not instance.apply:
             task_applications_closed.send(sender=Task, task=instance)
@@ -247,6 +259,15 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                     )
                 except:
                     pass
+
+    def save_ratings(self, task, ratings):
+        if ratings:
+            for item in ratings:
+                try:
+				    Rating.objects.update_or_create(content_type=ContentType.objects.get_for_model(task), object_id=task.id, criteria=item['criteria'], defaults=item)
+                except:
+                    pass
+
 
     def save_participants(self, task, participants):
         # TODO: Remove and move existing code to using save_participation
@@ -292,7 +313,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             return False
         user = self.get_current_user()
         if user:
-            if obj.user == user:
+            if obj.user == user or user.pending:
                 return False
             return obj.applicants.filter(id=user.id).count() == 0 and \
                    obj.participation_set.filter(user=user).count() == 0
@@ -439,6 +460,7 @@ class ProgressEventDetailsSerializer(serializers.ModelSerializer):
 
 class ProgressEventSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
     created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    report = SimpleProgressReportSerializer(read_only=True, required=False, source='progressreport')
 
     class Meta:
         model = ProgressEvent
@@ -457,6 +479,7 @@ class ProgressReportDetailsSerializer(serializers.ModelSerializer):
 
 class ProgressReportSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    status_display = serializers.CharField(required=False, read_only=True, source='get_status_display')
     uploads = UploadSerializer(required=False, read_only=True, many=True)
 
     class Meta:

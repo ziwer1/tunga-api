@@ -67,7 +67,7 @@ def send_new_task_email(instance):
             'task': instance,
             'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
         }
-        send_mail(subject, 'tunga/email/email_new_task.txt', to, ctx, bcc=bcc)
+        send_mail(subject, 'tunga/email/email_new_task', to, ctx, bcc=bcc)
 
 
 @catch_all_exceptions
@@ -156,7 +156,6 @@ def send_task_application_not_selected_email(instance):
 def send_progress_event_reminder_email(instance):
     subject = "%s Upcoming Task Update" % (EMAIL_SUBJECT_PREFIX,)
     participants = instance.task.participation_set.filter(accepted=True)
-    print participants
     if participants:
         to = [participants[0].user.email]
         bcc = [participant.user.email for participant in participants[1:]] if participants.count() > 1 else None

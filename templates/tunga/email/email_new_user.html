@@ -12,7 +12,7 @@
 
         Last Name: {{ user.last_name }}<br/>
 
-        User type: {% if user.type == 2 %}Project owner{% else %}Developer{% endif %}
+        User type: {% if user.type == 2 %}Project owner{% elif user.type == 1 %}Developer{% endif %}
     </p>
 
     <p>

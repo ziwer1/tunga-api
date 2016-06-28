@@ -25,7 +25,7 @@ def my_connections_q_filter(user):
 class UserFilterBackend(DRYPermissionFiltersBase):
 
     def filter_list_queryset(self, request, queryset, view):
-        queryset = queryset.exclude(id=request.user.id)
+        queryset = queryset.exclude(id=request.user.id, pending=False)
         user_filter = request.query_params.get('filter', None)
         if user_filter == 'developers':
             queryset = queryset.filter(type=USER_TYPE_DEVELOPER)
@@ -60,7 +60,7 @@ class UserFilterBackend(DRYPermissionFiltersBase):
                         default=0,
                         output_field=IntegerField()
                     )
-                )).order_by('-matches', '-created_at')
+                )).order_by('-matches', '-date_joined')
             except (ObjectDoesNotExist, UserProfile.DoesNotExist):
                 return queryset.none()
         return queryset

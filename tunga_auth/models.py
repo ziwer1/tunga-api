@@ -22,6 +22,11 @@ class TungaUser(AbstractUser):
     class Meta(AbstractUser.Meta):
         unique_together = ('email',)
 
+    def save(self, *args, **kwargs):
+        if self.type == USER_TYPE_PROJECT_OWNER:
+            self.pending = False
+        super(TungaUser, self).save(*args, **kwargs)
+
     @property
     def display_name(self):
         return self.get_full_name() or self.username

@@ -36,7 +36,7 @@ class UserSerializer(SimpleUserSerializer):
         if request:
             user = getattr(request, "user", None)
             if user:
-                if not user.is_developer and not obj.is_developer:
+                if not user.is_developer and not obj.is_developer or user.pending:
                     return False
                 has_requested = obj.connections_initiated.filter(to_user=user).count()
                 if has_requested:
@@ -73,7 +73,6 @@ class UserSerializer(SimpleUserSerializer):
             if score:
                 score = '{:0,.0f}%'.format(score*10)
         return score
-
 
 
 class AccountInfoSerializer(serializers.ModelSerializer):

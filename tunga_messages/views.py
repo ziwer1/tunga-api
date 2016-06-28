@@ -1,22 +1,91 @@
-import datetime
-
-from django.contrib.contenttypes.models import ContentType
-from django.db.models.aggregates import Max
+from django.db.models.aggregates import Max, Count
 from django.db.models.expressions import Case, When, F
 from django.db.models.fields import DateTimeField
-from django.shortcuts import render
+from django.db.models.query_utils import Q
 from dry_rest_permissions.generics import DRYObjectPermissions
 from rest_framework import viewsets, status
-from rest_framework.decorators import detail_route
+from rest_framework.decorators import detail_route, list_route
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from tunga_messages.filterbackends import MessageFilterBackend, ReplyFilterBackend
-from tunga_messages.filters import MessageFilter, ReplyFilter
-from tunga_messages.models import Message, Reply, Reception, Attachment
-from tunga_messages.serializers import MessageSerializer, ReplySerializer
+from tunga_messages.filterbackends import MessageFilterBackend, ChannelFilterBackend
+from tunga_messages.filters import MessageFilter, ChannelFilter
+from tunga_messages.models import Message, Attachment, Channel, ChannelUser, CHANNEL_TYPE_DIRECT
+from tunga_messages.serializers import MessageSerializer, ChannelSerializer, DirectChannelSerializer
+from tunga_messages.tasks import create_channel, get_or_create_direct_channel
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
+
+
+class ChannelViewSet(viewsets.ModelViewSet):
+    """
+    Channel Resource
+    """
+    queryset = Channel.objects.all().annotate(
+        latest_message_created_at=Max('messages__created_at')
+    ).annotate(latest_activity_at=Case(
+        When(
+            latest_message_created_at__isnull=True,
+            then='created_at'
+        ),
+        When(
+            latest_message_created_at__gt=F('created_at'),
+            then='latest_message_created_at'
+        ),
+        default='created_at',
+        output_field=DateTimeField()
+    )).order_by('-latest_activity_at')
+    serializer_class = ChannelSerializer
+    permission_classes = [IsAuthenticated, DRYObjectPermissions]
+    filter_class = ChannelFilter
+    filter_backends = DEFAULT_FILTER_BACKENDS + (ChannelFilterBackend,)
+    search_fields = (
+        'subject', 'channeluser__user__username', 'channeluser__user__first_name',
+        'channeluser__user__last_name'
+    )
+
+    @list_route(
+        methods=['post'], url_path='direct',
+        permission_classes=[IsAuthenticated], serializer_class=DirectChannelSerializer
+    )
+    def direct_channel(self, request):
+        """
+        Gets or creates a direct channel to the user
+        """
+        serializer = DirectChannelSerializer(data=request.data)
+        channel = None
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.validated_data['user']
+            channel = get_or_create_direct_channel(request.user, user)
+        if not channel:
+            return Response(
+                {'status': "Couldn't get or create a direct channel"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        response_serializer = ChannelSerializer(channel)
+        return Response(response_serializer.data)
+
+    @detail_route(
+        methods=['post'], url_path='read',
+        permission_classes=[IsAuthenticated]
+    )
+    def update_read(self, request, pk=None):
+        """
+        Updates user's read_at for channel
+        """
+        last_read = request.data.get('last_read', None)
+        if not last_read:
+            return Response(
+                {'status': 'Bad request.', 'last_read': 'Invalid value'}, status=status.HTTP_400_BAD_REQUEST
+            )
+        channel = get_object_or_404(self.get_queryset(), pk=pk)
+        if channel.has_object_read_permission(request):
+            ChannelUser.objects.update_or_create(user=request.user, channel=channel, defaults={'last_read': last_read})
+
+            return Response({'status': 'Read status updated.', 'channel': channel.id})
+        return Response(
+                {'status': 'Unauthorized', 'message': 'No access to this channel'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
 
 
 class MessageViewSet(viewsets.ModelViewSet):
@@ -46,10 +115,9 @@ class MessageViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         message = serializer.save()
         attachments = self.request.FILES
-        content_type = ContentType.objects.get_for_model(Message)
         if attachments:
             for file in attachments.itervalues():
-                attachment = Attachment(object_id=message.id, content_type=content_type, file=file)
+                attachment = Attachment(content_object=message, file=file)
                 attachment.save()
 
     @detail_route(
@@ -58,42 +126,18 @@ class MessageViewSet(viewsets.ModelViewSet):
     )
     def update_read(self, request, pk=None):
         """
-        Updates read_at of message thread
+        Updates last_read for channel
         """
-        read_at = datetime.datetime.now()  # store read timestamp ASAP
         message = get_object_or_404(self.get_queryset(), pk=pk)
 
         if message.has_object_read_permission(request):
-            if message.user == request.user:
-                message.read_at = read_at
-                message.save()
-            else:
-                reception = {'user': request.user, 'message': message, 'read_at': read_at}
-                Reception.objects.update_or_create(user=request.user, message=message, defaults=reception)
+            ChannelUser.objects.update_or_create(
+                user=request.user, channel=message.channel, defaults={'last_read': message.id}
+            )
 
-            return Response({'status': 'Read status updated.', 'message': message.id})
+            return Response({'status': 'Read status updated.', 'message': message.id, 'channel': message.channel.id})
         return Response(
                 {'status': 'Unauthorized', 'message': 'No access to this message'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-
-class ReplyViewSet(viewsets.ModelViewSet):
-    """
-    Reply Resource
-    """
-    queryset = Reply.objects.all()
-    serializer_class = ReplySerializer
-    permission_classes = [IsAuthenticated, DRYObjectPermissions]
-    filter_class = ReplyFilter
-    filter_backends = DEFAULT_FILTER_BACKENDS + (ReplyFilterBackend,)
-    search_fields = ('user__username', 'body')
-
-    def perform_create(self, serializer):
-        reply = serializer.save()
-        attachments = self.request.FILES
-        content_type = ContentType.objects.get_for_model(Reply)
-        if attachments:
-            for file in attachments.itervalues():
-                attachment = Attachment(object_id=reply.id, content_type=content_type, file=file)
-                attachment.save()

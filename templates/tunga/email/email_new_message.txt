@@ -3,9 +3,9 @@ Hello,
 
 {{ sender }} sent you a new message:
 
-"RE: {{ subject }}"
+{% if subject %}"RE: {{ subject }}"{% endif %}
 
-{{ message }}
+{{ message.excerpt }}
 
 
 Click the link below to go to the discussion:

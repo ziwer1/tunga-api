@@ -6,21 +6,24 @@ import urllib
 
 import requests
 import tagulous.models
-from django.contrib.contenttypes.fields import GenericRelation
+from django.contrib.contenttypes.fields import GenericRelation, GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.query_utils import Q
 from django.template.defaultfilters import floatformat
 from django.utils.html import strip_tags
+from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
 from tunga.settings.base import TUNGA_SHARE_PERCENTAGE, TUNGA_SHARE_EMAIL
 from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_comments.models import Comment
+from tunga_messages.models import Channel
 from tunga_profiles.models import Skill, Connection
 from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM, VISIBILITY_CHOICES
-from tunga_utils.models import Upload
+from tunga_utils.models import Upload, Rating
 
 CURRENCY_EUR = 'EUR'
 CURRENCY_USD = 'USD'
@@ -99,6 +102,7 @@ class Task(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='tasks_created', on_delete=models.DO_NOTHING)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
+    remarks = models.TextField(blank=True, null=True)
     url = models.URLField(blank=True, null=True)
     fee = models.BigIntegerField()
     currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
@@ -123,6 +127,7 @@ class Task(models.Model):
     paid_at = models.DateTimeField(blank=True, null=True)
     comments = GenericRelation(Comment, related_query_name='tasks')
     uploads = GenericRelation(Upload, related_query_name='tasks')
+    ratings = GenericRelation(Rating, related_query_name='tasks')
 
     def __unicode__(self):
         return self.summary
@@ -138,8 +143,6 @@ class Task(models.Model):
 
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):
-        if self.has_object_update_permission(request):
-            return True
         if self.visibility == VISIBILITY_DEVELOPER:
             return request.user.type == USER_TYPE_DEVELOPER
         elif self.visibility == VISIBILITY_MY_TEAM:
@@ -340,8 +343,10 @@ class Application(models.Model):
     pitch = models.CharField(max_length=1000, blank=True, null=True)
     hours_needed = models.PositiveIntegerField(blank=True, null=True)
     hours_available = models.PositiveIntegerField(blank=True, null=True)
+    remarks = models.TextField(blank=True, null=True)  # These will also be delivered as messages to the client
     deliver_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    channels = GenericRelation(Channel, related_query_name='task_applications')
 
     def __unicode__(self):
         return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.summary)
@@ -390,6 +395,7 @@ class Participation(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='participants_added')
     created_at = models.DateTimeField(auto_now_add=True)
     activated_at = models.DateTimeField(blank=True, null=True)
+    ratings = GenericRelation(Rating, related_query_name='participants')
 
     def __unicode__(self):
         return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.title)
@@ -538,13 +544,13 @@ PROGRESS_REPORT_STATUS_CHOICES = (
 
 
 class ProgressReport(models.Model):
+    event = models.OneToOneField(ProgressEvent, on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
-    event = models.ForeignKey(ProgressEvent, on_delete=models.CASCADE)
     status = models.PositiveSmallIntegerField(
         choices=PROGRESS_REPORT_STATUS_CHOICES,
         help_text=','.join(['%s - %s' % (item[0], item[1]) for item in PROGRESS_REPORT_STATUS_CHOICES])
     )
-    percentage = models.PositiveIntegerField(validators=[MaxValueValidator(100), MinValueValidator(0)])
+    percentage = models.PositiveIntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
     accomplished = models.TextField()
     next_steps = models.TextField(blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)

@@ -5,7 +5,7 @@ from rest_framework import serializers
 from rest_framework.fields import SkipField
 
 from tunga_profiles.models import Skill, City, UserProfile, Education, Work
-from tunga_utils.models import GenericUpload, ContactRequest, Upload, AbstractExperience
+from tunga_utils.models import GenericUpload, ContactRequest, Upload, AbstractExperience, Rating
 
 
 class CreateOnlyCurrentUserDefault(serializers.CurrentUserDefault):
@@ -150,3 +150,15 @@ class ContactRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactRequest
         fields = ('email',)
+
+
+class SimpleRatingSerializer(ContentTypeAnnotatedModelSerializer):
+    created_by = SimpleUserSerializer(
+        required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
+    )
+    display_criteria = serializers.CharField(required=False, read_only=True, source='get_criteria_display')
+
+    class Meta:
+        model = Rating
+        exclude = ('content_type', 'object_id', 'created_at')
+

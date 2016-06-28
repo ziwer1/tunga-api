@@ -26,28 +26,34 @@
 	</div>
 	<div style="color: #fff;background-color: #f41152;padding: 15px;margin-top:50px;">
 		<div style="{{ container }}">
-			<div style="float: left;">
-				<img style="{{ img }}" src="https://tunga.io/static/tunga/img/email/noun.png" height="{{ img_small }}"/> Need help?
-				<p style="font-size: 12px;">
-				If you have a question or need assistance, email us!<br/>
-				We are more than happy to help out.
-				</p>
-			</div>
-			<div style="margin-top: 25px;float: right;">
-				<a style="{{ links_a }}" href="https://www.facebook.com/tunga.io/">
-                    <img style="{{ links_a_img }}" height="{{ img_small }}" src="https://tunga.io/static/tunga/img/email/fb.png" alt="Facebook"/>
-                </a>
-				<a style="{{ links_a }}" href="https://twitter.com/tunga_io">
-                    <img style="{{ links_a_img }}" height="{{ img_small }}" src="https://tunga.io/static/tunga/img/email/twitter.png" alt="Twitter"/>
-                </a>
-				<a style="{{ links_a }}" href="https://medium.com/the-tunga-blog">
-                    <img style="{{ links_a_img }}" height="{{ img_small }}" src="https://tunga.io/static/tunga/img/email/blog.png" alt="Blog"/>
-                </a>
-				<a style="{{ links_a }}" href="mailto:bart@tunga.io">
-                    <img style="{{ links_a_img }}" height="{{ img_small }}" src="https://tunga.io/static/tunga/img/email/mail.png" alt="E-mail"/>
-                </a>
-			</div>
-			<div style="clear:both;"></div>
+            <table style="width:100%; border-width: 0;border-collapse: collapse;">
+                <tr>
+                    <td>
+                        <img style="{{ img }}" src="https://tunga.io/static/tunga/img/email/noun.png"
+                             height="{{ img_small }}"/> Need help?
+                        <p style="font-size: 12px;">If you have a question or need assistance, email us!</p>
+						<div style="font-size: 12px;">We are more than happy to help out.</div>
+                    </td>
+                    <td style="text-align: right; padding-top: 25px">
+                        <a style="{{ links_a }}" href="https://www.facebook.com/tunga.io/">
+                            <img style="{{ links_a_img }}" height="{{ img_small }}"
+                                 src="https://tunga.io/static/tunga/img/email/fb.png" alt="Facebook"/>
+                        </a>
+                        <a style="{{ links_a }}" href="https://twitter.com/tunga_io">
+                            <img style="{{ links_a_img }}" height="{{ img_small }}"
+                                 src="https://tunga.io/static/tunga/img/email/twitter.png" alt="Twitter"/>
+                        </a>
+                        <a style="{{ links_a }}" href="https://medium.com/the-tunga-blog">
+                            <img style="{{ links_a_img }}" height="{{ img_small }}"
+                                 src="https://tunga.io/static/tunga/img/email/blog.png" alt="Blog"/>
+                        </a>
+                        <a style="{{ links_a }}" href="mailto:bart@tunga.io">
+                            <img style="{{ links_a_img }}" height="{{ img_small }}"
+                                 src="https://tunga.io/static/tunga/img/email/mail.png" alt="E-mail"/>
+                        </a>
+                    </td>
+                </tr>
+            </table>
 		</div>
 	</div>
 </body>

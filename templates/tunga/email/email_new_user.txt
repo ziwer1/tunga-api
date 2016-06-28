@@ -9,7 +9,7 @@ First Name: {{ user.first_name }}
 
 Last Name: {{ user.last_name }}
 
-User type: {% if user.type == 2 %}Project owner{% else %}Developer{% endif %}
+User type: {% if user.type == 2 %}Project owner{% elif user.type == 1 %}Developer{% endif %}
 
 
 Click the link below to view the user's profile:

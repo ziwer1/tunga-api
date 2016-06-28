@@ -23,7 +23,7 @@ from rest_framework_jwt.views import obtain_jwt_token, refresh_jwt_token, verify
 
 from tunga_auth.views import VerifyUserView, AccountInfoView, UserViewSet
 from tunga_comments.views import CommentViewSet
-from tunga_messages.views import MessageViewSet, ReplyViewSet
+from tunga_messages.views import MessageViewSet, ChannelViewSet
 from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, ConnectionViewSet, SocialLinkViewSet, \
     NotificationView, CountryListView
 from tunga_settings.views import UserSettingsView
@@ -47,8 +47,8 @@ router.register(r'me/education', EducationViewSet)
 router.register(r'me/work', WorkViewSet)
 router.register(r'connection', ConnectionViewSet)
 router.register(r'comment', CommentViewSet)
+router.register(r'channel', ChannelViewSet)
 router.register(r'message', MessageViewSet)
-router.register(r'reply', ReplyViewSet)
 router.register(r'activity', ActionViewSet)
 router.register(r'skill', SkillViewSet)
 

@@ -26,13 +26,76 @@ class Attachment(models.Model):
         ordering = ['-created_at']
 
 
-class Message(models.Model):
+CHANNEL_TYPE_DIRECT = 1
+CHANNEL_TYPE_TOPIC = 2
+
+CHANNEL_TYPE_CHOICES = (
+    (CHANNEL_TYPE_DIRECT, 'Direct Channel'),
+    (CHANNEL_TYPE_TOPIC, 'Topic Channel')
+)
+
+
+class Channel(models.Model):
+    subject = models.CharField(max_length=100, blank=True, null=True)
+    participants = models.ManyToManyField(
+            settings.AUTH_USER_MODEL, through='ChannelUser', through_fields=('channel', 'user'),
+            related_name='channels', blank=True)
+    type = models.PositiveSmallIntegerField(
+        choices=CHANNEL_TYPE_CHOICES, default=CHANNEL_TYPE_TOPIC,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in CHANNEL_TYPE_CHOICES])
+    )
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='channels_created', on_delete=models.DO_NOTHING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    # The object of the channel, nullable for pure messages
+    content_type = models.ForeignKey(
+        ContentType, on_delete=models.CASCADE, verbose_name=_('content type'), blank=True, null=True
+    )
+    object_id = models.PositiveIntegerField(blank=True, null=True)
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    def __unicode__(self):
+        return '{0} - {1}'.format(self.get_type_display(), self.subject or self.created_by)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        if self.has_object_write_permission(request):
+            return True
+        return self.participation_set.filter(user=request.user).count()
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user
+
+    @property
+    def uploads(self):
+        return Attachment.objects.filter(messages__in=self.message_set.all())
+
+
+class ChannelUser(models.Model):
+    channel = models.ForeignKey(Channel, on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_read = models.IntegerField(default=0)
+    read_at = models.DateTimeField(blank=True, null=True)
+
+    def __unicode__(self):
+        return '%s - %s' % (self.channel, self.user.get_short_name() or self.user.username)
+
+    class Meta:
+        unique_together = ('user', 'channel')
+
+
+class Message(models.Model):
+    channel = models.ForeignKey(Channel, on_delete=models.CASCADE, blank=True, null=True, related_name='messages')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='messages')
     is_broadcast = models.BooleanField(default=False)
     recipients = models.ManyToManyField(
             settings.AUTH_USER_MODEL, through='Reception', through_fields=('message', 'user'),
             related_name='messages_received', blank=True)
-    subject = models.CharField(max_length=100)
+    subject = models.CharField(max_length=100, blank=True, null=True)
     body = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(blank=True, null=True)
@@ -48,13 +111,15 @@ class Message(models.Model):
     def has_object_read_permission(self, request):
         if self.has_object_write_permission(request):
             return True
+        if self.channel:
+            return self.channel.channeluser_set.filter(user=request.user).count()
         if self.is_broadcast:
             return bool(
                 Connection.objects.exclude(accepted=False).filter(
                     Q(from_user=self.user, to_user=request.user) | Q(from_user=request.user, to_user=self.user)
                 ).count()
             )
-        return request.user in self.recipients.all()
+        return self.reception_set.filter(user=request.user).count()
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
@@ -108,5 +173,3 @@ class Reply(models.Model):
     @property
     def excerpt(self):
         return strip_tags(self.body)
-
-

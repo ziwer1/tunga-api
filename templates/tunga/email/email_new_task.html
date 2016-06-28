@@ -16,6 +16,18 @@
     </p>
 
     <p>
+        {% for event in task.milestones %}
+
+            {% if forloop.first %}Milestones:<br/>{% endif %}
+
+            {{ forloop.counter }}: {{ event.title }} at {{ event.due_at | date:'jS F Y \a\t H:i' }} GMT<br/>
+
+        {% endfor %}
+    </p>
+
+    {% if task.update_schedule_display %}<p>Update schedule: {{ task.update_schedule_display }}</p>{% endif %}
+
+    <p>
         Click the link below to view the task's details:<br/>
         {{ task_url }}
     </p>
