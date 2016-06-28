@@ -70,8 +70,8 @@ class Channel(models.Model):
         return request.user == self.user
 
     @property
-    def uploads(self):
-        return Attachment.objects.filter(messages__in=self.message_set.all())
+    def attachments(self):
+        return Attachment.objects.filter(messages__channel=self)
 
 
 class ChannelUser(models.Model):
