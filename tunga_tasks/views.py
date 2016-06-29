@@ -114,7 +114,7 @@ class ProgressEventViewSet(viewsets.ModelViewSet):
     """
     Progress Event Resource
     """
-    queryset = ProgressEvent.objects.filter(type=PROGRESS_EVENT_TYPE_MILESTONE)
+    queryset = ProgressEvent.objects.all()
     serializer_class = ProgressEventSerializer
     permission_classes = [IsAuthenticated, DRYPermissions]
     filter_class = ProgressEventFilter

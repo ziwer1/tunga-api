@@ -54,19 +54,26 @@ class SimpleParticipationSerializer(BasicParticipationSerializer):
     class Meta:
         model = Participation
         exclude = ('created_at',)
+		
+
+class BasicProgressReportSerializer(ContentTypeAnnotatedModelSerializer):
+    user = SimpleUserSerializer()
+    status_display = serializers.CharField(required=False, read_only=True, source='get_status_display')
+
+    class Meta:
+        model = ProgressReport
 
 
 class SimpleProgressEventSerializer(ContentTypeAnnotatedModelSerializer):
     created_by = SimpleUserSerializer()
+    report = BasicProgressReportSerializer(read_only=True, required=False, source='progressreport')
 
     class Meta:
         model = ProgressEvent
         exclude = ('created_at',)
 
 
-class SimpleProgressReportSerializer(ContentTypeAnnotatedModelSerializer):
-    user = SimpleUserSerializer()
-    status_display = serializers.CharField(required=False, read_only=True, source='get_status_display')
+class SimpleProgressReportSerializer(BasicProgressReportSerializer):
     uploads = UploadSerializer(required=False, read_only=True, many=True)
 
     class Meta:
@@ -87,6 +94,7 @@ class NestedProgressEventSerializer(ContentTypeAnnotatedModelSerializer):
     created_by = serializers.PrimaryKeyRelatedField(
         required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
     )
+    report = BasicProgressReportSerializer(read_only=True, required=False, source='progressreport')
 
     class Meta:
         model = ProgressEvent
