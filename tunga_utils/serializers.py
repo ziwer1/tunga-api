@@ -4,7 +4,7 @@ from django_countries.serializer_fields import CountryField
 from rest_framework import serializers
 from rest_framework.fields import SkipField
 
-from tunga_profiles.models import Skill, City, UserProfile, Education, Work
+from tunga_profiles.models import Skill, City, UserProfile, Education, Work, Connection
 from tunga_utils.models import GenericUpload, ContactRequest, Upload, AbstractExperience, Rating
 
 
@@ -112,6 +112,12 @@ class SimpleEducationSerializer(SimpleAbstractExperienceSerializer):
 
     class Meta(SimpleAbstractExperienceSerializer.Meta):
         model = Education
+
+
+class SimpleConnectionSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Connection
 
 
 class SimpleUploadSerializer(serializers.ModelSerializer):

@@ -63,11 +63,11 @@ class Channel(models.Model):
     def has_object_read_permission(self, request):
         if self.has_object_write_permission(request):
             return True
-        return self.participation_set.filter(user=request.user).count()
+        return self.channeluser_set.filter(user=request.user).count()
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
-        return request.user == self.user
+        return request.user == self.created_by
 
     @property
     def attachments(self):

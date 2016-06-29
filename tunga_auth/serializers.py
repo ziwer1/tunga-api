@@ -6,11 +6,13 @@ from rest_auth.serializers import TokenSerializer, PasswordResetSerializer
 from rest_framework import serializers
 
 from tunga_auth.models import USER_TYPE_CHOICES, USER_TYPE_DEVELOPER
+from tunga_profiles.models import Connection
+from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.serializers import SimpleProfileSerializer, SimpleUserSerializer, SimpleWorkSerializer, \
-    SimpleEducationSerializer
+    SimpleEducationSerializer, SimpleConnectionSerializer
 
 
-class UserSerializer(SimpleUserSerializer):
+class UserSerializer(SimpleUserSerializer, GetCurrentUserAnnotatedSerializerMixin):
     display_name = serializers.CharField(read_only=True, required=False)
     display_type = serializers.CharField(read_only=True, required=False)
     is_developer = serializers.BooleanField(read_only=True, required=False)
@@ -20,6 +22,7 @@ class UserSerializer(SimpleUserSerializer):
     education = SimpleEducationSerializer(many=True, source='education_set', read_only=True, required=False)
     can_connect = serializers.SerializerMethodField(read_only=True, required=False)
     request = serializers.SerializerMethodField(read_only=True, required=False)
+    connection = serializers.SerializerMethodField(read_only=True, required=False)
     tasks_created = serializers.SerializerMethodField(read_only=True, required=False)
     tasks_completed = serializers.SerializerMethodField(read_only=True, required=False)
     satisfaction = serializers.SerializerMethodField(read_only=True, required=False)
@@ -32,30 +35,38 @@ class UserSerializer(SimpleUserSerializer):
         )
 
     def get_can_connect(self, obj):
-        request = self.context.get("request", None)
-        if request:
-            user = getattr(request, "user", None)
-            if user:
-                if not user.is_developer and not obj.is_developer or user.pending:
-                    return False
-                has_requested = obj.connections_initiated.filter(to_user=user).count()
-                if has_requested:
-                    return False
-                has_accepted_or_been_requested = obj.connection_requests.filter(
-                    Q(accepted=True) | Q(responded=False), from_user=user).count() > 0
-                return not has_accepted_or_been_requested
+        current_user = self.get_current_user()
+        if current_user:
+            if not current_user.is_developer and not obj.is_developer or current_user.pending:
+                return False
+            has_requested = obj.connections_initiated.filter(to_user=current_user).count()
+            if has_requested:
+                return False
+            has_accepted_or_been_requested = obj.connection_requests.filter(
+                Q(accepted=True) | Q(responded=False), from_user=current_user).count() > 0
+            return not has_accepted_or_been_requested
         return False
 
     def get_request(self, obj):
-        request = self.context.get("request", None)
-        if request:
-            user = getattr(request, "user", None)
-            if user:
-                try:
-                    connection = obj.connections_initiated.get(to_user=user, responded=False)
-                    return connection.id
-                except:
-                    pass
+        current_user = self.get_current_user()
+        if current_user:
+            try:
+                connection = obj.connections_initiated.get(to_user=current_user, responded=False)
+                return connection.id
+            except:
+                pass
+        return None
+
+    def get_connection(self, obj):
+        current_user = self.get_current_user()
+        if current_user:
+            try:
+                connection = Connection.objects.filter(
+                    (Q(to_user=current_user) & Q(from_user=obj)) | (Q(to_user=obj) & Q(from_user=current_user))
+                ).latest('created_at')
+                return SimpleConnectionSerializer(connection).data
+            except:
+                pass
         return None
 
     def get_tasks_created(self, obj):

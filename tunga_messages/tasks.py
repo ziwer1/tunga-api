@@ -1,7 +1,6 @@
 from tunga_messages.models import Channel, ChannelUser, Message, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_DIRECT
-from tunga_utils.decorators import catch_all_exceptions
 
-@catch_all_exceptions
+
 def create_channel(
         initiator, participants, subject=None, messages=None, content_object=None,
         channel_type=CHANNEL_TYPE_TOPIC):
