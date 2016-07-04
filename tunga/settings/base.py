@@ -88,7 +88,7 @@ MIDDLEWARE_CLASSES = [
     # Local
     'oauth2_provider.middleware.OAuth2TokenMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    'tunga_auth.middleware.UserLastActivityMiddleware',
+    #'tunga_auth.middleware.UserLastActivityMiddleware',
 ]
 
 ROOT_URLCONF = 'tunga.urls'

@@ -1,10 +1,12 @@
 from django.contrib.auth import get_user_model
+from django.shortcuts import redirect
 from rest_framework import views, status, generics, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from tunga_auth.filterbackends import UserFilterBackend
 from tunga_auth.filters import UserFilter
+from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_auth.serializers import UserSerializer, AccountInfoSerializer
 from tunga_utils.serializers import SimpleUserSerializer
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
@@ -62,3 +64,23 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     filter_class = UserFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (UserFilterBackend,)
     search_fields = ('^username', '^first_name', '^last_name', '=email', 'userprofile__skills__name')
+
+
+def social_login_view(request, provider=None):
+    enabled_providers = ['facebook', 'google', 'github']
+    action = request.GET.get('action')
+    try:
+        user_type = int(request.GET.get('user_type'))
+    except:
+        user_type = None
+    if action == 'register':
+        if user_type in [USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER]:
+            request.session['user_type'] = user_type
+        else:
+            return redirect('/signup/')
+
+    if provider in enabled_providers:
+        next_url = '/accounts/%s/login/' % provider
+    else:
+        next_url = '/'
+    return redirect(next_url)

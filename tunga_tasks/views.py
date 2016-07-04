@@ -13,8 +13,7 @@ from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBacke
     ProgressEventFilterBackend
 from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TaskRequestFilter, SavedTaskFilter, \
     ProjectFilter, ProgressReportFilter, ProgressEventFilter
-from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, Project, ProgressReport, ProgressEvent, \
-    PROGRESS_EVENT_TYPE_MILESTONE
+from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, Project, ProgressReport, ProgressEvent
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TaskRequestSerializer, SavedTaskSerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS

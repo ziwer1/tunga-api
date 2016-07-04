@@ -5,7 +5,7 @@
 {% block email_content %}
     <p>Hi {{ user.first_name }},</p>
 
-    <p>You just registered as a {% if user.type == 2 %}project owner{% else %}coder{% endif %} on Tunga!</p>
+    <p>You just registered as a {% if user.type == 2 %}project owner{% elif user.type == 1 %}coder{% endif %} on Tunga!</p>
 
     <p>Welcome on board and thank you for joining our team.</p>
 

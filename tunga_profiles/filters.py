@@ -1,4 +1,4 @@
-from tunga_profiles.models import Education, Work, Connection, SocialLink
+from tunga_profiles.models import Education, Work, Connection, SocialLink, DeveloperApplication
 from tunga_utils.filters import GenericDateFilterSet
 
 
@@ -24,3 +24,10 @@ class ConnectionFilter(GenericDateFilterSet):
     class Meta:
         model = Connection
         fields = ('from_user', 'to_user', 'accepted', 'responded')
+
+
+class DeveloperApplicationFilter(GenericDateFilterSet):
+    class Meta:
+        model = DeveloperApplication
+        fields = ('status',)
+

@@ -1,0 +1,9 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello {{ application.first_name }},
+
+Congratulations! Your application to become a Tunga developer has been accepted.
+
+Click the link below to complete your registration:
+{{ invite_url }}
+
+{% endblock %}{% endautoescape %}

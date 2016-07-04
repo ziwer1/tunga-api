@@ -181,6 +181,10 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             participants = validated_data.pop('participants')
         if 'ratings' in validated_data:
             ratings = validated_data.pop('ratings')
+
+        if participation or participants:
+            # close applications if paticipants are provided
+            validated_data['apply'] = False
         instance = super(TaskSerializer, self).create(validated_data)
         self.save_skills(instance, skills)
         self.save_participants(instance, participants)

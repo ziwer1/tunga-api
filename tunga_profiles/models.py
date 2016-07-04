@@ -1,11 +1,15 @@
 from __future__ import unicode_literals
 
+import uuid
+
 import tagulous.models
 from django.db import models
 from django_countries.fields import CountryField
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
+from tunga_profiles.validators import validate_email
+from tunga_utils.constants import REQUEST_STATUS_INITIAL, REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED
 from tunga_utils.models import AbstractExperience
 
 
@@ -31,7 +35,7 @@ class City(tagulous.models.TagModel):
 
 class UserProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    bio = models.TextField(max_length=500, blank=True, null=True)
+    bio = models.TextField(blank=True, null=True)
     country = CountryField(blank=True, null=True)
     city = tagulous.models.SingleTagField(to=City, blank=True, null=True)
     street = models.CharField(max_length=100, blank=True, null=True)
@@ -153,3 +157,44 @@ class Connection(models.Model):
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
         return request.user == self.from_user or request.user == self.to_user
+
+
+APPLICATION_STATUS_CHOICES = (
+    (REQUEST_STATUS_INITIAL, 'Received'),
+    (REQUEST_STATUS_ACCEPTED, 'Accepted'),
+    (REQUEST_STATUS_REJECTED, 'Rejected')
+)
+
+
+class DeveloperApplication(models.Model):
+    first_name = models.CharField(max_length=30)
+    last_name = models.CharField(max_length=30)
+    email = models.EmailField(unique=True, validators=[validate_email])
+    phone_number = models.CharField(max_length=15)
+    country = CountryField()
+    city = models.CharField(max_length=50)
+    stack = models.TextField()
+    experience = models.TextField()
+    discovery_story = models.TextField()
+    status = models.PositiveSmallIntegerField(
+            choices=APPLICATION_STATUS_CHOICES,
+            help_text=','.join(['%s - %s' % (item[0], item[1]) for item in APPLICATION_STATUS_CHOICES]),
+            default=REQUEST_STATUS_INITIAL
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    confirmation_key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    confirmation_sent_at = models.DateTimeField(blank=True, null=True, editable=False)
+    used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(blank=True, null=True, editable=False)
+
+    def __unicode__(self):
+        return self.display_name
+
+    @property
+    def display_name(self):
+        return '%s %s' % (self.first_name, self.last_name)
+
+    @property
+    def country_name(self):
+        return self.country.name
+    country_name.fget.short_description = 'country'

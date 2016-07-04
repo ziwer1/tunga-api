@@ -1,18 +1,22 @@
 from django.db.models.query_utils import Q
+from django.shortcuts import get_object_or_404
 from django_countries.fields import CountryField
 from dry_rest_permissions.generics import DRYObjectPermissions, DRYPermissions
 from rest_framework import viewsets, generics, views, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import list_route
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
 from tunga_auth.models import USER_TYPE_PROJECT_OWNER
 from tunga_messages.filterbackends import new_messages_filter
 from tunga_messages.models import Message
 from tunga_profiles.filterbackends import ConnectionFilterBackend
-from tunga_profiles.filters import EducationFilter, WorkFilter, ConnectionFilter, SocialLinkFilter
-from tunga_profiles.models import UserProfile, Education, Work, Connection, SocialLink
+from tunga_profiles.filters import EducationFilter, WorkFilter, ConnectionFilter, SocialLinkFilter, \
+    DeveloperApplicationFilter
+from tunga_profiles.models import UserProfile, Education, Work, Connection, SocialLink, DeveloperApplication
+from tunga_profiles.permissions import IsAdminOrCreateOnly
 from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, WorkSerializer, ConnectionSerializer, \
-    SocialLinkSerializer
+    SocialLinkSerializer, DeveloperApplicationSerializer
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 
 
@@ -78,11 +82,41 @@ class ConnectionViewSet(viewsets.ModelViewSet):
     search_fields = ('from_user__username', 'to_user__username')
 
 
+class DeveloperApplicationViewSet(viewsets.ModelViewSet):
+    """
+    Developer Application Resource
+    """
+    queryset = DeveloperApplication.objects.all()
+    serializer_class = DeveloperApplicationSerializer
+    permission_classes = [IsAdminOrCreateOnly]
+    filter_class = DeveloperApplicationFilter
+    filter_backends = DEFAULT_FILTER_BACKENDS
+    search_fields = ('first_name', 'last_name')
+
+    @list_route(
+        methods=['get'], url_path='key/(?P<key>[^/]+)',
+        permission_classes=[AllowAny]
+    )
+    def get_by_key(self, request, key=None):
+        """
+        Get application by confirmation key
+        """
+        try:
+            application = get_object_or_404(self.get_queryset(), confirmation_key=key, used=False)
+        except ValueError:
+            return Response(
+                {'status': 'Bad request', 'message': 'Invalid key'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        serializer = DeveloperApplicationSerializer(application)
+        return Response(serializer.data)
+
+
 class CountryListView(views.APIView):
     """
     Country Resource
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         countries = []

@@ -1,0 +1,26 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello,
+
+{{ application.display_name }} has applied to become a Tunga developer.
+
+Name: {{ application.display_name }}
+
+Email: {{ application.email }}
+
+Phone Number: {{ application.phone_number }}
+
+Country: {{ application.country_name }}
+
+City: {{ application.city }}
+
+
+Stack:
+{{ application.stack }}
+
+Experience:
+{{ application.experience }}
+
+Discovery story:
+{{ application.discovery_story }}
+
+{% endblock %}{% endautoescape %}

@@ -1,9 +1,12 @@
 from __future__ import unicode_literals
 
+import re
+
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from django.utils.html import strip_tags
 from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
@@ -123,3 +126,10 @@ class Rating(models.Model):
 
     class Meta:
         unique_together = ('content_type', 'object_id', 'criteria', 'created_by')
+
+
+def generate_excerpt(source):
+    try:
+        return strip_tags(re.sub(r'<br\s*/>', '\n', source)).strip()
+    except:
+        return None

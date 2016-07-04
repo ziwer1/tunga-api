@@ -1,7 +1,8 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
-from tunga_auth.models import TungaUser, USER_TYPE_CHOICES
+
+from tunga_auth.models import USER_TYPE_CHOICES
 
 
 class TungaUserCreationForm(UserCreationForm):

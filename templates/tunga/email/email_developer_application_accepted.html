@@ -1,0 +1,13 @@
+{% extends "tunga/email/base.html" %}
+{% load i18n %}
+{% block email_content %}
+    <p>Hello {{ application.first_name }},</p>
+
+    <p>Congratulations! Your application to become a Tunga developer has been accepted.</p>
+
+    <p>
+        Click the link below to complete your registration:<br/>
+        {{ invite_url }}
+    </p>
+
+{% endblock %}

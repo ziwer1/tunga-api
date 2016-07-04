@@ -1,7 +1,7 @@
 from django_countries.serializer_fields import CountryField
 from rest_framework import serializers
 
-from tunga_profiles.models import UserProfile, Education, Work, Connection, SocialPlatform, SocialLink
+from tunga_profiles.models import UserProfile, Education, Work, Connection, SocialPlatform, SocialLink, DeveloperApplication
 from tunga_utils.serializers import SimpleProfileSerializer, CreateOnlyCurrentUserDefault, SimpleUserSerializer, AbstractExperienceSerializer, \
     DetailAnnotatedModelSerializer
 
@@ -113,3 +113,11 @@ class ConnectionSerializer(DetailAnnotatedModelSerializer):
         model = Connection
         exclude = ('created_at',)
         details_serializer = ConnectionDetailsSerializer
+
+
+class DeveloperApplicationSerializer(serializers.ModelSerializer):
+    display_name = serializers.CharField(required=False, read_only=True)
+
+    class Meta:
+        model = DeveloperApplication
+        exclude = ('confirmation_key', 'confirmation_sent_at', 'used', 'used_at')

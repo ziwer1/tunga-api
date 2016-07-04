@@ -1,7 +1,9 @@
 from django.contrib import admin
 
-from tunga_profiles.models import UserProfile, SocialPlatform, SocialLink, Education, Work, Connection
+from tunga_profiles.models import UserProfile, SocialPlatform, SocialLink, Education, Work, Connection, \
+    DeveloperApplication
 from tunga_utils.admin import AdminAutoCreatedBy
+from tunga_utils.constants import REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED
 
 
 @admin.register(SocialPlatform)
@@ -28,3 +30,26 @@ class WorkAdmin(admin.ModelAdmin):
 class ConnectionAdmin(admin.ModelAdmin):
     list_display = ('from_user', 'to_user', 'accepted', 'responded')
     list_filter = ('accepted', 'responded')
+
+
+@admin.register(DeveloperApplication)
+class DeveloperApplicationAdmin(admin.ModelAdmin):
+    list_display = ('first_name', 'last_name', 'email', 'phone_number', 'country_name', 'city', 'status')
+    list_filter = ('status', 'created_at')
+    readonly_fields = ('first_name', 'last_name', 'email', 'phone_number', 'country', 'city', 'stack', 'experience', 'discovery_story')
+    actions = ['accept_users', 'reject_users']
+
+    def has_add_permission(self, request):
+        return False
+
+    def accept_users(self, request, queryset):
+        rows_updated = queryset.update(status=REQUEST_STATUS_ACCEPTED)
+        self.message_user(
+            request, "%s developer%s successfully marked as accepted." % (rows_updated, (rows_updated > 1 and 's' or '')))
+    accept_users.short_description = "Accept selected developers"
+
+    def reject_users(self, request, queryset):
+        rows_updated = queryset.update(status=REQUEST_STATUS_REJECTED)
+        self.message_user(
+            request, "%s developer%s successfully marked as rejected." % (rows_updated, (rows_updated > 1 and 's' or '')))
+    reject_users.short_description = "Reject selected developers"

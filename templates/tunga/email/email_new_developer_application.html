@@ -1,0 +1,38 @@
+{% extends "tunga/email/base.html" %}
+{% load i18n %}
+{% block email_content %}
+    <p>Hello,</p>
+
+    <p>{{ application.display_name }} has applied to become a Tunga developer.</p>
+
+    <p>
+        Name: {{ application.display_name }} <br/>
+
+        Email: {{ application.email }} <br/>
+
+        Phone Number: {{ application.phone_number }} <br/>
+
+        Country: {{ application.country_name }} <br/>
+
+        City: {{ application.city }} <br/>
+    </p>
+
+    <p>
+        Stack: <br/>
+
+        {{ application.stack }}
+    </p>
+
+    <p>
+        Experience: <br/>
+
+        {{ application.experience }}
+    </p>
+
+    <p>
+        Discovery story: <br/>
+
+        {{ application.discovery_story }}
+    </p>
+
+{% endblock %}

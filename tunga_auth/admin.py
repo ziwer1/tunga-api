@@ -1,13 +1,13 @@
-import StringIO
 import csv
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
-from django.http.response import HttpResponse
+from django.http.response import StreamingHttpResponse
 from django.utils.translation import ugettext_lazy as _
 
 from tunga_auth.forms import TungaUserChangeForm, TungaUserCreationForm
+from tunga_utils.views import Echo
 
 
 @admin.register(get_user_model())
@@ -41,15 +41,16 @@ class TungaUserAdmin(UserAdmin):
     make_not_pending.short_description = "Mark selected users as active"
 
     def download_csv(self, request, queryset):
-        f = StringIO.StringIO()
-        writer = csv.writer(f)
-        writer.writerow(["Name", "E-mail", "User Type"])
+        pseudo_buffer = Echo()
+        writer = csv.writer(pseudo_buffer)
 
+        report_rows = [["Name", "E-mail", "User Type"]]
         for user in queryset:
-            writer.writerow([user.display_name, user.email, user.display_type])
+            report_rows.append([
+                user.display_name and user.display_name.encode('utf-8') or '', user.email, user.display_type]
+            )
 
-        f.seek(0)
-        response = HttpResponse(f, content_type='text/csv')
+        response = StreamingHttpResponse((writer.writerow(row) for row in report_rows), content_type="text/csv")
         response['Content-Disposition'] = 'attachment; filename=tunga_users.csv'
         return response
     download_csv.short_description = "Download CSV of selected users"

@@ -1,12 +1,14 @@
+import datetime
 from django.contrib.auth import get_user_model
 from django.db.models.aggregates import Avg
 from django.db.models.query_utils import Q
 from rest_auth.registration.serializers import RegisterSerializer
 from rest_auth.serializers import TokenSerializer, PasswordResetSerializer
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from tunga_auth.models import USER_TYPE_CHOICES, USER_TYPE_DEVELOPER
-from tunga_profiles.models import Connection
+from tunga_profiles.models import Connection, DeveloperApplication, UserProfile
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.serializers import SimpleProfileSerializer, SimpleUserSerializer, SimpleWorkSerializer, \
     SimpleEducationSerializer, SimpleConnectionSerializer
@@ -109,13 +111,30 @@ class TungaRegisterSerializer(RegisterSerializer):
     type = serializers.ChoiceField(required=True, choices=USER_TYPE_CHOICES, allow_blank=False, allow_null=False)
     first_name = serializers.CharField(required=True, allow_blank=False, allow_null=False)
     last_name = serializers.CharField(required=True, allow_blank=False, allow_null=False)
+    key = serializers.CharField(required=False, write_only=True, allow_blank=True, allow_null=True)
 
     def save(self, request):
+        user_type = self.initial_data.get('type', None)
+        confirm_key = self.initial_data.get('key', None)
+        application = None
+        if user_type == USER_TYPE_DEVELOPER:
+            try:
+                application = DeveloperApplication.objects.get(confirmation_key=confirm_key, used=False)
+            except:
+                raise ValidationError({'key': 'Invalid key'})
         user = super(TungaRegisterSerializer, self).save(request)
-        user.type = self.initial_data['type']
+        user.type = user_type
         user.first_name = self.initial_data['first_name']
         user.last_name = self.initial_data['last_name']
         user.save()
+        if application:
+            application.used = True
+            application.used_at = datetime.datetime.utcnow()
+            application.save()
+
+            profile = UserProfile(user=user, phone_number=application.phone_number, country=application.country)
+            profile.city = application.city
+            profile.save()
         return user
 
 

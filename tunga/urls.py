@@ -21,11 +21,11 @@ from rest_auth.views import UserDetailsView
 from rest_framework.routers import DefaultRouter
 from rest_framework_jwt.views import obtain_jwt_token, refresh_jwt_token, verify_jwt_token
 
-from tunga_auth.views import VerifyUserView, AccountInfoView, UserViewSet
+from tunga_auth.views import VerifyUserView, AccountInfoView, UserViewSet, social_login_view
 from tunga_comments.views import CommentViewSet
 from tunga_messages.views import MessageViewSet, ChannelViewSet
 from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, ConnectionViewSet, SocialLinkViewSet, \
-    NotificationView, CountryListView
+    NotificationView, CountryListView, DeveloperApplicationViewSet
 from tunga_settings.views import UserSettingsView
 from tunga_tasks.views import TaskViewSet, ApplicationViewSet, ParticipationViewSet, TaskRequestViewSet, \
     SavedTaskViewSet, task_web_view, ProjectViewSet, ProgressReportViewSet, ProgressEventViewSet
@@ -34,6 +34,7 @@ from tunga_utils.views import SkillViewSet, ContactRequestView
 
 router = DefaultRouter()
 router.register(r'user', UserViewSet)
+router.register(r'apply', DeveloperApplicationViewSet)
 router.register(r'project', ProjectViewSet)
 router.register(r'task', TaskViewSet)
 router.register(r'application', ApplicationViewSet)
@@ -54,6 +55,7 @@ router.register(r'skill', SkillViewSet)
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
+    url(r'^accounts/social/(?P<provider>\w+)/$', social_login_view, name="social-login-redirect"),
     url(r'^accounts/', include('allauth.urls')),
     url(r'api/', include(router.urls)),
     url(r'^api/auth/register/account-confirm-email/(?P<key>\w+)/$', ConfirmEmailView.as_view(),

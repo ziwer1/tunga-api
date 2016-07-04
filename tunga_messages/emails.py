@@ -19,7 +19,7 @@ def send_new_message_email(instance):
             'subject': instance.channel.subject,
             'channel': instance.channel,
             'message': instance,
-            'message_url': '%s/message/%s/' % (TUNGA_URL, instance.channel.id)
+            'message_url': '%s/channel/%s/' % (TUNGA_URL, instance.channel.id)
         }
         send_mail(subject, 'tunga/email/email_new_message', to, ctx)
 

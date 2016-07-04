@@ -1,5 +1,10 @@
 from allauth.account.models import EmailAddress
+from allauth.exceptions import ImmediateHttpResponse
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
+from django.shortcuts import redirect
+
+from tunga_auth.models import USER_TYPE_DEVELOPER
+from tunga_utils.views import get_session_user_type
 
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
@@ -33,6 +38,13 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
 
         # if it does not, let allauth take care of this new social account
         except EmailAddress.DoesNotExist:
+            user_type = get_session_user_type(request)
+            if not user_type:
+                # User type is required
+                raise ImmediateHttpResponse(redirect('/signup/'))
+            elif user_type == USER_TYPE_DEVELOPER:
+                # Developers need to be approved first
+                raise ImmediateHttpResponse(redirect('/signup/developer/'))
             return
 
         # if it does, connect this new social login to the existing user
@@ -44,3 +56,11 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         # account = get_user_model().objects.get(email=email).socialaccount_set.first()
         # messages.error(request, "A "+account.provider.capitalize()+" account already exists associated to "+email_address.email+". Log in with that instead, and connect your "+sociallogin.account.provider.capitalize()+" account through your profile page to link them together.")
         # raise ImmediateHttpResponse(redirect('/accounts/login'))
+
+    def populate_user(self, request, sociallogin, data):
+        user = super(SocialAccountAdapter, self).populate_user(request, sociallogin, data)
+        if not sociallogin.is_existing:
+            # Read the user type from session if provided for new users
+            user_type = get_session_user_type(request)
+            user.type = user_type
+        return user

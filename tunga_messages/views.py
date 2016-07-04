@@ -1,7 +1,6 @@
-from django.db.models.aggregates import Max, Count
+from django.db.models.aggregates import Max
 from django.db.models.expressions import Case, When, F
 from django.db.models.fields import DateTimeField
-from django.db.models.query_utils import Q
 from dry_rest_permissions.generics import DRYObjectPermissions
 from rest_framework import viewsets, status
 from rest_framework.decorators import detail_route, list_route
@@ -11,9 +10,9 @@ from rest_framework.response import Response
 
 from tunga_messages.filterbackends import MessageFilterBackend, ChannelFilterBackend
 from tunga_messages.filters import MessageFilter, ChannelFilter
-from tunga_messages.models import Message, Attachment, Channel, ChannelUser, CHANNEL_TYPE_DIRECT
+from tunga_messages.models import Message, Attachment, Channel, ChannelUser
 from tunga_messages.serializers import MessageSerializer, ChannelSerializer, DirectChannelSerializer
-from tunga_messages.tasks import create_channel, get_or_create_direct_channel
+from tunga_messages.tasks import get_or_create_direct_channel
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 
 
