@@ -16,13 +16,14 @@ class GetCurrentUserAnnotatedSerializerMixin(object):
 class SaveUploadsMixin(object):
 
     def perform_create(self, serializer):
-        self.save_uploads(serializer)
+        instance = serializer.save()
+        self.save_uploads(instance)
 
     def perform_update(self, serializer):
-        self.save_uploads(serializer)
+        instance = serializer.save()
+        self.save_uploads(instance)
 
-    def save_uploads(self, serializer):
-        content_object = serializer.save()
+    def save_uploads(self, content_object):
         uploads = self.request.FILES
         if uploads:
             for uploaded_file in uploads.itervalues():

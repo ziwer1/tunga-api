@@ -2,11 +2,13 @@ from actstream.signals import action
 from django.db.models.signals import post_save
 from django.dispatch.dispatcher import receiver, Signal
 
+from tunga_activity import verbs
 from tunga_messages.tasks import create_channel
 from tunga_tasks.emails import send_new_task_application_email, send_new_task_application_applicant_email, \
     send_new_task_invitation_email, send_new_task_application_response_email, send_new_task_invitation_response_email, \
     send_task_application_not_selected_email
-from tunga_tasks.models import Task, Application, Participation, TaskRequest, ProgressEvent, ProgressReport
+from tunga_tasks.models import Task, Application, Participation, TaskRequest, ProgressEvent, ProgressReport, \
+    IntegrationActivity, Integration
 from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates
 
 task_applications_closed = Signal(providing_args=["task"])
@@ -21,7 +23,7 @@ participation_response = Signal(providing_args=["participation"])
 @receiver(post_save, sender=Task)
 def activity_handler_new_task(sender, instance, created, **kwargs):
     if created:
-        action.send(instance.user, verb='created a task', action_object=instance)
+        action.send(instance.user, verb=verbs.CREATE, action_object=instance)
 
         initialize_task_progress_events(instance)
 
@@ -29,7 +31,7 @@ def activity_handler_new_task(sender, instance, created, **kwargs):
 @receiver(task_applications_closed, sender=Task)
 def activity_handler_task_applications_closed(sender, task, **kwargs):
     if not task.apply:
-        action.send(task.user, verb='task applications closed', target=task)
+        action.send(task.user, verb=verbs.CLOSE_APPLY, target=task)
 
         send_task_application_not_selected_email(task)
 
@@ -37,13 +39,13 @@ def activity_handler_task_applications_closed(sender, task, **kwargs):
 @receiver(task_closed, sender=Task)
 def activity_handler_task_closed(sender, task, **kwargs):
     if task.closed:
-        action.send(task.user, verb='task closed', target=task)
+        action.send(task.user, verb=verbs.CLOSE, target=task)
 
 
 @receiver(post_save, sender=Application)
 def activity_handler_new_application(sender, instance, created, **kwargs):
     if created:
-        action.send(instance.user, verb='applied for task', action_object=instance, target=instance.task)
+        action.send(instance.user, verb=verbs.APPLY, action_object=instance, target=instance.task)
 
         if instance.remarks:
             # Send the developer's remarks as a message to the client
@@ -64,9 +66,9 @@ def activity_handler_new_application(sender, instance, created, **kwargs):
 @receiver(application_response, sender=Application)
 def activity_handler_application_response(sender, application, **kwargs):
     if application.accepted or application.responded:
+        status_verb = application.accepted and verbs.ACCEPT or verbs.REJECT
         action.send(
-            application.task.user, verb='%s a task application' % application.accepted or 'accepted' or 'rejected',
-            action_object=application, target=application.task
+            application.task.user, verb=status_verb, action_object=application, target=application.task
         )
         send_new_task_application_response_email(application)
 
@@ -74,7 +76,7 @@ def activity_handler_application_response(sender, application, **kwargs):
 @receiver(post_save, sender=Participation)
 def activity_handler_new_participant(sender, instance, created, **kwargs):
     if created:
-        action.send(instance.created_by, verb='added a participant', action_object=instance, target=instance.task)
+        action.send(instance.created_by, verb=verbs.ADD, action_object=instance, target=instance.task)
 
         if not instance.responded and not instance.accepted:
             send_new_task_invitation_email(instance)
@@ -86,9 +88,9 @@ def activity_handler_new_participant(sender, instance, created, **kwargs):
 @receiver(participation_response, sender=Participation)
 def activity_handler_participation_response(sender, participation, **kwargs):
     if participation.accepted or participation.responded:
+        status_verb = participation.accepted and verbs.ACCEPT or verbs.REJECT
         action.send(
-            participation.task.user, verb='%s a task invitation' % participation.accepted or 'accepted' or 'rejected',
-            action_object=participation, target=participation.task
+            participation.task.user, verb=status_verb, action_object=participation, target=participation.task
         )
         send_new_task_invitation_response_email(participation)
 
@@ -100,8 +102,7 @@ def activity_handler_participation_response(sender, participation, **kwargs):
 def activity_handler_task_request(sender, instance, created, **kwargs):
     if created:
         action.send(
-            instance.user, verb='created a %s' % instance.get_type_display().lower(), action_object=instance,
-            target=instance.task
+                instance.user, verb=verbs.REQUEST, action_object=instance, target=instance.task
         )
 
 
@@ -109,11 +110,24 @@ def activity_handler_task_request(sender, instance, created, **kwargs):
 def activity_handler_progress_event(sender, instance, created, **kwargs):
     if created:
         action.send(
-            instance.created_by or instance.task.user, verb='created a progress event', action_object=instance, target=instance.task
+                instance.created_by or instance.task.user, verb=verbs.CREATE,
+                action_object=instance, target=instance.task
         )
 
 
 @receiver(post_save, sender=ProgressReport)
 def activity_handler_progress_report(sender, instance, created, **kwargs):
     if created:
-        action.send(instance.user, verb='created a progress report', action_object=instance, target=instance.event)
+        action.send(instance.user, verb=verbs.REPORT, action_object=instance, target=instance.event)
+
+
+@receiver(post_save, sender=Integration)
+def activity_handler_integration(sender, instance, created, **kwargs):
+    if created:
+        action.send(instance.created_by, verb=verbs.INTEGRATE, action_object=instance, target=instance.task)
+
+
+@receiver(post_save, sender=IntegrationActivity)
+def activity_handler_integration_activity(sender, instance, created, **kwargs):
+    if created:
+        action.send(instance.integration, verb=verbs.REPORT, action_object=instance, target=instance.integration.task)

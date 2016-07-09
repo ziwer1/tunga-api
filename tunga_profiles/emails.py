@@ -18,7 +18,7 @@ def send_new_developer_email(instance):
     send_mail(subject, 'tunga/email/email_new_developer_application', to, ctx)
 
 
-#@catch_all_exceptions
+@catch_all_exceptions
 def send_developer_accepted_email(instance):
     subject = "%s Your application to become a Tunga developer has been accepted" % EMAIL_SUBJECT_PREFIX
     to = [instance.email]
@@ -28,3 +28,4 @@ def send_developer_accepted_email(instance):
     }
     if send_mail(subject, 'tunga/email/email_developer_application_accepted', to, ctx):
         instance.confirmation_sent_at = datetime.datetime.utcnow()
+        instance.save()

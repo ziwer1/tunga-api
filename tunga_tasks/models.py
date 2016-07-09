@@ -6,12 +6,14 @@ import urllib
 
 import requests
 import tagulous.models
+from allauth.socialaccount import providers
 from django.contrib.contenttypes.fields import GenericRelation, GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.query_utils import Q
 from django.template.defaultfilters import floatformat
+from django.utils.crypto import get_random_string
 from django.utils.html import strip_tags
 from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
@@ -577,3 +579,143 @@ class ProgressReport(models.Model):
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
         return request.user == self.user
+
+
+class IntegrationEvent(models.Model):
+    id = models.CharField(max_length=30, primary_key=True)
+    name = models.CharField(max_length=30)
+    description = models.CharField(max_length=200, blank=True, null=True)
+    created_by = models.ForeignKey(
+            settings.AUTH_USER_MODEL, blank=True, null=True, related_name='integration_events_created',
+            on_delete=models.DO_NOTHING
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __unicode__(self):
+        return '%s - %s' % (self.id, self.name)
+
+    class Meta:
+        ordering = ['id', 'name']
+
+
+INTEGRATION_TYPE_REPO = 1
+INTEGRATION_TYPE_ISSUE = 2
+
+INTEGRATION_TYPE_CHOICES = (
+    (INTEGRATION_TYPE_REPO, 'Repo'),
+    (INTEGRATION_TYPE_ISSUE, 'Issue')
+)
+
+
+class Integration(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    provider = models.CharField(max_length=30, choices=providers.registry.as_choices())
+    type = models.PositiveSmallIntegerField(
+        choices=INTEGRATION_TYPE_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in INTEGRATION_TYPE_CHOICES])
+    )
+    events = models.ManyToManyField(IntegrationEvent, related_name='integrations')
+    secret = models.CharField(max_length=30, default=get_random_string)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='integrations_created', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __unicode__(self):
+        return '%s - %s' % (self.get_provider_display(), self.task.summary)
+
+    class Meta:
+        unique_together = ('task', 'provider')
+        ordering = ['created_at']
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return request.user == self.task.user
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.type == USER_TYPE_PROJECT_OWNER
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.task.user
+
+    @property
+    def hook_id(self):
+        try:
+            return self.integrationmeta_set.get(meta_key='hook_id').meta_value
+        except:
+            return None
+
+    @property
+    def repo_id(self):
+        try:
+            return self.integrationmeta_set.get(meta_key='repo_id').meta_value
+        except:
+            return None
+
+    @property
+    def repo_full_name(self):
+        try:
+            return self.integrationmeta_set.get(meta_key='repo_full_name').meta_value
+        except:
+            return None
+
+    @property
+    def issue_id(self):
+        try:
+            return self.integrationmeta_set.get(meta_key='issue_id').meta_value
+        except:
+            return None
+
+    @property
+    def issue_number(self):
+        try:
+            return self.integrationmeta_set.get(meta_key='issue_number').meta_value
+        except:
+            return None
+
+class IntegrationMeta(models.Model):
+    integration = models.ForeignKey(Integration, on_delete=models.CASCADE)
+    meta_key = models.CharField(max_length=30)
+    meta_value = models.CharField(max_length=30)
+    created_by = models.ForeignKey(
+            settings.AUTH_USER_MODEL, related_name='integration_meta_created', blank=True, null=True,
+            on_delete=models.DO_NOTHING
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __unicode__(self):
+        return '%s | %s - %s' % (self.integration, self.meta_key, self.meta_value)
+
+    class Meta:
+        ordering = ['created_at']
+
+
+class IntegrationActivity(models.Model):
+    integration = models.ForeignKey(Integration, on_delete=models.CASCADE, related_name='activities')
+    event = models.ForeignKey(IntegrationEvent, related_name='integration_activities')
+    action = models.CharField(max_length=30, blank=True, null=True)
+    url = models.URLField(blank=True, null=True)
+    ref = models.CharField(max_length=30, blank=True, null=True)
+    ref_name = models.CharField(max_length=50, blank=True, null=True)
+    username = models.CharField(max_length=30, blank=True, null=True)
+    fullname = models.CharField(max_length=50, blank=True, null=True)
+    avatar_url = models.URLField(blank=True, null=True)
+    title = models.CharField(max_length=200,blank=True, null=True)
+    body = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __unicode__(self):
+        return '%s | ' % (self.integration, )
+
+    class Meta:
+        ordering = ['created_at']

@@ -1,3 +1,4 @@
+from allauth.socialaccount.models import SocialToken
 from django.http.response import HttpResponseRedirect
 from rest_framework import viewsets, generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -48,3 +49,10 @@ def get_session_user_type(request):
     if user_type in [USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER]:
         return user_type
     return None
+
+
+def get_social_token(user, provider):
+    try:
+        return SocialToken.objects.filter(account__user=user, account__provider=provider).latest('expires_at')
+    except SocialToken.DoesNotExist:
+        return None

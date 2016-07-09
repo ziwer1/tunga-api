@@ -1,4 +1,4 @@
-# Visiibility
+# Visibility
 PROFILE_VISIBILITY = 'profile_visibility'
 SOCIAL_LINKS = 'social_links'
 LOCATION_DETAILS = 'location_details'

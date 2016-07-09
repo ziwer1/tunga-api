@@ -45,11 +45,4 @@ class ChannelFilterBackend(DRYPermissionFiltersBase):
 class MessageFilterBackend(DRYPermissionFiltersBase):
 
     def filter_list_queryset(self, request, queryset, view):
-        label_filter = request.query_params.get('filter', None)
-        if label_filter == 'sent':
-            return queryset.filter(user=request.user)
-        elif label_filter == 'inbox':
-            return queryset.filter(
-                all_messages_q_filter(request.user)
-            ).annotate(reply_count=Count('replies')).exclude(user=request.user, reply_count=0)
         return queryset.filter(all_messages_q_filter(request.user))

@@ -11,7 +11,8 @@ from rest_framework.response import Response
 from tunga_messages.filterbackends import MessageFilterBackend, ChannelFilterBackend
 from tunga_messages.filters import MessageFilter, ChannelFilter
 from tunga_messages.models import Message, Attachment, Channel, ChannelUser
-from tunga_messages.serializers import MessageSerializer, ChannelSerializer, DirectChannelSerializer
+from tunga_messages.serializers import MessageSerializer, ChannelSerializer, DirectChannelSerializer, \
+    ChannelLastReadSerializer
 from tunga_messages.tasks import get_or_create_direct_channel
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 
@@ -50,8 +51,11 @@ class ChannelViewSet(viewsets.ModelViewSet):
     def direct_channel(self, request):
         """
         Gets or creates a direct channel to the user
+        ---
+        request_serializer: DirectChannelSerializer
+        response_serializer: ChannelSerializer
         """
-        serializer = DirectChannelSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         channel = None
         if serializer.is_valid(raise_exception=True):
             user = serializer.validated_data['user']
@@ -65,22 +69,23 @@ class ChannelViewSet(viewsets.ModelViewSet):
 
     @detail_route(
         methods=['post'], url_path='read',
-        permission_classes=[IsAuthenticated]
+        permission_classes=[IsAuthenticated], serializer_class=ChannelLastReadSerializer
     )
     def update_read(self, request, pk=None):
         """
         Updates user's read_at for channel
+        ---
+        request_serializer: ChannelLastReadSerializer
+        response_serializer: ChannelSerializer
         """
-        last_read = request.data.get('last_read', None)
-        if not last_read:
-            return Response(
-                {'status': 'Bad request.', 'last_read': 'Invalid value'}, status=status.HTTP_400_BAD_REQUEST
-            )
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        last_read = serializer.validated_data['last_read']
         channel = get_object_or_404(self.get_queryset(), pk=pk)
         if channel.has_object_read_permission(request):
             ChannelUser.objects.update_or_create(user=request.user, channel=channel, defaults={'last_read': last_read})
-
-            return Response({'status': 'Read status updated.', 'channel': channel.id})
+            response_serializer = ChannelSerializer(channel)
+            return Response(response_serializer.data)
         return Response(
                 {'status': 'Unauthorized', 'message': 'No access to this channel'},
                 status=status.HTTP_401_UNAUTHORIZED
@@ -125,7 +130,9 @@ class MessageViewSet(viewsets.ModelViewSet):
     )
     def update_read(self, request, pk=None):
         """
-        Updates last_read for channel
+        Set message as last_read in it's channel
+        ---
+        response_serializer: ChannelSerializer
         """
         message = get_object_or_404(self.get_queryset(), pk=pk)
 
@@ -133,8 +140,8 @@ class MessageViewSet(viewsets.ModelViewSet):
             ChannelUser.objects.update_or_create(
                 user=request.user, channel=message.channel, defaults={'last_read': message.id}
             )
-
-            return Response({'status': 'Read status updated.', 'message': message.id, 'channel': message.channel.id})
+            response_serializer = ChannelSerializer(message.channel)
+            return Response(response_serializer.data)
         return Response(
                 {'status': 'Unauthorized', 'message': 'No access to this message'},
                 status=status.HTTP_401_UNAUTHORIZED

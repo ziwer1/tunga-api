@@ -4,6 +4,7 @@ from rest_framework import views, status, generics, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from tunga.settings.base import GITHUB_SCOPES
 from tunga_auth.filterbackends import UserFilterBackend
 from tunga_auth.filters import UserFilter
 from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
@@ -69,6 +70,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 def social_login_view(request, provider=None):
     enabled_providers = ['facebook', 'google', 'github']
     action = request.GET.get('action')
+    next = request.GET.get('next')
     try:
         user_type = int(request.GET.get('user_type'))
     except:
@@ -81,6 +83,11 @@ def social_login_view(request, provider=None):
 
     if provider in enabled_providers:
         next_url = '/accounts/%s/login/' % provider
+        if provider == 'github' and action == 'connect':
+            scope = ','.join(GITHUB_SCOPES)
+            next_url += '?scope=%s&process=connect' % scope
+            if next:
+                next_url += '&next=%s' % next
     else:
         next_url = '/'
     return redirect(next_url)

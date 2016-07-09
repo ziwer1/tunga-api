@@ -20,6 +20,10 @@ class DirectChannelSerializer(serializers.Serializer):
     user = serializers.PrimaryKeyRelatedField(required=True, queryset=get_user_model().objects.all())
 
 
+class ChannelLastReadSerializer(serializers.Serializer):
+    last_read = serializers.IntegerField(required=True)
+
+
 class ChannelDetailsSerializer(serializers.ModelSerializer):
     created_by = SimpleUserSerializer()
     participants = SimpleUserSerializer(many=True)

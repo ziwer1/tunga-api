@@ -17,7 +17,10 @@ from tunga_profiles.models import UserProfile, Education, Work, Connection, Soci
 from tunga_profiles.permissions import IsAdminOrCreateOnly
 from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, WorkSerializer, ConnectionSerializer, \
     SocialLinkSerializer, DeveloperApplicationSerializer
+from tunga_utils import github
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
+from tunga_utils.github import ISSUE_FIELDS, extract_repo_info
+from tunga_utils.views import get_social_token
 
 
 class ProfileView(generics.CreateAPIView, generics.RetrieveUpdateDestroyAPIView):
@@ -194,3 +197,53 @@ class NotificationView(views.APIView):
             {'messages': new_messages, 'requests': requests, 'tasks': tasks, 'profile': profile_notifications},
             status=status.HTTP_200_OK
         )
+
+
+class RepoListView(views.APIView):
+    """
+    Repository List Resource
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, provider=None):
+        social_token = get_social_token(user=request.user, provider=provider)
+        if not social_token:
+            return Response({'status': 'Unauthorized'}, status.HTTP_401_UNAUTHORIZED)
+
+        if provider == 'github':
+            r = github.api(endpoint='/user/repos', method='get', access_token=social_token.token)
+            if r.status_code == 200:
+                repos = [extract_repo_info(repo) for repo in r.json()]
+                return Response(repos)
+            return Response(r.json(), r.status_code)
+        return Response({'status': 'Not implemented'}, status.HTTP_501_NOT_IMPLEMENTED)
+
+
+class IssueListView(views.APIView):
+    """
+    Issue List Resource
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, provider=None):
+        social_token = get_social_token(user=request.user, provider=provider)
+        if not social_token:
+            return Response({'status': 'Unauthorized'}, status.HTTP_401_UNAUTHORIZED)
+
+        if provider == 'github':
+            r = github.api(endpoint='/user/issues', method='get', params={'filter': 'all'}, access_token=social_token.token)
+            if r.status_code == 200:
+                issues = []
+                for issue in r.json():
+                    if 'pull_request' in issue:
+                        continue  # Github returns both issues and pull requests from this endpoint
+                    issue_info = {}
+                    for key in ISSUE_FIELDS:
+                        if key == 'repository':
+                            issue_info[key] = extract_repo_info(issue[key])
+                        else:
+                            issue_info[key] = issue[key]
+                    issues.append(issue_info)
+                return Response(issues)
+            return Response(r.json(), r.status_code)
+        return Response({'status': 'Not implemented'}, status.HTTP_501_NOT_IMPLEMENTED)

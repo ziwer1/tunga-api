@@ -25,7 +25,7 @@ from tunga_auth.views import VerifyUserView, AccountInfoView, UserViewSet, socia
 from tunga_comments.views import CommentViewSet
 from tunga_messages.views import MessageViewSet, ChannelViewSet
 from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, ConnectionViewSet, SocialLinkViewSet, \
-    NotificationView, CountryListView, DeveloperApplicationViewSet
+    NotificationView, CountryListView, DeveloperApplicationViewSet, RepoListView, IssueListView
 from tunga_settings.views import UserSettingsView
 from tunga_tasks.views import TaskViewSet, ApplicationViewSet, ParticipationViewSet, TaskRequestViewSet, \
     SavedTaskViewSet, task_web_view, ProjectViewSet, ProgressReportViewSet, ProgressEventViewSet
@@ -71,6 +71,8 @@ urlpatterns = [
     url(r'^api/me/profile/', ProfileView.as_view(), name='profile-info'),
     url(r'^api/me/settings/', UserSettingsView.as_view(), name='user-settings'),
     url(r'^api/me/notification/', NotificationView.as_view(), name='user-notifications'),
+    url(r'^api/me/code/(?P<provider>\w+)/repos/$', RepoListView.as_view(), name="repo-list"),
+    url(r'^api/me/code/(?P<provider>\w+)/issues/$', IssueListView.as_view(), name="issue-list"),
     url(r'^api/auth/', include('rest_auth.urls')),
     url(r'api/', include('rest_framework.urls', namespace='rest_framework')),
     url(r'^api/countries/', CountryListView.as_view(), name='countries'),

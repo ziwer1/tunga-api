@@ -8,6 +8,7 @@ pip install -r requirements.txt
 python manage.py migrate
 python manage.py initial_tags
 python manage.py initial_tunga_settings
+python manage.py initial_tunga_integration_events
 ```
 
 # Coding Guide

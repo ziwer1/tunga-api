@@ -2,6 +2,7 @@ from actstream.signals import action
 from django.db.models.signals import post_save
 from django.dispatch.dispatcher import receiver
 
+from tunga_activity import verbs
 from tunga_profiles.emails import send_new_developer_email, send_developer_accepted_email
 from tunga_profiles.models import Connection, DeveloperApplication
 from tunga_utils.constants import REQUEST_STATUS_ACCEPTED
@@ -11,14 +12,14 @@ from tunga_utils.constants import REQUEST_STATUS_ACCEPTED
 def activity_handler_new_connection(sender, instance, created, **kwargs):
     if created:
         action.send(
-            instance.from_user, verb='made a connection request', action_object=instance, target=instance.to_user)
+            instance.from_user, verb=verbs.CONNECT, action_object=instance, target=instance.to_user)
     else:
         update_fields = kwargs.get('update_fields', None)
         if update_fields:
             if 'accepted' in update_fields and instance.accepted:
-                action.send(instance.to_user, verb='accepted a connection request', action_object=instance)
+                action.send(instance.to_user, verb=verbs.ACCEPT, action_object=instance)
             elif 'responded' in update_fields and not instance.accepted:
-                action.send(instance.to_user, verb='rejected a connection request', action_object=instance)
+                action.send(instance.to_user, verb=verbs.REJECT, action_object=instance)
 
 
 @receiver(post_save, sender=DeveloperApplication)

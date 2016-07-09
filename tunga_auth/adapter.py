@@ -30,6 +30,9 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         if 'email' not in sociallogin.account.extra_data:
             return
 
+        if request.user.is_authenticated():
+            return
+
         # check if given email address already exists.
         # Note: __iexact is used to ignore cases
         try:

@@ -7,9 +7,10 @@ from rest_framework import serializers
 
 from tunga.settings.base import TUNGA_SHARE_PERCENTAGE
 from tunga_auth.serializers import UserSerializer
+from tunga_tasks import slugs
 from tunga_tasks.emails import send_new_task_email, send_task_application_not_selected_email
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, ProgressEvent, ProgressReport, PROGRESS_EVENT_TYPE_MILESTONE, \
-    Project
+    Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.models import Rating
@@ -54,7 +55,7 @@ class SimpleParticipationSerializer(BasicParticipationSerializer):
     class Meta:
         model = Participation
         exclude = ('created_at',)
-		
+
 
 class BasicProgressReportSerializer(ContentTypeAnnotatedModelSerializer):
     user = SimpleUserSerializer()
@@ -411,7 +412,7 @@ class ParticipationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotat
 
     class Meta:
         model = Participation
-        exclude = ('created_at',)
+        read_only_fields = ('created_at',)
         details_serializer = ParticipationDetailsSerializer
 
     def update(self, instance, validated_data):
@@ -439,7 +440,7 @@ class TaskRequestSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotated
 
     class Meta:
         model = TaskRequest
-        exclude = ('created_at',)
+        read_only_fields = ('created_at',)
         details_serializer = TaskRequestDetailsSerializer
 
 
@@ -457,7 +458,7 @@ class SavedTaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedMo
 
     class Meta:
         model = SavedTask
-        exclude = ('created_at',)
+        read_only_fields = ('created_at',)
         details_serializer = SavedTaskDetailsSerializer
 
 
@@ -476,7 +477,7 @@ class ProgressEventSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotat
 
     class Meta:
         model = ProgressEvent
-        exclude = ('created_at',)
+        read_only_fields = ('created_at',)
         details_serializer = ProgressEventDetailsSerializer
 
 
@@ -496,5 +497,169 @@ class ProgressReportSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnota
 
     class Meta:
         model = ProgressReport
-        exclude = ('created_at',)
+        read_only_fields = ('created_at',)
         details_serializer = ProgressReportDetailsSerializer
+
+
+class NestedIntegrationMetaSerializer(serializers.ModelSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(
+        required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
+    )
+
+    class Meta:
+        model = IntegrationMeta
+        exclude = ('integration', 'created_at', 'updated_at')
+
+
+class SimpleIntegrationSerializer(ContentTypeAnnotatedModelSerializer):
+
+    class Meta:
+        model = Integration
+        exclude = ('secret',)
+
+
+class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
+    created_by = serializers.PrimaryKeyRelatedField(
+            required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
+    )
+    events = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=IntegrationEvent.objects.all(), required=False, read_only=False
+    )
+    meta = NestedIntegrationMetaSerializer(required=False, read_only=False, many=True, source='integrationmeta_set')
+    repo = serializers.JSONField(required=False, write_only=True, allow_null=True)
+    issue = serializers.JSONField(required=False, write_only=True, allow_null=True)
+    repo_id = serializers.CharField(required=False, read_only=True)
+    issue_id = serializers.CharField(required=False, read_only=True)
+
+    class Meta:
+        model = Integration
+        exclude = ('secret',)
+        read_only_fields = ('created_at', 'updated_at')
+
+    def create(self, validated_data):
+        events = None
+        meta = None
+        repo = None
+        issue = None
+        if 'events' in validated_data:
+            events = validated_data.pop('events')
+        if 'meta' in validated_data:
+            meta = validated_data.pop('meta')
+        if 'repo' in validated_data:
+            repo = validated_data.pop('repo')
+        if 'issue' in validated_data:
+            issue = validated_data.pop('issue')
+
+        instance = super(IntegrationSerializer, self).create(validated_data)
+        self.save_events(instance, events)
+        self.save_meta(instance, meta)
+        self.save_repo_meta(instance, repo)
+        self.save_issue_meta(instance, issue)
+        return instance
+
+    def update(self, instance, validated_data):
+        events = None
+        meta = None
+        repo = None
+        issue = None
+        if 'events' in validated_data:
+            events = validated_data.pop('events')
+        if 'meta' in validated_data:
+            meta = validated_data.pop('meta')
+        if 'repo' in validated_data:
+            repo = validated_data.pop('repo')
+        if 'issue' in validated_data:
+            issue = validated_data.pop('issue')
+
+        instance = super(IntegrationSerializer, self).update(instance, validated_data)
+        self.save_events(instance, events)
+        self.save_meta(instance, meta)
+        self.save_repo_meta(instance, repo)
+        self.save_issue_meta(instance, issue)
+        return instance
+
+    def save_events(self, instance, events):
+        if events:
+            instance.events.clear()
+            for item in events:
+                try:
+                    instance.events.add(item)
+                except:
+                    pass
+
+    def save_meta(self, instance, meta):
+        if meta:
+            for item in meta:
+                defaults = {'created_by': self.get_current_user() or instance.user}
+                defaults.update(item)
+                try:
+                    IntegrationMeta.objects.update_or_create(
+                            integration=instance, meta_key=item['meta_key'], defaults=defaults
+                    )
+                except:
+                    pass
+
+    def save_repo_meta(self, instance, repo):
+        if repo:
+            for key, value in repo.iteritems():
+                defaults = {
+                    'created_by': self.get_current_user() or instance.user,
+                    'meta_key': 'repo_%s' % key,
+                    'meta_value': value
+                }
+                try:
+                    IntegrationMeta.objects.update_or_create(
+                            integration=instance, meta_key=defaults['meta_key'], defaults=defaults
+                    )
+                except:
+                    pass
+
+    def save_issue_meta(self, instance, issue):
+        if issue:
+            for key, value in issue.iteritems():
+                defaults = {
+                    'created_by': self.get_current_user() or instance.user,
+                    'meta_key': 'issue_%s' % key,
+                    'meta_value': value
+                }
+                try:
+                    IntegrationMeta.objects.update_or_create(
+                            integration=instance, meta_key=defaults['meta_key'], defaults=defaults
+                    )
+                except:
+                    pass
+
+
+class SimpleIntegrationActivitySerializer(ContentTypeAnnotatedModelSerializer):
+    integration = SimpleIntegrationSerializer()
+    user_display_name = serializers.SerializerMethodField()
+    summary = serializers.SerializerMethodField()
+
+    class Meta:
+        model = IntegrationActivity
+
+    def get_user_display_name(self, obj):
+        return obj.fullname or obj.username
+
+    def get_summary(self, obj):
+        event_name = obj.event.id
+        if event_name == slugs.PUSH:
+            return 'pushed new code'
+        elif event_name in [slugs.BRANCH, slugs.TAG, slugs.PULL_REQUEST, slugs.ISSUE, slugs.RELEASE, slugs.WIKI]:
+            msg_map = {
+                slugs.BRANCH: 'a branch',
+                slugs.TAG: 'a tag',
+                slugs.PULL_REQUEST: 'a pull request',
+                slugs.ISSUE: 'an issue',
+                slugs.RELEASE: 'a release',
+                slugs.WIKI: 'a wiki'
+            }
+            return '%s %s' % (obj.action, msg_map[event_name])
+        elif event_name in [slugs.COMMIT_COMMENT, slugs.ISSUE_COMMENT, slugs.PULL_REQUEST_COMMENT]:
+            msg_map = {
+                slugs.COMMIT_COMMENT: 'a commit',
+                slugs.ISSUE_COMMENT: 'an issue',
+                slugs.PULL_REQUEST_COMMENT: 'a pull request'
+            }
+            return 'commented on %s' % msg_map[event_name]
+        return None

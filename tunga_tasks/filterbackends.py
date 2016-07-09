@@ -58,7 +58,7 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                 )).order_by('-matches', '-created_at')
             except (ObjectDoesNotExist, UserProfile.DoesNotExist):
                 return queryset.none()
-        elif label_filter == 'project-owners':
+        elif label_filter in ['my-clients', 'project-owners']:
             queryset = queryset.filter(
                 (
                     Q(user__connections_initiated__to_user=request.user) &

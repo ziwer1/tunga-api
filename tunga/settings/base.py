@@ -71,7 +71,8 @@ INSTALLED_APPS = [
     'tunga_messages',
     'tunga_comments',
     'tunga_utils',
-    'tunga_settings'
+    'tunga_settings',
+    'tunga_activity'
 ]
 
 MIDDLEWARE_CLASSES = [
@@ -305,3 +306,5 @@ TUNGA_SHARE_EMAIL = 'admin@tunga.io'
 TUNGA_SHARE_PERCENTAGE = 13
 
 TUNGA_URL = 'https://tunga.io'
+
+GITHUB_SCOPES = ['user:email', 'repo', 'admin:repo_hook', 'admin:org_hook']

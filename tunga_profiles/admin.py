@@ -1,6 +1,7 @@
 from django.contrib import admin
 
-from tunga_profiles.models import UserProfile, SocialPlatform, SocialLink, Education, Work, Connection, \
+from tunga_profiles.emails import send_developer_accepted_email
+from tunga_profiles.models import SocialPlatform, SocialLink, Education, Work, Connection, \
     DeveloperApplication
 from tunga_utils.admin import AdminAutoCreatedBy
 from tunga_utils.constants import REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED
@@ -36,7 +37,12 @@ class ConnectionAdmin(admin.ModelAdmin):
 class DeveloperApplicationAdmin(admin.ModelAdmin):
     list_display = ('first_name', 'last_name', 'email', 'phone_number', 'country_name', 'city', 'status')
     list_filter = ('status', 'created_at')
-    readonly_fields = ('first_name', 'last_name', 'email', 'phone_number', 'country', 'city', 'stack', 'experience', 'discovery_story')
+    readonly_fields = (
+        'first_name', 'last_name',
+        'email', 'phone_number', 'country', 'city',
+        'stack', 'experience', 'discovery_story',
+        'confirmation_sent_at', 'used', 'used_at',
+    )
     actions = ['accept_users', 'reject_users']
 
     def has_add_permission(self, request):
@@ -46,6 +52,10 @@ class DeveloperApplicationAdmin(admin.ModelAdmin):
         rows_updated = queryset.update(status=REQUEST_STATUS_ACCEPTED)
         self.message_user(
             request, "%s developer%s successfully marked as accepted." % (rows_updated, (rows_updated > 1 and 's' or '')))
+
+        # Send developer accepted emails manually, queryset updates do not invoke the 'post_save' signal
+        for developer in queryset:
+            send_developer_accepted_email(developer)
     accept_users.short_description = "Accept selected developers"
 
     def reject_users(self, request, queryset):
