@@ -25,7 +25,7 @@ def activity_handler_new_connection(sender, instance, created, **kwargs):
 @receiver(post_save, sender=DeveloperApplication)
 def activity_handler_developer_application(sender, instance, created, **kwargs):
     if created:
-        send_new_developer_email(instance)
+        send_new_developer_email.delay(instance.id)
     else:
         if instance.status == REQUEST_STATUS_ACCEPTED and not instance.confirmation_sent_at:
-            send_developer_accepted_email(instance)
+            send_developer_accepted_email.delay(instance.id)

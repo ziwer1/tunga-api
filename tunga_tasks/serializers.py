@@ -8,8 +8,9 @@ from rest_framework import serializers
 from tunga.settings.base import TUNGA_SHARE_PERCENTAGE
 from tunga_auth.serializers import UserSerializer
 from tunga_tasks import slugs
-from tunga_tasks.emails import send_new_task_email, send_task_application_not_selected_email
-from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, ProgressEvent, ProgressReport, PROGRESS_EVENT_TYPE_MILESTONE, \
+from tunga_tasks.emails import send_new_task_email
+from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, ProgressEvent, ProgressReport, \
+    PROGRESS_EVENT_TYPE_MILESTONE, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
@@ -43,7 +44,6 @@ class SimpleApplicationSerializer(ContentTypeAnnotatedModelSerializer):
 
 
 class BasicParticipationSerializer(ContentTypeAnnotatedModelSerializer):
-
     class Meta:
         model = Participation
         exclude = ('created_at',)
@@ -136,7 +136,8 @@ class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
         fields = ('project', 'user', 'skills', 'assignee', 'applications', 'participation')
 
 
-class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
+class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer,
+                     GetCurrentUserAnnotatedSerializerMixin):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     display_fee = serializers.SerializerMethodField(required=False, read_only=True)
     excerpt = serializers.CharField(required=False, read_only=True)
@@ -195,7 +196,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
 
         # Triggered here instead of in the post_save signal to allow skills to be attached first
         # TODO: Consider moving this trigger
-        send_new_task_email(instance)
+        send_new_task_email.delay(instance.id)
         return instance
 
     def update(self, instance, validated_data):
@@ -277,10 +278,10 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         if ratings:
             for item in ratings:
                 try:
-				    Rating.objects.update_or_create(content_type=ContentType.objects.get_for_model(task), object_id=task.id, criteria=item['criteria'], defaults=item)
+                    Rating.objects.update_or_create(content_type=ContentType.objects.get_for_model(task),
+                                                    object_id=task.id, criteria=item['criteria'], defaults=item)
                 except:
                     pass
-
 
     def save_participants(self, task, participants):
         # TODO: Remove and move existing code to using save_participation
@@ -318,7 +319,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         user = self.get_current_user()
         amount = None
         if user and user.is_developer:
-            amount = obj.fee*(1 - TUNGA_SHARE_PERCENTAGE*0.01)
+            amount = obj.fee * (1 - TUNGA_SHARE_PERCENTAGE * 0.01)
         return obj.display_fee(amount=amount)
 
     def get_can_apply(self, obj):
@@ -408,7 +409,8 @@ class ParticipationDetailsSerializer(SimpleParticipationSerializer):
 
 
 class ParticipationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
-    created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True,
+                                                    default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = Participation
@@ -472,7 +474,8 @@ class ProgressEventDetailsSerializer(serializers.ModelSerializer):
 
 
 class ProgressEventSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
-    created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True,
+                                                    default=CreateOnlyCurrentUserDefault())
     report = SimpleProgressReportSerializer(read_only=True, required=False, source='progressreport')
 
     class Meta:
@@ -512,7 +515,6 @@ class NestedIntegrationMetaSerializer(serializers.ModelSerializer):
 
 
 class SimpleIntegrationSerializer(ContentTypeAnnotatedModelSerializer):
-
     class Meta:
         model = Integration
         exclude = ('secret',)
@@ -520,7 +522,7 @@ class SimpleIntegrationSerializer(ContentTypeAnnotatedModelSerializer):
 
 class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
     created_by = serializers.PrimaryKeyRelatedField(
-            required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
+        required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
     )
     events = serializers.PrimaryKeyRelatedField(
         many=True, queryset=IntegrationEvent.objects.all(), required=False, read_only=False
@@ -594,7 +596,7 @@ class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserA
                 defaults.update(item)
                 try:
                     IntegrationMeta.objects.update_or_create(
-                            integration=instance, meta_key=item['meta_key'], defaults=defaults
+                        integration=instance, meta_key=item['meta_key'], defaults=defaults
                     )
                 except:
                     pass
@@ -609,7 +611,7 @@ class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserA
                 }
                 try:
                     IntegrationMeta.objects.update_or_create(
-                            integration=instance, meta_key=defaults['meta_key'], defaults=defaults
+                        integration=instance, meta_key=defaults['meta_key'], defaults=defaults
                     )
                 except:
                     pass
@@ -624,7 +626,7 @@ class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserA
                 }
                 try:
                     IntegrationMeta.objects.update_or_create(
-                            integration=instance, meta_key=defaults['meta_key'], defaults=defaults
+                        integration=instance, meta_key=defaults['meta_key'], defaults=defaults
                     )
                 except:
                     pass

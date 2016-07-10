@@ -1,15 +1,17 @@
-import uuid
-
 import datetime
+
+from django_rq.decorators import job
 
 from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
 from tunga.settings.base import TUNGA_URL
-from tunga_utils.decorators import catch_all_exceptions
+from tunga_profiles.models import DeveloperApplication
+from tunga_utils.decorators import convert_first_arg_to_instance, clean_instance
 from tunga_utils.emails import send_mail
 
 
-@catch_all_exceptions
+@job
 def send_new_developer_email(instance):
+    instance = clean_instance(instance, DeveloperApplication)
     subject = "%s %s has applied to become a Tunga developer" % (EMAIL_SUBJECT_PREFIX, instance.display_name)
     to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
     ctx = {
@@ -18,8 +20,9 @@ def send_new_developer_email(instance):
     send_mail(subject, 'tunga/email/email_new_developer_application', to, ctx)
 
 
-@catch_all_exceptions
+@job
 def send_developer_accepted_email(instance):
+    instance = clean_instance(instance, DeveloperApplication)
     subject = "%s Your application to become a Tunga developer has been accepted" % EMAIL_SUBJECT_PREFIX
     to = [instance.email]
     ctx = {

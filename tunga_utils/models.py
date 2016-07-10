@@ -90,6 +90,7 @@ class Upload(GenericUpload):
 class ContactRequest(models.Model):
     email = models.EmailField()
     created_at = models.DateTimeField(auto_now_add=True)
+    email_sent_at = models.DateTimeField(blank=True, null=True)
 
     def __unicode__(self):
         return '%s on %s' % (self.email, self.created_at)

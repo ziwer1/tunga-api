@@ -2,6 +2,7 @@ import datetime
 
 from django.contrib.auth import get_user_model
 from django.test.client import RequestFactory
+from django_rq.workers import get_worker
 from rest_framework import status
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
@@ -20,6 +21,9 @@ class APITaskTestCase(APITestCase):
         self.admin = get_user_model().objects.create_superuser('admin', 'admin@example.com', 'secret')
 
         self.factory = RequestFactory()
+
+    def __process_jobs(self):
+        get_worker().work(burst=True)
 
     def test_create_task(self):
         """
@@ -137,3 +141,6 @@ class APITaskTestCase(APITestCase):
         self.client.force_authenticate(user=self.project_owner)
         response = self.client.patch(url, data)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def tearDown(self):
+        self.__process_jobs()

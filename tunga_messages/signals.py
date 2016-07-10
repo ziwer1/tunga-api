@@ -21,4 +21,4 @@ def activity_handler_channel_user(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Message)
 def activity_handler_new_message(sender, instance, created, **kwargs):
     if created:
-        send_new_message_email(instance)
+        send_new_message_email.delay(instance.id)

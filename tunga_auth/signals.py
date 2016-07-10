@@ -20,4 +20,4 @@ def user_add_email_to_all_auth_handler(sender, instance, created, **kwargs):
 
 @receiver(user_signed_up)
 def new_user_signup_handler(request, user, **kwargs):
-    send_new_user_email(user)
+    send_new_user_email.delay(user.id)

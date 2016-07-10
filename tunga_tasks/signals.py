@@ -25,7 +25,7 @@ def activity_handler_new_task(sender, instance, created, **kwargs):
     if created:
         action.send(instance.user, verb=verbs.CREATE, action_object=instance)
 
-        initialize_task_progress_events(instance)
+        initialize_task_progress_events.delay(instance.id)
 
 
 @receiver(task_applications_closed, sender=Task)
@@ -33,7 +33,7 @@ def activity_handler_task_applications_closed(sender, task, **kwargs):
     if not task.apply:
         action.send(task.user, verb=verbs.CLOSE_APPLY, target=task)
 
-        send_task_application_not_selected_email(task)
+        send_task_application_not_selected_email.delay(task.id)
 
 
 @receiver(task_closed, sender=Task)
@@ -57,10 +57,10 @@ def activity_handler_new_application(sender, instance, created, **kwargs):
             )
 
         # Send email notification to project owner
-        send_new_task_application_email(instance)
+        send_new_task_application_email.delay(instance.id)
 
         # Send email confirmation to applicant
-        send_new_task_application_applicant_email(instance)
+        send_new_task_application_applicant_email.delay(instance.id)
 
 
 @receiver(application_response, sender=Application)
@@ -70,7 +70,7 @@ def activity_handler_application_response(sender, application, **kwargs):
         action.send(
             application.task.user, verb=status_verb, action_object=application, target=application.task
         )
-        send_new_task_application_response_email(application)
+        send_new_task_application_response_email.delay(application.id)
 
 
 @receiver(post_save, sender=Participation)
@@ -79,10 +79,10 @@ def activity_handler_new_participant(sender, instance, created, **kwargs):
         action.send(instance.created_by, verb=verbs.ADD, action_object=instance, target=instance.task)
 
         if not instance.responded and not instance.accepted:
-            send_new_task_invitation_email(instance)
+            send_new_task_invitation_email.delay(instance.id)
 
         if instance.accepted:
-            update_task_periodic_updates(instance.task)
+            update_task_periodic_updates.delay(instance.task.id)
 
 
 @receiver(participation_response, sender=Participation)
@@ -92,10 +92,10 @@ def activity_handler_participation_response(sender, participation, **kwargs):
         action.send(
             participation.task.user, verb=status_verb, action_object=participation, target=participation.task
         )
-        send_new_task_invitation_response_email(participation)
+        send_new_task_invitation_response_email.delay(participation.id)
 
         if participation.accepted:
-            update_task_periodic_updates(participation.task)
+            update_task_periodic_updates.delay(participation.task.id)
 
 
 @receiver(post_save, sender=TaskRequest)

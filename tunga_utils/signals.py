@@ -8,4 +8,4 @@ from tunga_utils.models import ContactRequest
 @receiver(post_save, sender=ContactRequest)
 def activity_handler_new_contact_request(sender, instance, created, **kwargs):
     if created:
-        send_contact_request_email(instance)
+        send_contact_request_email.delay(instance.id)

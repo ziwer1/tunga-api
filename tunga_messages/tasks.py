@@ -1,4 +1,7 @@
+from django_rq.decorators import job
+
 from tunga_messages.models import Channel, ChannelUser, Message, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_DIRECT
+from tunga_utils.decorators import convert_first_arg_to_instance, clean_instance
 
 
 def create_channel(
@@ -29,7 +32,9 @@ def get_or_create_direct_channel(initiator, participant):
         )
 
 
+@job
 def clean_direct_channel(channel):
+    channel = clean_instance(channel, Channel)
     # A direct channel can't have more than 2 participants
     if channel.type == CHANNEL_TYPE_DIRECT and channel.participants.count() > 2:
         channel.type = CHANNEL_TYPE_TOPIC

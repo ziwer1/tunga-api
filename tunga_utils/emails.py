@@ -1,10 +1,13 @@
+import datetime
 from django.core.mail.message import EmailMultiAlternatives, EmailMessage
 from django.template.exceptions import TemplateDoesNotExist
 from django.template.loader import render_to_string
+from django_rq.decorators import job
 
 from tunga.settings import DEFAULT_FROM_EMAIL
 from tunga.settings.base import EMAIL_SUBJECT_PREFIX, CONTACT_REQUEST_EMAIL_RECIPIENT
-from tunga_utils.decorators import catch_all_exceptions
+from tunga_utils.decorators import convert_first_arg_to_instance, clean_instance
+from tunga_utils.models import ContactRequest
 
 
 def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, **kwargs):
@@ -35,9 +38,12 @@ def send_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, *
     return msg.send()
 
 
-@catch_all_exceptions
+@job
 def send_contact_request_email(instance):
+    instance = clean_instance(instance, ContactRequest)
     subject = "%s New Contact Request" % EMAIL_SUBJECT_PREFIX
     to = [CONTACT_REQUEST_EMAIL_RECIPIENT]
     ctx = {'email': instance.email}
-    send_mail(subject, 'tunga/email/email_contact_request_message', to, ctx)
+    if send_mail(subject, 'tunga/email/email_contact_request_message', to, ctx):
+        instance.email_sent_at = datetime.datetime.utcnow()
+        instance.save()

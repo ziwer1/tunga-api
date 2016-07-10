@@ -1,21 +1,25 @@
 import datetime
+
 from dateutil.relativedelta import relativedelta
 from django.db.models.aggregates import Min, Max
+from django_rq.decorators import job
 
 from tunga_tasks.models import ProgressEvent, PROGRESS_EVENT_TYPE_SUBMIT, PROGRESS_EVENT_TYPE_PERIODIC, \
     UPDATE_SCHEDULE_ANNUALLY, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, UPDATE_SCHEDULE_WEEKLY, \
-    UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY
-from tunga_utils.decorators import catch_all_exceptions
+    UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, Task
+from tunga_utils.decorators import convert_first_arg_to_instance, clean_instance
 
 
-@catch_all_exceptions
+@job
 def initialize_task_progress_events(task):
+    task = clean_instance(task, Task)
     update_task_submit_milestone(task)
     update_task_periodic_updates(task)
 
 
-@catch_all_exceptions
+@job
 def update_task_submit_milestone(task):
+    task = clean_instance(task, Task)
     if task.deadline:
         days_before = task.fee > 150 and 2 or 1
         submission_date = task.deadline - datetime.timedelta(days=days_before)
@@ -23,8 +27,9 @@ def update_task_submit_milestone(task):
         ProgressEvent.objects.update_or_create(task=task, type=PROGRESS_EVENT_TYPE_SUBMIT, defaults=defaults)
 
 
-@catch_all_exceptions
+@job
 def update_task_periodic_updates(task):
+    task = clean_instance(task, Task)
     if task.update_interval and task.update_interval_units:
         periodic_start_date = task.progressevent_set.filter(
             task=task, type=PROGRESS_EVENT_TYPE_PERIODIC
@@ -53,10 +58,14 @@ def update_task_periodic_updates(task):
                 unit = isinstance(period_info, dict) and period_info.keys()[0] or period_info
                 multiplier = isinstance(period_info, dict) and period_info.values()[0] or 1
                 delta = {unit: multiplier*task.update_interval_units}
+                last_update_at = periodic_start_date
                 while True:
-                    next_update = periodic_start_date + relativedelta(**delta)
-                    if not task.deadline or next_update < task.deadline:
-                        next_update_info = {'due_at': next_update, 'type': PROGRESS_EVENT_TYPE_PERIODIC}
-                        ProgressEvent.objects.update_or_create(task=task, defaults=next_update_info)
-                    if next_update > now:
+                    next_update_at = last_update_at + relativedelta(**delta)
+                    if not task.deadline or next_update_at < task.deadline:
+                        ProgressEvent.objects.update_or_create(
+                            task=task, type=PROGRESS_EVENT_TYPE_PERIODIC, due_at=next_update_at
+                        )
+                    if next_update_at > now:
                         break
+                    else:
+                        last_update_at = next_update_at

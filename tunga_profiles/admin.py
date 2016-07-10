@@ -55,7 +55,7 @@ class DeveloperApplicationAdmin(admin.ModelAdmin):
 
         # Send developer accepted emails manually, queryset updates do not invoke the 'post_save' signal
         for developer in queryset:
-            send_developer_accepted_email(developer)
+            send_developer_accepted_email.delay(developer.id)
     accept_users.short_description = "Accept selected developers"
 
     def reject_users(self, request, queryset):

@@ -11,6 +11,8 @@ python manage.py initial_tunga_settings
 python manage.py initial_tunga_integration_events
 ```
 
+2. Install redis
+
 # Coding Guide
 * Built with [Django](https://www.djangoproject.com/) and [Django REST framework](http://www.django-rest-framework.org/)
 
@@ -18,6 +20,7 @@ python manage.py initial_tunga_integration_events
 1. run this command from project root
 ```
 python manage.py runserver
+python manage.py rqworker default
 ```
 2. Access the API at http://127.0.0.1:8000/api/ and the backend at http://127.0.0.1:8000/admin/ in your browser
 

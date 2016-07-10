@@ -55,6 +55,7 @@ router.register(r'skill', SkillViewSet)
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
+    url(r'^admin/django-rq/', include('django_rq.urls')),
     url(r'^accounts/social/(?P<provider>\w+)/$', social_login_view, name="social-login-redirect"),
     url(r'^accounts/', include('allauth.urls')),
     url(r'api/', include(router.urls)),

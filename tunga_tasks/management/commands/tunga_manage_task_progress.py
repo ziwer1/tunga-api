@@ -28,4 +28,4 @@ class Command(BaseCommand):
             task__closed=False, due_at__range=[min_date, max_date], last_reminder_at__isnull=True
         )
         for event in events:
-            send_progress_event_reminder_email(event)
+            send_progress_event_reminder_email(event.id)

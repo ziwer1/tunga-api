@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     'dry_rest_permissions',
+    'django_rq',
 
     # Social Auth Providers
     'allauth.socialaccount.providers.bitbucket_oauth2',
@@ -208,6 +209,28 @@ PASSWORD_HASHERS = [
     # WordPress
     'hashers_passlib.phpass',
 ]
+
+# Use redis for caches
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/0",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
+# Use the same redis as with caches for RQ
+RQ_QUEUES = {
+    'default': {
+        'USE_REDIS_CACHE': 'default',
+    },
+}
+
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+RQ_SHOW_ADMIN_LINK = True
 
 
 # Third Party
