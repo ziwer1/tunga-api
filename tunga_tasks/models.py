@@ -145,7 +145,9 @@ class Task(models.Model):
 
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):
-        if self.visibility == VISIBILITY_DEVELOPER:
+        if request.user == self.user:
+            return True
+        elif self.visibility == VISIBILITY_DEVELOPER:
             return request.user.type == USER_TYPE_DEVELOPER
         elif self.visibility == VISIBILITY_MY_TEAM:
             return bool(
@@ -269,53 +271,54 @@ class Task(models.Model):
         if r.status_code == 200:
             response = r.json()
             task_script = response['result']['script']
-            for meta_key in participation_meta:
-                if meta_key == 'keywords':
-                    if isinstance(task_script[meta_key], list):
-                        participation_meta[meta_key].extend(task_script[meta_key])
-                elif meta_key == 'participants':
-                    if isinstance(task_script[meta_key], list):
-                        absolute_shares = []
-                        relative_shares = []
-                        absolute_participants = []
-                        relative_participants = []
+            if isinstance(task_script, dict):
+                for meta_key in participation_meta:
+                    if meta_key == 'keywords':
+                        if isinstance(task_script[meta_key], list):
+                            participation_meta[meta_key].extend(task_script[meta_key])
+                    elif meta_key == 'participants':
+                        if isinstance(task_script[meta_key], list):
+                            absolute_shares = []
+                            relative_shares = []
+                            absolute_participants = []
+                            relative_participants = []
 
-                        for key, participant in enumerate(task_script[meta_key]):
-                            if re.match(r'\d+%$', participant['share']):
-                                share = int(participant['share'].replace("%", ""))
-                                if share > 0:
-                                    absolute_shares.append(share)
-                                    new_participant = participant
-                                    new_participant['share'] = share
-                                    absolute_participants.append(new_participant)
+                            for key, participant in enumerate(task_script[meta_key]):
+                                if re.match(r'\d+%$', participant['share']):
+                                    share = int(participant['share'].replace("%", ""))
+                                    if share > 0:
+                                        absolute_shares.append(share)
+                                        new_participant = participant
+                                        new_participant['share'] = share
+                                        absolute_participants.append(new_participant)
+                                else:
+                                    share = int(participant['share'])
+                                    if share > 0:
+                                        relative_shares.append(share)
+                                        new_participant = participant
+                                        new_participant['share'] = share
+                                        relative_participants.append(new_participant)
+
+                            additional_participants = []
+                            total_absolutes = sum(absolute_shares)
+                            total_relatives = sum(relative_shares)
+                            if total_absolutes >= 100 or total_relatives == 0:
+                                additional_participants = absolute_participants
+                            elif total_absolutes == 0:
+                                additional_participants = relative_participants
                             else:
-                                share = int(participant['share'])
-                                if share > 0:
-                                    relative_shares.append(share)
-                                    new_participant = participant
-                                    new_participant['share'] = share
-                                    relative_participants.append(new_participant)
-
-                        additional_participants = []
-                        total_absolutes = sum(absolute_shares)
-                        total_relatives = sum(relative_shares)
-                        if total_absolutes >= 100 or total_relatives == 0:
-                            additional_participants = absolute_participants
-                        elif total_absolutes == 0:
-                            additional_participants = relative_participants
-                        else:
-                            additional_participants = absolute_participants
-                            for participant in relative_participants:
-                                share = int(round(((participant['share']*(100-total_absolutes))/total_relatives), 0))
-                                if share > 0:
-                                    new_participant = participant
-                                    new_participant['share'] = share
-                                    additional_participants.append(new_participant)
-                        if len(additional_participants):
-                            participation_meta[meta_key].extend(additional_participants)
-                            has_script = True
-                elif meta_key in task_script:
-                    participation_meta[meta_key] = task_script[meta_key]
+                                additional_participants = absolute_participants
+                                for participant in relative_participants:
+                                    share = int(round(((participant['share']*(100-total_absolutes))/total_relatives), 0))
+                                    if share > 0:
+                                        new_participant = participant
+                                        new_participant['share'] = share
+                                        additional_participants.append(new_participant)
+                            if len(additional_participants):
+                                participation_meta[meta_key].extend(additional_participants)
+                                has_script = True
+                    elif meta_key in task_script:
+                        participation_meta[meta_key] = task_script[meta_key]
         return participation_meta, has_script
 
     @property

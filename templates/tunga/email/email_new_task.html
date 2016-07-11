@@ -12,7 +12,7 @@
 
         {% if task.skills %}Skills: {{ task.skills }}{% endif %}<br/>
 
-        {% if task.description %}{{ task.description }}{% endif %}<br/>
+        {% if task.description %}{{ task.description | safe }}{% endif %}<br/>
     </p>
 
     <p>
