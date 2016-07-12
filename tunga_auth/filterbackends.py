@@ -25,7 +25,7 @@ def my_connections_q_filter(user):
 class UserFilterBackend(DRYPermissionFiltersBase):
 
     def filter_list_queryset(self, request, queryset, view):
-        queryset = queryset.exclude(id=request.user.id, pending=False)
+        queryset = queryset.exclude(Q(id=request.user.id) | Q(pending=True))
         user_filter = request.query_params.get('filter', None)
         if user_filter == 'developers':
             queryset = queryset.filter(type=USER_TYPE_DEVELOPER)
