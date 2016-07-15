@@ -1,13 +1,8 @@
-from .base import *
-
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '!8g-9plb-5pa795jxv4@f18fu-+j^h2cyk_-?p%4s31eudmmr+'
-
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 AUTH_PASSWORD_VALIDATORS = []
+
+EMAIL_SUBJECT_PREFIX = '[Tunga Test] '
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
@@ -27,17 +22,17 @@ CORS_ALLOW_HEADERS = (
     'X-CSRFToken'
 )
 
+TUNGA_URL = 'http://test.tunga.io'
+
+"""
+COINBASE_BASE_URL = 'https://sandbox.coinbase.com'
+
+COINBASE_BASE_API_URL = 'https://api.sandbox.coinbase.com'
+"""
+
+BITONIC_URL = 'https://niels-bitonic-664-web.garage.bitonic.nl:33488'
 
 try:
     from .local import *
 except ImportError:
     pass
-
-if DEBUG:
-    STATICFILES_DIRS = (
-        os.path.join(BASE_DIR, 'static'),
-    )
-    STATIC_ROOT = None
-
-    for template_engine in TEMPLATES:
-        template_engine['OPTIONS']['debug'] = True

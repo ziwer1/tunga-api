@@ -1,0 +1,20 @@
+{% extends "tunga/email/base.html" %}
+{% load i18n %}
+{% block email_content %}
+    <p>Hello,</p>
+
+    <p>{{ owner.display_name }} requested for an invoice for task:</p>
+
+    <p>{{ task.summary }}</p>
+
+    <p>
+        Click the link below to get a copy of the invoice:<br/>
+        {{ invoice_url }}
+    </p>
+
+    <p>
+        Click the link below to view the task's details:<br/>
+        {{ task_url }}
+    </p>
+
+{% endblock %}

@@ -10,6 +10,7 @@ from tunga_utils.filters import GenericDateFilterSet
 class ActionFilter(GenericDateFilterSet):
     user = django_filters.MethodFilter()
     task = django_filters.MethodFilter()
+    since = django_filters.NumberFilter(name='id', lookup_type='gt')
 
     class Meta:
         model = Action

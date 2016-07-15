@@ -1,7 +1,8 @@
 from django.contrib import admin
 
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, ProgressEvent, ProgressReport, \
-    Project
+    Project, TaskPayment, ParticipantPayment
+from tunga_utils.admin import ReadOnlyModelAdmin
 
 
 @admin.register(Project)
@@ -65,3 +66,18 @@ class ProgressEventAdmin(admin.ModelAdmin):
 class ProgressReportAdmin(admin.ModelAdmin):
     list_display = ('event', 'user', 'status', 'percentage', 'created_at')
     list_filter = ('status', 'created_at')
+
+
+@admin.register(TaskPayment)
+class TaskPaymentAdmin(ReadOnlyModelAdmin):
+    list_display = ('task', 'btc_address', 'btc_received', 'ref', 'btc_price', 'processed', 'created_at', 'received_at')
+    list_filter = ('processed', 'created_at', 'received_at')
+
+
+@admin.register(ParticipantPayment)
+class ParticipantPaymentAdmin(ReadOnlyModelAdmin):
+    list_display = (
+        'participant', 'btc_sent', 'btc_received',
+        'destination', 'ref', 'status', 'created_at', 'received_at'
+    )
+    list_filter = ('status', 'created_at', 'received_at')

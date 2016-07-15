@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.base import File
 from django.core.management.base import BaseCommand
 
-from tunga.settings.base import MEDIA_ROOT
+from tunga.settings import MEDIA_ROOT
 
 
 class Command(BaseCommand):

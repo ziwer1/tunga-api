@@ -4,7 +4,8 @@ from django_countries.serializer_fields import CountryField
 from rest_framework import serializers
 from rest_framework.fields import SkipField
 
-from tunga_profiles.models import Skill, City, UserProfile, Education, Work, Connection
+from tunga_profiles.models import Skill, City, UserProfile, Education, Work, Connection, BTCWallet
+from tunga_profiles.utils import profile_check
 from tunga_utils.models import GenericUpload, ContactRequest, Upload, AbstractExperience, Rating
 
 
@@ -54,15 +55,22 @@ class CitySerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'slug')
 
 
+class SimpleBTCWalletSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BTCWallet
+        exclude = ('token', 'token_secret')
+
+
 class SimpleUserSerializer(serializers.ModelSerializer):
     company = serializers.CharField(read_only=True, required=False, source='userprofile.company')
     avatar_url = serializers.SerializerMethodField(required=False, read_only=True)
+    can_contribute = serializers.SerializerMethodField(required=False, read_only=True)
 
     class Meta:
         model = get_user_model()
         fields = (
             'id', 'username', 'email', 'first_name', 'last_name', 'display_name', 'type', 'image',
-            'is_developer', 'is_project_owner', 'is_staff', 'verified', 'company', 'avatar_url'
+            'is_developer', 'is_project_owner', 'is_staff', 'verified', 'company', 'avatar_url', 'can_contribute'
         )
 
     def get_avatar_url(self, obj):
@@ -73,16 +81,31 @@ class SimpleUserSerializer(serializers.ModelSerializer):
             return social_accounts[0].get_avatar_url()
         return None
 
+    def get_can_contribute(self, obj):
+        return profile_check(obj)
+
 
 class SimpleProfileSerializer(serializers.ModelSerializer):
     city = serializers.CharField()
     skills = SkillSerializer(many=True)
     country = CountryField()
     country_name = serializers.CharField()
+    btc_wallet = SimpleBTCWalletSerializer()
 
     class Meta:
         model = UserProfile
         exclude = ('user',)
+
+
+class InvoiceUserSerializer(serializers.ModelSerializer):
+    profile = SimpleProfileSerializer(read_only=True, required=False, source='userprofile')
+
+    class Meta:
+        model = get_user_model()
+        fields = (
+            'id', 'username', 'email', 'first_name', 'last_name', 'display_name', 'type',
+            'is_developer', 'is_project_owner', 'is_staff', 'verified', 'profile'
+        )
 
 
 class SimpleAbstractExperienceSerializer(serializers.ModelSerializer):
@@ -146,10 +169,11 @@ class SimpleUploadSerializer(serializers.ModelSerializer):
 
 
 class UploadSerializer(SimpleUploadSerializer):
+    user = SimpleUserSerializer()
 
     class Meta(SimpleUploadSerializer.Meta):
         model = Upload
-
+        fields = SimpleUploadSerializer.Meta.fields + ('user',)
 
 class ContactRequestSerializer(serializers.ModelSerializer):
 

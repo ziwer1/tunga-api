@@ -21,7 +21,8 @@ from rest_auth.views import UserDetailsView
 from rest_framework.routers import DefaultRouter
 from rest_framework_jwt.views import obtain_jwt_token, refresh_jwt_token, verify_jwt_token
 
-from tunga_auth.views import VerifyUserView, AccountInfoView, UserViewSet, social_login_view
+from tunga_activity.views import ActionViewSet
+from tunga_auth.views import VerifyUserView, AccountInfoView, UserViewSet, social_login_view, coinbase_connect_callback
 from tunga_comments.views import CommentViewSet
 from tunga_messages.views import MessageViewSet, ChannelViewSet
 from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, ConnectionViewSet, SocialLinkViewSet, \
@@ -29,8 +30,8 @@ from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, Con
 from tunga_settings.views import UserSettingsView
 from tunga_support.views import SupportPageViewSet, SupportSectionViewSet
 from tunga_tasks.views import TaskViewSet, ApplicationViewSet, ParticipationViewSet, TaskRequestViewSet, \
-    SavedTaskViewSet, task_web_view, ProjectViewSet, ProgressReportViewSet, ProgressEventViewSet
-from tunga_activity.views import ActionViewSet
+    SavedTaskViewSet, ProjectViewSet, ProgressReportViewSet, ProgressEventViewSet, \
+    coinbase_notification_url
 from tunga_utils.views import SkillViewSet, ContactRequestView
 
 router = DefaultRouter()
@@ -60,6 +61,7 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^admin/django-rq/', include('django_rq.urls')),
     url(r'^accounts/social/(?P<provider>\w+)/$', social_login_view, name="social-login-redirect"),
+    url(r'^accounts/coinbase/login/callback/$', coinbase_connect_callback, name="coinbase-connect-callback"),
     url(r'^accounts/', include('allauth.urls')),
     url(r'api/', include(router.urls)),
     url(r'^api/auth/register/account-confirm-email/(?P<key>\w+)/$', ConfirmEmailView.as_view(),
@@ -77,12 +79,12 @@ urlpatterns = [
     url(r'^api/me/notification/', NotificationView.as_view(), name='user-notifications'),
     url(r'^api/me/code/(?P<provider>\w+)/repos/$', RepoListView.as_view(), name="repo-list"),
     url(r'^api/me/code/(?P<provider>\w+)/issues/$', IssueListView.as_view(), name="issue-list"),
+    url(r'^api/hook/coinbase/$', coinbase_notification_url, name="coinbase-notification"),
     url(r'^api/auth/', include('rest_auth.urls')),
     url(r'api/', include('rest_framework.urls', namespace='rest_framework')),
     url(r'^api/countries/', CountryListView.as_view(), name='countries'),
     url(r'^api/contact-request/', ContactRequestView.as_view(), name='contact-request'),
     url(r'^api/docs/', include('rest_framework_swagger.urls')),
-    url(r'^task/(?P<pk>\d+)/$', task_web_view, name="task-web"),
     url(r'^reset-password/confirm/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
         password_reset_confirm, name='password_reset_confirm'),
     url(r'^$', router.get_api_root_view(), name='backend-root')

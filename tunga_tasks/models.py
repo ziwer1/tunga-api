@@ -1,31 +1,29 @@
 # encoding=utf8
 from __future__ import unicode_literals
 
-import re
-import urllib
+from decimal import Decimal
 
-import requests
 import tagulous.models
 from allauth.socialaccount import providers
-from django.contrib.contenttypes.fields import GenericRelation, GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericRelation
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.query_utils import Q
 from django.template.defaultfilters import floatformat
 from django.utils.crypto import get_random_string
 from django.utils.html import strip_tags
-from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
-from tunga.settings.base import TUNGA_SHARE_PERCENTAGE, TUNGA_SHARE_EMAIL
+from tunga.settings import TUNGA_SHARE_PERCENTAGE, BITONIC_PAYMENT_COST_PERCENTAGE, \
+    BANK_TRANSFER_PAYMENT_COST_PERCENTAGE
 from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_comments.models import Comment
 from tunga_messages.models import Channel
 from tunga_profiles.models import Skill, Connection
 from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM, VISIBILITY_CHOICES
 from tunga_utils.models import Upload, Rating
+from tunga_utils.validators import validate_btc_address
 
 CURRENCY_EUR = 'EUR'
 CURRENCY_USD = 'USD'
@@ -99,6 +97,17 @@ class Project(models.Model):
             return None
 
 
+TASK_PAYMENT_METHOD_BITONIC = 'bitonic'
+TASK_PAYMENT_METHOD_BITCOIN = 'bitcoin'
+TASK_PAYMENT_METHOD_BANK = 'bank'
+
+TASK_PAYMENT_METHOD_CHOICES = (
+    (TASK_PAYMENT_METHOD_BITONIC, 'Pay with ideal / mister cash'),
+    (TASK_PAYMENT_METHOD_BITCOIN, 'Pay with bitcoin'),
+    (TASK_PAYMENT_METHOD_BANK, 'Pay by bank transfer')
+)
+
+
 class Task(models.Model):
     project = models.ForeignKey(Project, related_name='tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='tasks_created', on_delete=models.DO_NOTHING)
@@ -106,27 +115,43 @@ class Task(models.Model):
     description = models.TextField(blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
     url = models.URLField(blank=True, null=True)
-    fee = models.BigIntegerField()
+    fee = models.DecimalField(max_digits=19, decimal_places=4)
     currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
     deadline = models.DateTimeField(blank=True, null=True)
     skills = tagulous.models.TagField(Skill, blank=True)
     visibility = models.PositiveSmallIntegerField(choices=VISIBILITY_CHOICES, default=VISIBILITY_CHOICES[0][0])
     update_interval = models.PositiveIntegerField(blank=True, null=True)
     update_interval_units = models.PositiveSmallIntegerField(choices=UPDATE_SCHEDULE_CHOICES, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
     apply = models.BooleanField(default=True)
-    closed = models.BooleanField(default=False)
-    paid = models.BooleanField(default=False)
     applicants = models.ManyToManyField(
             settings.AUTH_USER_MODEL, through='Application', through_fields=('task', 'user'),
-            related_name='task_applications', blank=True)
+            related_name='task_applications', blank=True
+    )
+    apply_closed_at = models.DateTimeField(blank=True, null=True)
+
     participants = models.ManyToManyField(
             settings.AUTH_USER_MODEL, through='Participation', through_fields=('task', 'user'),
             related_name='task_participants', blank=True)
-    satisfaction = models.SmallIntegerField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    apply_closed_at = models.DateTimeField(blank=True, null=True)
+
+    closed = models.BooleanField(default=False)
     closed_at = models.DateTimeField(blank=True, null=True)
+    satisfaction = models.SmallIntegerField(blank=True, null=True)
+
+    paid = models.BooleanField(default=False)
     paid_at = models.DateTimeField(blank=True, null=True)
+
+    payment_method = models.CharField(
+        max_length=30, choices=TASK_PAYMENT_METHOD_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in TASK_PAYMENT_METHOD_CHOICES]),
+        blank=True, null=True
+    )
+    invoice_date = models.DateTimeField(blank=True, null=True)
+    btc_address = models.CharField(max_length=40, blank=True, null=True, validators=[validate_btc_address])
+    btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
+    pay_distributed = models.BooleanField(default=False)
+
     comments = GenericRelation(Comment, related_query_name='tasks')
     uploads = GenericRelation(Upload, related_query_name='tasks')
     ratings = GenericRelation(Rating, related_query_name='tasks')
@@ -179,7 +204,7 @@ class Task(models.Model):
             return True
         # Participants can edit participation info directly on task object
         if request.method in ['PUT', 'PATCH']:
-            allowed_keys = ['assignee', 'participants', 'confirmed_participants', 'rejected_participants']
+            allowed_keys = ['assignee', 'participation', 'participants', 'confirmed_participants', 'rejected_participants']
             if not [x for x in request.data.keys() if not x in allowed_keys]:
                 return self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
         return False
@@ -190,6 +215,26 @@ class Task(models.Model):
         if self.currency in CURRENCY_SYMBOLS:
             return '%s%s' % (CURRENCY_SYMBOLS[self.currency], floatformat(amount, arg=-2))
         return amount
+
+    @property
+    def amount(self):
+        tunga_share = TUNGA_SHARE_PERCENTAGE * 0.01
+        dev_share = 1 - tunga_share
+        processing_share = 0
+        if self.payment_method == TASK_PAYMENT_METHOD_BITONIC:
+            processing_share = BITONIC_PAYMENT_COST_PERCENTAGE * 0.01
+        elif self.payment_method == TASK_PAYMENT_METHOD_BANK:
+            processing_share = BANK_TRANSFER_PAYMENT_COST_PERCENTAGE * 0.01
+        amount_details = {
+            'currency': CURRENCY_SYMBOLS.get(self.currency, ''),
+            'pledge': self.fee,
+            'developer': Decimal(dev_share) * self.fee,
+            'tunga': Decimal(tunga_share) * self.fee,
+            'processing': Decimal(processing_share) * self.fee
+        }
+
+        amount_details['total'] = amount_details['developer'] + amount_details['tunga'] + amount_details['processing']
+        return amount_details
 
     @property
     def summary(self):
@@ -205,6 +250,9 @@ class Task(models.Model):
     @property
     def skills_list(self):
         return str(self.skills)
+
+    def payment_status(self):
+        return self.paid and self.pay_distributed and 'Paid' or self.paid and 'Processing' or 'Pending'
 
     @property
     def milestones(self):
@@ -248,96 +296,42 @@ class Task(models.Model):
     def meta_payment(self):
         return {'task_url': '/task/%s/' % self.id, 'amount': self.fee, 'currency': self.currency}
 
-    def get_default_participation(self):
-        tags = ['tunga.io', 'tunga']
-        if self.skills:
-            tags.extend(str(self.skills).split(','))
-        tunga_share = '{share}%'.format(**{'share': TUNGA_SHARE_PERCENTAGE})
-        return {
-            'type': 'payment', 'language': 'EN', 'title': self.summary, 'description': self.excerpt or self.summary,
-            'keywords': tags, 'participants': [
-                {'id': 'mailto:%s' % TUNGA_SHARE_EMAIL, 'role': 'owner', 'share': tunga_share}
-            ]
-        }
+    def get_participation_shares(self):
+        participants = self.participation_set.filter(accepted=True).order_by('-share')
+        num_participants = participants.count()
 
-    def mobbr_participation(self, check_only=False):
-        participation_meta = self.get_default_participation()
-        if not self.url:
-            return participation_meta, False
+        participation_shares = []
 
-        mobbr_info_url = '%s?url=%s' % ('https://api.mobbr.com/api_v1/uris/info', urllib.quote_plus(self.url))
-        r = requests.get(mobbr_info_url, **{'headers': {'Accept': 'application/json'}})
-        has_script = False
-        if r.status_code == 200:
-            response = r.json()
-            task_script = response['result']['script']
-            if isinstance(task_script, dict):
-                for meta_key in participation_meta:
-                    if meta_key == 'keywords':
-                        if isinstance(task_script[meta_key], list):
-                            participation_meta[meta_key].extend(task_script[meta_key])
-                    elif meta_key == 'participants':
-                        if isinstance(task_script[meta_key], list):
-                            absolute_shares = []
-                            relative_shares = []
-                            absolute_participants = []
-                            relative_participants = []
+        if participants:
+            all_shares = [participant.share or 0 for participant in participants]
+            total_shares = all_shares and sum(all_shares) or 0
 
-                            for key, participant in enumerate(task_script[meta_key]):
-                                if re.match(r'\d+%$', participant['share']):
-                                    share = int(participant['share'].replace("%", ""))
-                                    if share > 0:
-                                        absolute_shares.append(share)
-                                        new_participant = participant
-                                        new_participant['share'] = share
-                                        absolute_participants.append(new_participant)
-                                else:
-                                    share = int(participant['share'])
-                                    if share > 0:
-                                        relative_shares.append(share)
-                                        new_participant = participant
-                                        new_participant['share'] = share
-                                        relative_participants.append(new_participant)
-
-                            additional_participants = []
-                            total_absolutes = sum(absolute_shares)
-                            total_relatives = sum(relative_shares)
-                            if total_absolutes >= 100 or total_relatives == 0:
-                                additional_participants = absolute_participants
-                            elif total_absolutes == 0:
-                                additional_participants = relative_participants
-                            else:
-                                additional_participants = absolute_participants
-                                for participant in relative_participants:
-                                    share = int(round(((participant['share']*(100-total_absolutes))/total_relatives), 0))
-                                    if share > 0:
-                                        new_participant = participant
-                                        new_participant['share'] = share
-                                        additional_participants.append(new_participant)
-                            if len(additional_participants):
-                                participation_meta[meta_key].extend(additional_participants)
-                                has_script = True
-                    elif meta_key in task_script:
-                        participation_meta[meta_key] = task_script[meta_key]
-        return participation_meta, has_script
-
-    @property
-    def meta_participation(self):
-        participation_meta, has_script = self.mobbr_participation()
-        # TODO: Update local participation script to use defined shares
-        if not has_script:
-            participants = self.participation_set.filter(accepted=True).order_by('share')
-            total_shares = 100 - TUNGA_SHARE_PERCENTAGE
-            num_participants = participants.count()
             for participant in participants:
-                participation_meta['participants'].append(
-                    {
-                        'id': 'mailto:%s' % participant.user.email,
-                        'role': participant.role,
-                        'share': int(total_shares/num_participants)
-                    }
-                )
-        return participation_meta
+                share = 0
+                if not total_shares:
+                    share = 1/Decimal(num_participants)
+                else:
+                    share = Decimal(participant.share or 0)/Decimal(total_shares)
+                participation_shares.append({
+                    'participant': participant,
+                    'share': share
+                })
+        return participation_shares
+
+    def get_payment_shares(self):
+        participation_shares = self.get_participation_shares()
+        total_shares = 100 - TUNGA_SHARE_PERCENTAGE
+        share_fraction = Decimal(total_shares)/Decimal(100)
+
+        payment_shares = []
+
+        if participation_shares:
+            for data in participation_shares:
+                payment_shares.append({
+                    'participant': data['participant'],
+                    'share': Decimal(data['share'])*share_fraction
+                })
+        return payment_shares
 
 
 class Application(models.Model):
@@ -395,11 +389,14 @@ class Participation(models.Model):
     responded = models.BooleanField(default=False)
     assignee = models.BooleanField(default=False)
     role = models.CharField(max_length=100, default='Developer')
-    share = models.IntegerField(blank=True, null=True)
+    share = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     satisfaction = models.SmallIntegerField(blank=True, null=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='participants_added')
     created_at = models.DateTimeField(auto_now_add=True)
     activated_at = models.DateTimeField(blank=True, null=True)
+    paid = models.BooleanField(default=False)
+    paid_at = models.DateTimeField(blank=True, null=True)
+
     ratings = GenericRelation(Rating, related_query_name='participants')
 
     def __unicode__(self):
@@ -684,6 +681,7 @@ class Integration(models.Model):
         except:
             return None
 
+
 class IntegrationMeta(models.Model):
     integration = models.ForeignKey(Integration, on_delete=models.CASCADE)
     meta_key = models.CharField(max_length=30)
@@ -712,7 +710,7 @@ class IntegrationActivity(models.Model):
     username = models.CharField(max_length=30, blank=True, null=True)
     fullname = models.CharField(max_length=50, blank=True, null=True)
     avatar_url = models.URLField(blank=True, null=True)
-    title = models.CharField(max_length=200,blank=True, null=True)
+    title = models.CharField(max_length=200, blank=True, null=True)
     body = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -721,4 +719,60 @@ class IntegrationActivity(models.Model):
         return '%s | ' % (self.integration, )
 
     class Meta:
+        ordering = ['created_at']
+
+
+class TaskPayment(models.Model):
+    task = models.ForeignKey(Task)
+    btc_address = models.CharField(max_length=40, validators=[validate_btc_address])
+    ref = models.CharField(max_length=255)
+    btc_price = models.DecimalField(max_digits=18, decimal_places=8)
+    btc_received = models.DecimalField(max_digits=18, decimal_places=8, default=0)
+    processed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    received_at = models.DateTimeField(blank=True, null=True)
+
+    def __unicode__(self):
+        return 'bitcoin:%s - %s' % (self.btc_address, self.task.summary)
+
+    class Meta:
+        unique_together = ('btc_address', 'ref')
+        ordering = ['created_at']
+
+
+PAYMENT_STATUS_PENDING = 'pending'
+PAYMENT_STATUS_PROCESSING = 'processing'
+PAYMENT_STATUS_COMPLETED = 'completed'
+PAYMENT_STATUS_FAILED = 'failed'
+
+PAYMENT_STATUS_CHOICES = (
+    (PAYMENT_STATUS_PENDING, 'Pending'),
+    (PAYMENT_STATUS_PROCESSING, 'Processing'),
+    (PAYMENT_STATUS_COMPLETED, 'Completed'),
+    (PAYMENT_STATUS_FAILED, 'Failed'),
+)
+
+
+class ParticipantPayment(models.Model):
+    participant = models.ForeignKey(Participation)
+    source = models.ForeignKey(TaskPayment)
+    destination = models.CharField(max_length=40, validators=[validate_btc_address])
+    ref = models.CharField(max_length=255)
+    btc_sent = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
+    btc_received = models.DecimalField(max_digits=18, decimal_places=8, default=0)
+    status = models.CharField(
+        max_length=30, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING,
+        help_text=', '.join(['%s - %s' % (item[0], item[1]) for item in PAYMENT_STATUS_CHOICES])
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    received_at = models.DateTimeField(blank=True, null=True)
+    description = models.CharField(max_length=200, blank=True, null=True)
+
+    def __unicode__(self):
+        return 'bitcoin:%s - %s | %s' % (self.destination, self.participant.user, self.description)
+
+    class Meta:
+        unique_together = ('participant', 'source')
         ordering = ['created_at']

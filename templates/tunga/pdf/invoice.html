@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+</head>
+{% with container="max-width: 800px;margin: 50px auto 0;" left="text-align: left;" right="text-align: right;" %}
+<body style="font-family: sans-serif;padding: 0;margin: 0;">
+	<div style="{{ container }}">
+
+		<div style="margin: 20px 0 10px;text-align: left;">
+			<div style="font-weight: bold">
+                {{ invoice.client.profile.company }}<br/>
+                {{ invoice.client.display_name }}
+            </div>
+
+            <p style="margin: 20px 0;">Invoice generated on behalf of</p>
+
+            <div>
+                {{ invoice.developer.display_name }}<br/>
+                {{ invoice.developer.profile.street }} {{ invoice.developer.profile.plot_number }}<br/>
+                {{ invoice.developer.profile.postal_code }}<br/>
+                {{ invoice.developer.profile.country_name }}
+            </div>
+
+            <div style="margin-top: 20px;">
+                Invoice number: {{ invoice.number }}<br/>
+                Invoicing date: {{ invoice.invoice_date | date:"D, d M, Y" }}
+            </div>
+
+            <table style="width:100%; border-width: 0;border-collapse: collapse; margin-top: 20px;">
+                <tr style="border-bottom: 1px solid #000;">
+                    <th colspan="2">Description</th>
+                </tr>
+
+                <tr>
+                    <td>{{ invoice.title }}</td>
+                    <td style="{{ right }}">{{ invoice.amount.currency | safe }} {{ invoice.amount.developer | floatformat:2 }}</td>
+                </tr>
+
+                <tr>
+                    <td>Payment costs</td>
+                    <td style="{{ right }}">{{ invoice.amount.currency | safe }} {{ invoice.amount.processing | floatformat:2 }}</td>
+                </tr>
+
+                <tr>
+                    <td>Tunga fee</td>
+                    <td style="{{ right }}">{{ invoice.amount.currency | safe }} {{ invoice.amount.tunga | floatformat:2 }}</td>
+                </tr>
+
+                <tr style="border-top: 1px solid #000; ">
+                    <td style="text-align: right">Subtotal</td>
+                    <td style="{{ right }}">{{ invoice.amount.currency | safe}} {{ invoice.amount.total | floatformat:2  }}</td>
+                </tr>
+
+                <tr>
+                    <td style="text-align: right">VAT 0%</td>
+                    <td style="{{ right }}">{{ invoice.amount.currency | safe }} 0.00</td>
+                </tr>
+
+                {% if user.is_developer %}
+                    <tr>
+                        <td style="text-align: right">Tunga fee</td>
+                        <td style="{{ right }}">- {{ invoice.amount.currency | safe }} {{ invoice.amount.tunga | floatformat:2 }}</td>
+                    </tr>
+
+                    <tr>
+                        <td style="text-align: right">Payment costs</td>
+                        <td style="{{ right }}">- {{ invoice.amount.currency | safe }} {{ invoice.amount.processing | floatformat:2 }}</td>
+                    </tr>
+                {% endif %}
+
+                <tr style="border-top: 1px solid #000; ">
+                    <td style="text-align: right">Total</td>
+                    <td style="{{ right }}">{{ invoice.amount.currency | safe }} {% if user.is_developereloper %}{{ invoice.amount.developer | floatformat:2 }}{% else %}{{ invoice.amount.total | floatformat:2 }}{% endif %}</td>
+                </tr>
+            </table>
+
+		</div>
+	</div>
+</body>
+{% endwith %}
+</html>

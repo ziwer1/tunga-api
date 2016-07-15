@@ -1,5 +1,5 @@
 .idea
 media/
-tunga/settings/local*.py
+tunga/*/local*.py
 *.sqlite*
 *.pyc

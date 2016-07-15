@@ -11,6 +11,7 @@ from tunga import settings
 from tunga_profiles.validators import validate_email
 from tunga_utils.constants import REQUEST_STATUS_INITIAL, REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED
 from tunga_utils.models import AbstractExperience
+from tunga_utils.validators import validate_btc_address
 
 
 class Skill(tagulous.models.TagModel):
@@ -33,6 +34,45 @@ class City(tagulous.models.TagModel):
         initial = "Kampala, Entebbe, Jinja, Nairobi, Mombosa, Dar es Salaam, Kigali, Amsterdam"
 
 
+BTC_WALLET_PROVIDER_COINBASE = 'coinbase'
+
+BTC_WALLET_PROVIDER_CHOICES = (
+    (BTC_WALLET_PROVIDER_COINBASE, 'Coinbase'),
+)
+
+
+class BTCWallet(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    provider = models.CharField(
+        max_length=30, choices=BTC_WALLET_PROVIDER_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in BTC_WALLET_PROVIDER_CHOICES])
+    )
+    token = models.TextField(verbose_name='token', help_text='"oauth_token" (OAuth1) or access token (OAuth2)')
+    token_secret = models.TextField(
+        blank=True, verbose_name='token secret',
+        help_text='"oauth_token_secret" (OAuth1) or refresh token (OAuth2)'
+    )
+    expires_at = models.DateTimeField(blank=True, null=True, verbose_name='expires at')
+    updated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'provider')
+        verbose_name = 'bitcoin wallet'
+
+    def __unicode__(self):
+        return '%s - %s' % (self.user.get_short_name(), self.get_provider_display())
+
+PAYMENT_METHOD_BTC_WALLET = 'btc_wallet'
+PAYMENT_METHOD_BTC_ADDRESS = 'btc_address'
+PAYMENT_METHOD_MOBILE_MONEY = 'mobile_money'
+
+PAYMENT_METHOD_CHOICES = (
+    (PAYMENT_METHOD_BTC_WALLET, 'Bitcoin Wallet'),
+    (PAYMENT_METHOD_BTC_ADDRESS, 'Bitcoin Address'),
+    (PAYMENT_METHOD_MOBILE_MONEY, 'Mobile Money')
+)
+
+
 class UserProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     bio = models.TextField(blank=True, null=True)
@@ -43,9 +83,25 @@ class UserProfile(models.Model):
     postal_code = models.IntegerField(blank=True, null=True)
     postal_address = models.CharField(max_length=100, blank=True, null=True)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
-    company = models.CharField(max_length=200, blank=True, null=True)
+
+    id_document = models.ImageField(upload_to='ids/%Y/%m/%d', blank=True, null=True)
+
     skills = tagulous.models.TagField(to=Skill, blank=True)
+
+    company = models.CharField(max_length=200, blank=True, null=True)
     website = models.URLField(blank=True, null=True)
+    company_profile = models.TextField(blank=True, null=True)
+    company_bio = models.TextField(blank=True, null=True)
+    vat_number = models.CharField(max_length=50, blank=True, null=True)
+
+    payment_method = models.CharField(
+        max_length=30, choices=PAYMENT_METHOD_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in PAYMENT_METHOD_CHOICES]),
+        blank=True, null=True
+    )
+    btc_wallet = models.ForeignKey(BTCWallet, blank=True, null=True, on_delete=models.SET_NULL)
+    btc_address = models.CharField(max_length=40, blank=True, null=True, validators=[validate_btc_address])
+    mobile_money_number = models.CharField(max_length=15, blank=True, null=True)
 
     def __unicode__(self):
         return self.user.get_short_name()

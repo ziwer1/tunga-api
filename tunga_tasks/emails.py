@@ -178,3 +178,17 @@ def send_progress_event_reminder_email(instance):
         if send_mail(subject, 'tunga/email/email_progress_event_reminder', to, ctx, bcc=bcc):
             instance.last_reminder_at = datetime.datetime.utcnow()
             instance.save()
+
+
+@job
+def send_task_invoice_request_email(instance):
+    instance = clean_instance(instance, Task)
+    subject = "%s %s requested for an invoice" % (EMAIL_SUBJECT_PREFIX, instance.user.display_name)
+    to = [instance.user.email]
+    ctx = {
+        'owner': instance.user,
+        'task': instance,
+        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id),
+        'invoice_url': '%s/task/%s/download/invoice/?format=pdf' % (TUNGA_URL, instance.id)
+    }
+    send_mail(subject, 'tunga/email/email_task_invoice_request', to, ctx)

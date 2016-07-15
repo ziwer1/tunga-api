@@ -2,9 +2,20 @@ from django.contrib import admin
 
 from tunga_profiles.emails import send_developer_accepted_email
 from tunga_profiles.models import SocialPlatform, SocialLink, Education, Work, Connection, \
-    DeveloperApplication
+    DeveloperApplication, BTCWallet, UserProfile
 from tunga_utils.admin import AdminAutoCreatedBy
 from tunga_utils.constants import REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED
+
+
+class UserProfileInline(admin.StackedInline):
+    verbose_name = 'profile info'
+    model = UserProfile
+
+
+@admin.register(BTCWallet)
+class BTCWalletAdmin(admin.ModelAdmin):
+    list_display = ('user', 'provider', 'token', 'token_secret', 'expires_at')
+    list_filter = ('provider',)
 
 
 @admin.register(SocialPlatform)

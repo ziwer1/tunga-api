@@ -1,23 +1,29 @@
 import datetime
 
+from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.query_utils import Q
+from django.template.defaultfilters import floatformat
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
-from tunga.settings.base import TUNGA_SHARE_PERCENTAGE
+from tunga.settings import TUNGA_SHARE_PERCENTAGE, BITONIC_PAYMENT_COST_PERCENTAGE
 from tunga_auth.serializers import UserSerializer
+from tunga_profiles.utils import profile_check
 from tunga_tasks import slugs
 from tunga_tasks.emails import send_new_task_email
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, ProgressEvent, ProgressReport, \
     PROGRESS_EVENT_TYPE_MILESTONE, \
-    Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity
+    Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
+    TASK_PAYMENT_METHOD_BITONIC, CURRENCY_USD, CURRENCY_SYMBOLS
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed
+from tunga_utils import coinbase_utils
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.models import Rating
 from tunga_utils.serializers import ContentTypeAnnotatedModelSerializer, SkillSerializer, \
     CreateOnlyCurrentUserDefault, SimpleUserSerializer, UploadSerializer, DetailAnnotatedModelSerializer, \
-    SimpleRatingSerializer
+    SimpleRatingSerializer, InvoiceUserSerializer
 
 
 class SimpleProjectSerializer(ContentTypeAnnotatedModelSerializer):
@@ -123,6 +129,48 @@ class ProjectSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedMode
         details_serializer = ProjectDetailsSerializer
 
 
+class TaskPaymentSerializer(serializers.ModelSerializer):
+    user = InvoiceUserSerializer(required=False, read_only=True)
+
+    class Meta:
+        model = Task
+        fields = (
+            'id', 'user', 'title', 'summary', 'currency', 'fee', 'payment_method', 'btc_address', 'btc_price'
+        )
+        read_only_fields = ('title', 'summary', 'currency', 'btc_address', 'btc_price')
+
+
+class TaskInvoiceSerializer(serializers.ModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
+    client = InvoiceUserSerializer(required=False, read_only=True, source='user')
+    developer = serializers.SerializerMethodField(required=False, read_only=True)
+
+    class Meta:
+        model = Task
+        fields = ('client', 'developer', 'amount', 'title', 'fee')
+
+    def get_developer(self, obj):
+        try:
+            participation = obj.participation_set.filter(accepted=True).order_by('-assignee').earliest('created_at')
+            return InvoiceUserSerializer(participation.user).data
+        except:
+            pass
+        return None
+
+
+class ParticipantShareSerializer(serializers.Serializer):
+
+    participant = SimpleParticipationSerializer()
+    share = serializers.DecimalField(max_digits=5, decimal_places=2)
+    percentage = serializers.SerializerMethodField()
+    display_share = serializers.SerializerMethodField()
+
+    def get_percentage(self, obj):
+        return floatformat(obj['share']*100, -2)
+
+    def get_display_share(self, obj):
+        return floatformat(obj['share']*100)
+
+
 class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
     project = SimpleProjectSerializer()
     user = SimpleUserSerializer()
@@ -130,18 +178,21 @@ class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
     assignee = SimpleParticipationSerializer(required=False, read_only=True)
     applications = SimpleApplicationSerializer(many=True, source='application_set')
     participation = SimpleParticipationSerializer(many=True, source='participation_set')
+    participation_shares = ParticipantShareSerializer(many=True, source='get_participation_shares')
 
     class Meta:
         model = Task
-        fields = ('project', 'user', 'skills', 'assignee', 'applications', 'participation')
+        fields = ('project', 'user', 'amount', 'skills', 'assignee', 'applications', 'participation', 'participation_shares')
 
 
 class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer,
                      GetCurrentUserAnnotatedSerializerMixin):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     display_fee = serializers.SerializerMethodField(required=False, read_only=True)
+    amount = serializers.JSONField(required=False, read_only=True)
     excerpt = serializers.CharField(required=False, read_only=True)
     skills = serializers.CharField(required=True, allow_blank=True, allow_null=True)
+    payment_status = serializers.CharField(required=False, read_only=True)
     deadline = serializers.DateTimeField(required=False, allow_null=True)
     can_apply = serializers.SerializerMethodField(read_only=True, required=False)
     can_save = serializers.SerializerMethodField(read_only=True, required=False)
@@ -164,10 +215,17 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     class Meta:
         model = Task
         exclude = ('applicants',)
-        read_only_fields = ('created_at',)
+        read_only_fields = (
+            'created_at', 'paid', 'paid_at', 'invoice_date', 'btc_address', 'btc_price', 'pay_distributed'
+        )
         details_serializer = TaskDetailsSerializer
 
     def create(self, validated_data):
+
+        current_user = self.get_current_user()
+        if not profile_check(current_user):
+            ValidationError('You need complete your profile before you can post tasks')
+
         skills = None
         participation = None
         milestones = None
@@ -200,6 +258,12 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         return instance
 
     def update(self, instance, validated_data):
+
+        if 'fee' in validated_data and validated_data['fee'] < instance.fee:
+            raise ValidationError({
+                'fee': 'You cannot reduce the fee for the task, Please contact support@tunga.io for assistance'
+            })
+
         initial_apply = instance.apply
         initial_closed = instance.closed
 
@@ -250,8 +314,12 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             for item in participation:
                 if item.get('accepted', False):
                     item['activated_at'] = datetime.datetime.utcnow()
+                defaults = item
+                if isinstance(defaults, dict):
+                    defaults['created_by'] = task.user
+
                 try:
-                    Participation.objects.update_or_create(task=task, user=item['user'], defaults=item)
+                    Participation.objects.update_or_create(task=task, user=item['user'], defaults=defaults)
                     if 'assignee' in item and item['assignee']:
                         new_assignee = item['user']
                 except:
@@ -289,9 +357,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             assignee = self.initial_data.get('assignee', None)
             confirmed_participants = self.initial_data.get('confirmed_participants', None)
             rejected_participants = self.initial_data.get('rejected_participants', None)
-            created_by = self.get_current_user()
-            if not created_by:
-                created_by = task.user
+            created_by = task.user
 
             changed_assignee = False
             for user in participants:
@@ -319,7 +385,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         user = self.get_current_user()
         amount = None
         if user and user.is_developer:
-            amount = obj.fee * (1 - TUNGA_SHARE_PERCENTAGE * 0.01)
+            amount = obj.fee * (1 - TUNGA_SHARE_PERCENTAGE * Decimal(0.01))
         return obj.display_fee(amount=amount)
 
     def get_can_apply(self, obj):
@@ -327,7 +393,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             return False
         user = self.get_current_user()
         if user:
-            if obj.user == user or user.pending:
+            if obj.user == user or user.pending or not profile_check(user):
                 return False
             return obj.applicants.filter(id=user.id).count() == 0 and \
                    obj.participation_set.filter(user=user).count() == 0

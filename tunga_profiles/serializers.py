@@ -3,15 +3,16 @@ from rest_framework import serializers
 
 from tunga_profiles.models import UserProfile, Education, Work, Connection, SocialPlatform, SocialLink, DeveloperApplication
 from tunga_utils.serializers import SimpleProfileSerializer, CreateOnlyCurrentUserDefault, SimpleUserSerializer, AbstractExperienceSerializer, \
-    DetailAnnotatedModelSerializer
+    DetailAnnotatedModelSerializer, SimpleBTCWalletSerializer
 
 
 class ProfileDetailsSerializer(SimpleProfileSerializer):
     user = SimpleUserSerializer()
+    btc_wallet = SimpleBTCWalletSerializer()
 
     class Meta:
         model = UserProfile
-        fields = ('user', 'city', 'skills')
+        fields = ('user', 'city', 'skills', 'btc_wallet')
 
 
 class ProfileSerializer(DetailAnnotatedModelSerializer):

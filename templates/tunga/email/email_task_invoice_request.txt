@@ -1,0 +1,17 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello,
+
+{{ owner.display_name }}  requested for an invoice for task:
+
+{{ task.summary }}
+
+Click the link below to get a copy of the invoice:
+
+{{ invoice_url }}
+
+
+Click the link below to view the task's details:
+
+{{ task_url }}
+
+{% endblock %}{% endautoescape %}

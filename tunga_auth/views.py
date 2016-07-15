@@ -1,16 +1,20 @@
+import requests
 from django.contrib.auth import get_user_model
+from django.core.urlresolvers import reverse
 from django.shortcuts import redirect
 from rest_framework import views, status, generics, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from tunga.settings.base import GITHUB_SCOPES
+from tunga.settings import GITHUB_SCOPES, COINBASE_CLIENT_ID, COINBASE_CLIENT_SECRET
 from tunga_auth.filterbackends import UserFilterBackend
 from tunga_auth.filters import UserFilter
 from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_auth.serializers import UserSerializer, AccountInfoSerializer
-from tunga_utils.serializers import SimpleUserSerializer
+from tunga_profiles.models import BTC_WALLET_PROVIDER_COINBASE, BTCWallet, UserProfile, PAYMENT_METHOD_BTC_WALLET
+from tunga_utils import coinbase_utils
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
+from tunga_utils.serializers import SimpleUserSerializer
 
 
 class VerifyUserView(views.APIView):
@@ -68,6 +72,9 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 def social_login_view(request, provider=None):
+    if provider == BTC_WALLET_PROVIDER_COINBASE:
+        redirect_uri = '%s://%s%s' % (request.scheme, request.get_host(), reverse('coinbase-connect-callback'))
+        return redirect(coinbase_utils.get_authorize_url(redirect_uri))
     enabled_providers = ['facebook', 'google', 'github']
     action = request.GET.get('action')
     next = request.GET.get('next')
@@ -91,3 +98,31 @@ def social_login_view(request, provider=None):
     else:
         next_url = '/'
     return redirect(next_url)
+
+
+def coinbase_connect_callback(request):
+    code = request.GET.get('code', None)
+    redirect_uri = '%s://%s%s' % (request.scheme, request.get_host(), reverse(request.resolver_match.url_name))
+    r = requests.post(url=coinbase_utils.get_token_url(), data={
+        'grant_type': 'authorization_code',
+        'code': code,
+        'client_id': COINBASE_CLIENT_ID,
+        'client_secret': COINBASE_CLIENT_SECRET,
+        'redirect_uri': redirect_uri
+    })
+
+    if r.status_code == 200:
+        response = r.json()
+        defaults = {
+            'token': response['access_token'],
+            'token_secret': response['refresh_token'],
+            # 'expires_at': response['expires_in'] # Coinbase returns an interval here
+        }
+        wallet, created = BTCWallet.objects.update_or_create(
+            user=request.user, provider=BTC_WALLET_PROVIDER_COINBASE, defaults=defaults
+        )
+        UserProfile.objects.update_or_create(user=request.user, defaults={
+            'payment_method': PAYMENT_METHOD_BTC_WALLET, 'btc_wallet': wallet
+        })
+
+    return redirect('/profile/payment/coinbase/')

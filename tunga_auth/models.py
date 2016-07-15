@@ -42,3 +42,10 @@ class TungaUser(AbstractUser):
     @property
     def is_project_owner(self):
         return self.type == USER_TYPE_PROJECT_OWNER
+
+    @property
+    def profile(self):
+        try:
+            return self.userprofile
+        except:
+            return None

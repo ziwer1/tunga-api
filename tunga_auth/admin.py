@@ -7,6 +7,7 @@ from django.http.response import StreamingHttpResponse
 from django.utils.translation import ugettext_lazy as _
 
 from tunga_auth.forms import TungaUserChangeForm, TungaUserCreationForm
+from tunga_profiles.admin import UserProfileInline
 from tunga_utils.views import Echo
 
 
@@ -27,6 +28,8 @@ class TungaUserAdmin(UserAdmin):
 
     list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'type', 'pending', 'verified')
     list_filter = ('type', 'pending', 'is_staff', 'is_superuser')
+
+    inlines = (UserProfileInline,)
 
     def make_pending(self, request, queryset):
         rows_updated = queryset.update(pending=True)

@@ -48,7 +48,7 @@ rest-framework-generic-relations==1.1.0
 rq==0.6.0                 # via django-rq
 six==1.10.0               # via coinbase, django-oauth-toolkit, django-rest-auth, html5lib, python-dateutil
 tinycss==0.3              # via weasyprint
-WeasyPrint==0.29
+WeasyPrint==0.30
 webencodings==0.5         # via html5lib
 
 # The following packages are commented out because they are

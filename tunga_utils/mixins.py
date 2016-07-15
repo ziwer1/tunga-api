@@ -1,3 +1,5 @@
+from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
+
 from tunga_utils.models import Upload
 
 
@@ -13,7 +15,7 @@ class GetCurrentUserAnnotatedSerializerMixin(object):
         return None
 
 
-class SaveUploadsMixin(object):
+class SaveUploadsMixin(CreateModelMixin, UpdateModelMixin):
 
     def perform_create(self, serializer):
         instance = serializer.save()

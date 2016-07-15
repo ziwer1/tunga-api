@@ -14,10 +14,23 @@ class ProjectFilter(GenericDateFilterSet):
 class TaskFilter(GenericDateFilterSet):
     applicant = django_filters.NumberFilter(name='applications__user', label='Applicant')
     participant = django_filters.NumberFilter(name='participants__user', label='Participant')
+    payment_status = django_filters.MethodFilter()
 
     class Meta:
         model = Task
-        fields = ('user', 'project', 'closed', 'applicant', 'participant', 'paid')
+        fields = ('user', 'project', 'closed', 'applicant', 'participant', 'paid', 'pay_distributed', 'payment_status')
+
+    def filter_payment_status(self, queryset, value):
+        queryset = queryset.filter(closed=True)
+        if value in ['paid', 'processing']:
+            queryset = queryset.filter(paid=True)
+            if value == 'paid':
+                return queryset.filter(pay_distributed=True)
+            else:
+                return queryset.filter(pay_distributed=False)
+        elif value == 'pending':
+            queryset = queryset.filter(paid=False)
+        return queryset
 
 
 class ApplicationFilter(GenericDateFilterSet):

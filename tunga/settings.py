@@ -13,12 +13,13 @@ https://docs.djangoproject.com/en/1.9/ref/settings/
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BASE_DIR = os.path.dirname(PROJECT_DIR)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.9/howto/deployment/checklist/
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = '!8g-9plb-5pa795jxv4@f18fu-+j^h2cyk_-?p%4s31eudmmr+'
 
 ALLOWED_HOSTS = ['tunga.io', 'web.tunga.io', 'www.tunga.io']
 
@@ -332,3 +333,46 @@ TUNGA_SHARE_PERCENTAGE = 13
 TUNGA_URL = 'https://tunga.io'
 
 GITHUB_SCOPES = ['user:email', 'repo', 'admin:repo_hook', 'admin:org_hook']
+
+COINBASE_API_KEY = ''
+
+COINBASE_API_SECRET = ''
+
+COINBASE_CLIENT_ID = ''
+
+COINBASE_CLIENT_SECRET = ''
+
+COINBASE_SCOPES = ['wallet:accounts:read', 'wallet:addresses:create']
+
+COINBASE_BASE_URL = 'https://www.coinbase.com'
+
+COINBASE_BASE_API_URL = 'https://api.coinbase.com'
+
+BITONIC_CONSUMER_KEY = ''
+
+BITONIC_CONSUMER_SECRET = ''
+
+BITONIC_ACCESS_TOKEN = ''
+
+BITONIC_TOKEN_SECRET = ''
+
+BITONIC_URL = 'https://bitonic.nl/order'
+
+BITONIC_PAYMENT_COST_PERCENTAGE = 2.5
+
+BANK_TRANSFER_PAYMENT_COST_PERCENTAGE = 3
+
+try:
+    from .env.dev import *
+except ImportError:
+    from .env.production import *
+
+
+if DEBUG:
+    STATICFILES_DIRS = (
+        os.path.join(BASE_DIR, 'static'),
+    )
+    STATIC_ROOT = None
+
+    for template_engine in TEMPLATES:
+        template_engine['OPTIONS']['debug'] = True
