@@ -73,7 +73,8 @@ INSTALLED_APPS = [
     'tunga_comments',
     'tunga_utils',
     'tunga_settings',
-    'tunga_activity'
+    'tunga_activity',
+    'tunga_support',
 ]
 
 MIDDLEWARE_CLASSES = [

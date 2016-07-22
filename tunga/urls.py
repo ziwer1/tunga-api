@@ -27,6 +27,7 @@ from tunga_messages.views import MessageViewSet, ChannelViewSet
 from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, ConnectionViewSet, SocialLinkViewSet, \
     NotificationView, CountryListView, DeveloperApplicationViewSet, RepoListView, IssueListView
 from tunga_settings.views import UserSettingsView
+from tunga_support.views import SupportPageViewSet, SupportSectionViewSet
 from tunga_tasks.views import TaskViewSet, ApplicationViewSet, ParticipationViewSet, TaskRequestViewSet, \
     SavedTaskViewSet, task_web_view, ProjectViewSet, ProgressReportViewSet, ProgressEventViewSet
 from tunga_activity.views import ActionViewSet
@@ -52,6 +53,8 @@ router.register(r'channel', ChannelViewSet)
 router.register(r'message', MessageViewSet)
 router.register(r'activity', ActionViewSet)
 router.register(r'skill', SkillViewSet)
+router.register(r'support/section', SupportSectionViewSet)
+router.register(r'support/page', SupportPageViewSet)
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),

@@ -2,3 +2,4 @@
 media/
 tunga/settings/local*.py
 *.sqlite*
+*.pyc
