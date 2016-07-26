@@ -1,0 +1,6 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello {{ application.first_name }},
+
+Your application has been received. We will get back to you shortly.
+
+{% endblock %}{% endautoescape %}

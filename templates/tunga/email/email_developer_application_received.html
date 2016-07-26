@@ -1,0 +1,8 @@
+{% extends "tunga/email/base.html" %}
+{% load i18n %}
+{% block email_content %}
+    <p>Hello {{ application.first_name }},</p>
+
+    <p>Your application has been received. We will get back to you shortly.</p>
+
+{% endblock %}

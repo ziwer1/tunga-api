@@ -18,7 +18,7 @@ class TungaUserAdmin(UserAdmin):
     actions = UserAdmin.actions + ['make_pending', 'make_not_pending', 'download_csv']
 
     fieldsets = UserAdmin.fieldsets + (
-        (_('Profile'), {'fields': ('type', 'image')}),
+        (_('Profile'), {'fields': ('type', 'image', 'verified', 'pending')}),
     )
 
     add_fieldsets = UserAdmin.add_fieldsets + (

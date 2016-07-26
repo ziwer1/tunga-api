@@ -20,6 +20,17 @@ def send_new_developer_email(instance):
 
 
 @job
+def send_developer_application_received_email(instance):
+    instance = clean_instance(instance, DeveloperApplication)
+    subject = "%s Your application to become a Tunga developer has been received" % EMAIL_SUBJECT_PREFIX
+    to = [instance.email]
+    ctx = {
+        'application': instance
+    }
+    send_mail(subject, 'tunga/email/email_developer_application_received', to, ctx)
+
+
+@job
 def send_developer_accepted_email(instance):
     instance = clean_instance(instance, DeveloperApplication)
     subject = "%s Your application to become a Tunga developer has been accepted" % EMAIL_SUBJECT_PREFIX
