@@ -1,6 +1,6 @@
 import django_filters
 
-from tunga_messages.models import Message, Reply, Channel
+from tunga_messages.models import Message, Channel
 from tunga_utils.filters import GenericDateFilterSet
 
 
@@ -19,9 +19,3 @@ class MessageFilter(GenericDateFilterSet):
         model = Message
         fields = ('user', 'channel', 'since')
 
-
-class ReplyFilter(GenericDateFilterSet):
-
-    class Meta:
-        model = Reply
-        fields = ('user', 'message', 'is_broadcast')

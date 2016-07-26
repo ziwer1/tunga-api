@@ -6,14 +6,17 @@ from tunga_messages.filterbackends import new_messages_filter
 from tunga_messages.models import Message, Attachment, Channel, ChannelUser
 from tunga_messages.tasks import get_or_create_direct_channel
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
+from tunga_utils.models import Upload
 from tunga_utils.serializers import CreateOnlyCurrentUserDefault, SimpleUploadSerializer, \
-    SimpleUserSerializer, DetailAnnotatedModelSerializer
+    SimpleUserSerializer, DetailAnnotatedModelSerializer, ContentTypeAnnotatedModelSerializer, UploadSerializer
 
 
-class SimpleAttachmentSerializer(SimpleUploadSerializer):
+class SimpleChannelSerializer(serializers.ModelSerializer):
+    created_by = SimpleUserSerializer()
 
-    class Meta(SimpleUploadSerializer.Meta):
-        model = Attachment
+    class Meta:
+        model = Channel
+        exclude = ('participants',)
 
 
 class DirectChannelSerializer(serializers.Serializer):
@@ -39,7 +42,7 @@ class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedS
     participants = serializers.PrimaryKeyRelatedField(
         required=True, many=True, queryset=get_user_model().objects.all()
     )
-    attachments = SimpleAttachmentSerializer(read_only=True, required=False, many=True)
+    attachments = UploadSerializer(read_only=True, required=False, many=True, source='all_attachments')
     user = serializers.SerializerMethodField(read_only=True, required=False)
     new = serializers.SerializerMethodField(read_only=True, required=False)
     last_read = serializers.SerializerMethodField(read_only=True, required=False)
@@ -118,10 +121,18 @@ class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedS
 class MessageSerializer(serializers.ModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
     user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     excerpt = serializers.CharField(required=False, read_only=True)
-    attachments = SimpleAttachmentSerializer(read_only=True, required=False, many=True)
+    attachments = UploadSerializer(read_only=True, required=False, many=True)
 
     class Meta:
         model = Message
         read_only_fields = ('created_at',)
+
+
+class ChannelUserSerializer(ContentTypeAnnotatedModelSerializer):
+    channel = SimpleChannelSerializer()
+    user = SimpleUserSerializer()
+
+    class Meta:
+        model = ChannelUser
 
 

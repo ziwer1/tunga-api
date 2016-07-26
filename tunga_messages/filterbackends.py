@@ -45,4 +45,4 @@ class ChannelFilterBackend(DRYPermissionFiltersBase):
 class MessageFilterBackend(DRYPermissionFiltersBase):
 
     def filter_list_queryset(self, request, queryset, view):
-        return queryset.filter(all_messages_q_filter(request.user))
+        return queryset.filter(all_messages_q_filter(request.user)).distinct()

@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+from actstream.models import Action
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
@@ -18,6 +19,12 @@ class Comment(models.Model):
     content_object = GenericForeignKey('content_type', 'object_id')
     created_at = models.DateTimeField(auto_now_add=True)
     uploads = GenericRelation(Upload, related_query_name='comments')
+    activity_objects = GenericRelation(
+        Action,
+        object_id_field='action_object_object_id',
+        content_type_field='action_object_content_type',
+        related_query_name='comments'
+    )
 
     def __unicode__(self):
         msg = self.body

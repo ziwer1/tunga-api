@@ -1,3 +1,5 @@
+SEND = 'send'
+UPLOAD = 'upload'
 COMMENT = 'comment'
 CONNECT = 'connect'
 ACCEPT = 'accept'

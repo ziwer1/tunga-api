@@ -11,4 +11,4 @@ class TungaMessagesConfig(AppConfig):
         from actstream import registry
         from tunga_messages import signals
 
-        registry.register(self.get_model('Channel'), self.get_model('Message'))
+        registry.register(self.get_model('Channel'), self.get_model('ChannelUser'), self.get_model('Message'))

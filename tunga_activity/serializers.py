@@ -5,6 +5,8 @@ from rest_framework import serializers
 
 from tunga_comments.models import Comment
 from tunga_comments.serializers import CommentSerializer
+from tunga_messages.models import Message, Channel, ChannelUser
+from tunga_messages.serializers import MessageSerializer, ChannelSerializer, ChannelUserSerializer
 from tunga_profiles.models import Connection
 from tunga_profiles.serializers import ConnectionSerializer
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, Integration, ProgressEvent, ProgressReport, \
@@ -12,7 +14,8 @@ from tunga_tasks.models import Task, Application, Participation, TaskRequest, In
 from tunga_tasks.serializers import ApplicationSerializer, ParticipationSerializer, \
     TaskRequestSerializer, SimpleTaskSerializer, SimpleIntegrationSerializer, SimpleProgressEventSerializer, \
     SimpleProgressReportSerializer, SimpleIntegrationActivitySerializer
-from tunga_utils.serializers import SimpleUserSerializer
+from tunga_utils.models import Upload
+from tunga_utils.serializers import SimpleUserSerializer, UploadSerializer
 
 
 class SimpleActivitySerializer(serializers.ModelSerializer):
@@ -20,7 +23,11 @@ class SimpleActivitySerializer(serializers.ModelSerializer):
     activity_type = serializers.SerializerMethodField()
     activity = GenericRelatedField({
         get_user_model(): SimpleUserSerializer(),
+        Channel: ChannelSerializer(),
+        ChannelUser: ChannelUserSerializer(),
+        Message: MessageSerializer(),
         Comment: CommentSerializer(),
+        Upload: UploadSerializer(),
         Connection: ConnectionSerializer(),
         Task: SimpleTaskSerializer(),
         Application: ApplicationSerializer(),
@@ -52,7 +59,11 @@ class ActivitySerializer(SimpleActivitySerializer):
     })
     target = GenericRelatedField({
         get_user_model(): SimpleUserSerializer(),
+        Channel: ChannelSerializer(),
+        ChannelUser: ChannelUserSerializer(),
+        Message: MessageSerializer(),
         Comment: CommentSerializer(),
+        Upload: UploadSerializer(),
         Connection: ConnectionSerializer(),
         Task: SimpleTaskSerializer(),
         Application: ApplicationSerializer(),

@@ -8,6 +8,8 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from tunga_activity.filters import ActionFilter
+from tunga_activity.serializers import SimpleActivitySerializer
 from tunga_messages.filterbackends import MessageFilterBackend, ChannelFilterBackend
 from tunga_messages.filters import MessageFilter, ChannelFilter
 from tunga_messages.models import Message, Attachment, Channel, ChannelUser
@@ -15,9 +17,10 @@ from tunga_messages.serializers import MessageSerializer, ChannelSerializer, Dir
     ChannelLastReadSerializer
 from tunga_messages.tasks import get_or_create_direct_channel
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
+from tunga_utils.mixins import SaveUploadsMixin
 
 
-class ChannelViewSet(viewsets.ModelViewSet):
+class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
     """
     Channel Resource
     """
@@ -91,38 +94,45 @@ class ChannelViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
+    @detail_route(
+        methods=['get'], url_path='activity',
+        permission_classes=[IsAuthenticated],
+        serializer_class=SimpleActivitySerializer,
+        filter_class=None,
+        filter_backends=DEFAULT_FILTER_BACKENDS,
+        search_fields=('messages__body', 'uploads__file', 'messages__attachments__file')
+    )
+    def activity(self, request, pk=None):
+        """
+        Channel Activity Endpoint
+        ---
+        response_serializer: SimpleActivitySerializer
+        #omit_parameters:
+        #    - query
+        """
+        task = get_object_or_404(self.get_queryset(), pk=pk)
+        self.check_object_permissions(request, task)
 
-class MessageViewSet(viewsets.ModelViewSet):
+        queryset = ActionFilter(request.GET, self.filter_queryset(task.target_actions.all()))
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+class MessageViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
     """
     Message Resource
     """
-    queryset = Message.objects.all().annotate(
-        latest_reply_created_at=Max('replies__created_at')
-    ).annotate(latest_created_at=Case(
-        When(
-            latest_reply_created_at__isnull=True,
-            then='created_at'
-        ),
-        When(
-            latest_reply_created_at__gt=F('created_at'),
-            then='latest_reply_created_at'
-        ),
-        default='created_at',
-        output_field=DateTimeField()
-    )).order_by('-latest_created_at')
+    queryset = Message.objects.all()
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated, DRYObjectPermissions]
     filter_class = MessageFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (MessageFilterBackend,)
-    search_fields = ('user__username', 'body', 'replies__body')
-
-    def perform_create(self, serializer):
-        message = serializer.save()
-        attachments = self.request.FILES
-        if attachments:
-            for file in attachments.itervalues():
-                attachment = Attachment(content_object=message, file=file)
-                attachment.save()
+    search_fields = ('user__username', 'body',)
 
     @detail_route(
         methods=['post'], url_path='read',

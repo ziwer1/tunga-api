@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+from actstream.models import Action
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
@@ -10,6 +11,7 @@ from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
 from tunga_profiles.models import Connection
+from tunga_utils.models import Upload
 
 
 class Attachment(models.Model):
@@ -52,6 +54,7 @@ class Channel(models.Model):
     )
     object_id = models.PositiveIntegerField(blank=True, null=True)
     content_object = GenericForeignKey('content_type', 'object_id')
+    attachments = GenericRelation(Upload, related_query_name='channels')
 
     def __unicode__(self):
         return '{0} - {1}'.format(self.get_type_display(), self.subject or self.created_by)
@@ -70,8 +73,8 @@ class Channel(models.Model):
         return request.user == self.created_by
 
     @property
-    def attachments(self):
-        return Attachment.objects.filter(messages__channel=self)
+    def all_attachments(self):
+        return Upload.objects.filter(Q(channels=self) | Q(messages__channel=self))
 
 
 class ChannelUser(models.Model):
@@ -91,18 +94,19 @@ class ChannelUser(models.Model):
 class Message(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.CASCADE, blank=True, null=True, related_name='messages')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='messages')
-    is_broadcast = models.BooleanField(default=False)
-    recipients = models.ManyToManyField(
-            settings.AUTH_USER_MODEL, through='Reception', through_fields=('message', 'user'),
-            related_name='messages_received', blank=True)
-    subject = models.CharField(max_length=100, blank=True, null=True)
     body = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
-    read_at = models.DateTimeField(blank=True, null=True)
-    attachments = GenericRelation(Attachment, related_query_name='messages')
+
+    attachments = GenericRelation(Upload, related_query_name='messages')
+    activity_objects = GenericRelation(
+        Action,
+        object_id_field='action_object_object_id',
+        content_type_field='action_object_content_type',
+        related_query_name='messages'
+    )
 
     def __unicode__(self):
-        return '%s - %s' % (self.user.get_short_name() or self.user.username, self.subject)
+        return '%s - %s' % (self.user.get_short_name() or self.user.username, self.body)
 
     class Meta:
         ordering = ['-created_at']
@@ -111,60 +115,7 @@ class Message(models.Model):
     def has_object_read_permission(self, request):
         if self.has_object_write_permission(request):
             return True
-        if self.channel:
-            return self.channel.channeluser_set.filter(user=request.user).count()
-        if self.is_broadcast:
-            return bool(
-                Connection.objects.exclude(accepted=False).filter(
-                    Q(from_user=self.user, to_user=request.user) | Q(from_user=request.user, to_user=self.user)
-                ).count()
-            )
-        return self.reception_set.filter(user=request.user).count()
-
-    @allow_staff_or_superuser
-    def has_object_write_permission(self, request):
-        return request.user == self.user
-
-    @property
-    def excerpt(self):
-        return strip_tags(self.body)
-
-
-class Reception(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    message = models.ForeignKey(Message, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-    read_at = models.DateTimeField(blank=True, null=True)
-
-    def __unicode__(self):
-        return '%s - %s' % (self.user.get_short_name() or self.user.username, self.message.subject)
-
-    class Meta:
-        unique_together = ('user', 'message')
-
-
-class Reply(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='replies')
-    is_broadcast = models.BooleanField(default=True)
-    body = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    attachments = GenericRelation(Attachment, related_query_name='replies')
-
-    def __unicode__(self):
-        return '%s -> %s' % (self.user.get_short_name() or self.user.username, self.body)
-
-    class Meta:
-        verbose_name_plural = 'replies'
-        ordering = ['-created_at']
-
-    @allow_staff_or_superuser
-    def has_object_read_permission(self, request):
-        if self.has_object_write_permission(request):
-            return True
-        if self.is_broadcast:
-            return self.message.has_object_read_permission(request)
-        return request.user == self.message.user
+        return self.channel.channeluser_set.filter(user=request.user).count()
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):

@@ -8,4 +8,7 @@ class TungaUtilsConfig(AppConfig):
     verbose_name = 'Utilities'
 
     def ready(self):
+        from actstream import registry
         from tunga_utils import signals
+
+        registry.register(self.get_model('Upload'))

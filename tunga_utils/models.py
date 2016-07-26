@@ -2,7 +2,8 @@ from __future__ import unicode_literals
 
 import re
 
-from django.contrib.contenttypes.fields import GenericForeignKey
+from actstream.models import Action
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
@@ -81,6 +82,13 @@ class GenericUpload(models.Model):
 
 class Upload(GenericUpload):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    activity_objects = GenericRelation(
+        Action,
+        object_id_field='action_object_object_id',
+        content_type_field='action_object_content_type',
+        related_query_name='uploads'
+    )
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):

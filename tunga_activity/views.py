@@ -15,3 +15,6 @@ class ActionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ActivitySerializer
     permission_classes = [IsAdminUser]
     filter_class = ActionFilter
+    search_fields = (
+        'comments__body', 'messages__body', 'uploads__file', 'messages__attachments__file', 'comments__uploads__file'
+    )
