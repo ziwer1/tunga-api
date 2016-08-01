@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import tagulous
 from django.db import models
 
 from tunga import settings
@@ -34,6 +35,16 @@ class SupportSection(models.Model):
         verbose_name_plural = 'sections'
         ordering = ['order', 'title', '-created_at']
 
+    def tags(self):
+        return SupportTag.objects.filter(supportpage__section=self)
+
+
+class SupportTag(tagulous.models.TagModel):
+
+    class TagMeta:
+        initial = None
+        space_delimiter = False
+
 
 class SupportPage(models.Model):
     section = models.ForeignKey(SupportSection, related_name='pages', on_delete=models.CASCADE)
@@ -45,6 +56,7 @@ class SupportPage(models.Model):
         max_length=20, choices=VISIBILITY_CHOICES, default=VISIBILITY_ALL,
         help_text=', '.join(['%s - %s' % (item[0], item[1]) for item in VISIBILITY_CHOICES])
     )
+    tags = tagulous.models.TagField(to=SupportTag, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='support_pages_created')
     created_at = models.DateTimeField(auto_now_add=True)
 

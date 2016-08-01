@@ -29,4 +29,4 @@ class SupportPageViewSet(viewsets.ModelViewSet):
     filter_class = SupportPageFilter
     lookup_field = 'slug'
     lookup_url_kwarg = 'slug'
-    search_fields = ('title', 'content')
+    search_fields = ('title', 'content', 'section__title', 'tags__name')
