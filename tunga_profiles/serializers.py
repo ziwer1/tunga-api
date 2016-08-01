@@ -17,6 +17,8 @@ class ProfileDetailsSerializer(SimpleProfileSerializer):
 
 class ProfileSerializer(DetailAnnotatedModelSerializer):
     user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    first_name = serializers.CharField(required=False, write_only=True, max_length=20)
+    last_name = serializers.CharField(required=False, write_only=True, max_length=20)
     city = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     skills = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     country = CountryField(required=False)
@@ -26,6 +28,7 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
         details_serializer = ProfileDetailsSerializer
 
     def create(self, validated_data):
+        user_data = self.get_user_data(validated_data)
         skills = None
         city = None
         if 'skills' in validated_data:
@@ -33,11 +36,13 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
         if 'city' in validated_data:
             city = validated_data.pop('city')
         instance = super(ProfileSerializer, self).create(validated_data)
+        self.save_user_info(instance, user_data)
         self.save_skills(instance, skills)
         self.save_city(instance, city)
         return instance
 
     def update(self, instance, validated_data):
+        user_data = self.get_user_data(validated_data)
         skills = None
         city = None
         if 'skills' in validated_data:
@@ -45,9 +50,27 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
         if 'city' in validated_data:
             city = validated_data.pop('city')
         instance = super(ProfileSerializer, self).update(instance, validated_data)
+        self.save_user_info(instance, user_data)
         self.save_skills(instance, skills)
         self.save_city(instance, city)
         return instance
+
+    def get_user_data(self, validated_data):
+        user_data = dict()
+        for user_key in ['first_name', 'last_name']:
+            if user_key in validated_data:
+                user_data[user_key] = validated_data.pop(user_key)
+        return user_data
+
+    def save_user_info(self, instance, user_data):
+        user = instance.user
+        if user:
+            first_name = user_data.get('first_name')
+            last_name = user_data.get('last_name')
+            if first_name or last_name:
+                user.first_name = first_name or user.first_name
+                user.last_name = last_name or user.last_name
+                user.save()
 
     def save_skills(self, profile, skills):
         if skills is not None:

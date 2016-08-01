@@ -27,6 +27,7 @@ class Skill(tagulous.models.TagModel):
                   "Git, Subversion, Mercurial, " \
                   "Docker, Ansible, " \
                   "Webpack, Grunt, Gulp, Ant, Maven, Gradle"
+        space_delimiter = False
 
 
 class City(tagulous.models.TagModel):
@@ -80,7 +81,7 @@ class UserProfile(models.Model):
     city = tagulous.models.SingleTagField(to=City, blank=True, null=True)
     street = models.CharField(max_length=100, blank=True, null=True)
     plot_number = models.CharField(max_length=100, blank=True, null=True)
-    postal_code = models.IntegerField(blank=True, null=True)
+    postal_code = models.CharField(max_length=20, blank=True, null=True)
     postal_address = models.CharField(max_length=100, blank=True, null=True)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
 
