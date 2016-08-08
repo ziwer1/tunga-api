@@ -1,4 +1,5 @@
 .idea
+static/
 media/
 tunga/*/local*.py
 *.sqlite*
