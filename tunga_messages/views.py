@@ -12,12 +12,13 @@ from tunga_activity.filters import ActionFilter
 from tunga_activity.serializers import SimpleActivitySerializer
 from tunga_messages.filterbackends import MessageFilterBackend, ChannelFilterBackend
 from tunga_messages.filters import MessageFilter, ChannelFilter
-from tunga_messages.models import Message, Attachment, Channel, ChannelUser
+from tunga_messages.models import Message, Channel, ChannelUser
 from tunga_messages.serializers import MessageSerializer, ChannelSerializer, DirectChannelSerializer, \
     ChannelLastReadSerializer
 from tunga_messages.tasks import get_or_create_direct_channel
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.mixins import SaveUploadsMixin
+from tunga_utils.pagination import LargeResultsSetPagination
 
 
 class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
@@ -42,6 +43,7 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
     permission_classes = [IsAuthenticated, DRYObjectPermissions]
     filter_class = ChannelFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (ChannelFilterBackend,)
+    pagination_class = LargeResultsSetPagination
     search_fields = (
         'subject', 'channeluser__user__username', 'channeluser__user__first_name',
         'channeluser__user__last_name'
@@ -87,7 +89,7 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         channel = get_object_or_404(self.get_queryset(), pk=pk)
         if channel.has_object_read_permission(request):
             ChannelUser.objects.update_or_create(user=request.user, channel=channel, defaults={'last_read': last_read})
-            response_serializer = ChannelSerializer(channel)
+            response_serializer = ChannelSerializer(channel, context={'request': request})
             return Response(response_serializer.data)
         return Response(
                 {'status': 'Unauthorized', 'message': 'No access to this channel'},
@@ -110,10 +112,10 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         #omit_parameters:
         #    - query
         """
-        task = get_object_or_404(self.get_queryset(), pk=pk)
-        self.check_object_permissions(request, task)
+        channel = get_object_or_404(self.get_queryset(), pk=pk)
+        self.check_object_permissions(request, channel)
 
-        queryset = ActionFilter(request.GET, self.filter_queryset(task.target_actions.all()))
+        queryset = ActionFilter(request.GET, self.filter_queryset(channel.target_actions.all().order_by('-id')))
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)

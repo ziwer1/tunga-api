@@ -16,7 +16,7 @@ from tunga_tasks.emails import send_new_task_email
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, ProgressEvent, ProgressReport, \
     PROGRESS_EVENT_TYPE_MILESTONE, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
-    TASK_PAYMENT_METHOD_BITONIC, CURRENCY_USD, CURRENCY_SYMBOLS
+    TASK_PAYMENT_METHOD_BITONIC, CURRENCY_USD, CURRENCY_SYMBOLS, TaskInvoice
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed
 from tunga_utils import coinbase_utils
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
@@ -131,6 +131,7 @@ class ProjectSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedMode
 
 class TaskPaymentSerializer(serializers.ModelSerializer):
     user = InvoiceUserSerializer(required=False, read_only=True)
+    payment_method = serializers.ChoiceField(choices=TASK_PAYMENT_METHOD_CHOICES, required=True)
 
     class Meta:
         model = Task
@@ -138,23 +139,16 @@ class TaskPaymentSerializer(serializers.ModelSerializer):
             'id', 'user', 'title', 'summary', 'currency', 'fee', 'payment_method', 'btc_address', 'btc_price'
         )
         read_only_fields = ('title', 'summary', 'currency', 'btc_address', 'btc_price')
+        extra_kwargs = {'fee': {'required': True}}
 
 
 class TaskInvoiceSerializer(serializers.ModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
-    client = InvoiceUserSerializer(required=False, read_only=True, source='user')
-    developer = serializers.SerializerMethodField(required=False, read_only=True)
+    client = InvoiceUserSerializer(required=False, read_only=True)
+    developer = InvoiceUserSerializer(required=False, read_only=True)
+    amount = serializers.JSONField(required=False, read_only=True)
 
     class Meta:
-        model = Task
-        fields = ('client', 'developer', 'amount', 'title', 'fee')
-
-    def get_developer(self, obj):
-        try:
-            participation = obj.participation_set.filter(accepted=True).order_by('-assignee').earliest('created_at')
-            return InvoiceUserSerializer(participation.user).data
-        except:
-            pass
-        return None
+        model = TaskInvoice
 
 
 class ParticipantShareSerializer(serializers.Serializer):
@@ -319,7 +313,10 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                     defaults['created_by'] = task.user
 
                 try:
-                    Participation.objects.update_or_create(task=task, user=item['user'], defaults=defaults)
+                    participation_obj, created = Participation.objects.update_or_create(
+                        task=task, user=item['user'], defaults=defaults)
+                    if not created:
+                        participation_response.send(sender=Participation, participation=participation_obj)
                     if 'assignee' in item and item['assignee']:
                         new_assignee = item['user']
                 except:
@@ -373,7 +370,10 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                         defaults['responded'] = True
                         defaults['activated_at'] = datetime.datetime.utcnow()
 
-                    Participation.objects.update_or_create(task=task, user=user, defaults=defaults)
+                    participation_obj, created = Participation.objects.update_or_create(
+                        task=task, user=user, defaults=defaults)
+                    if not created:
+                        participation_response.send(sender=Participation, participation=participation_obj)
                     if user.id == assignee:
                         changed_assignee = True
                 except:
@@ -385,7 +385,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         user = self.get_current_user()
         amount = None
         if user and user.is_developer:
-            amount = obj.fee * (1 - TUNGA_SHARE_PERCENTAGE * Decimal(0.01))
+            amount = obj.fee * (1 - Decimal(TUNGA_SHARE_PERCENTAGE) * Decimal(0.01))
         return obj.display_fee(amount=amount)
 
     def get_can_apply(self, obj):

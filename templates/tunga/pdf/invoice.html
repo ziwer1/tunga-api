@@ -4,81 +4,149 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+    <!--<link href='https://fonts.googleapis.com/css?family=Roboto:100,100i,300,300i,400,400i,500,500i,700,700i' rel='stylesheet' type='text/css'>-->
+    <style>
+        body {
+            font-size: 14px;
+            font-family: 'Roboto', sans-serif;
+            padding: 0;
+            margin: 0;
+        }
+
+        table {
+            width: 100%;
+            border-width: 0;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 50px auto 0;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+        }
+    </style>
+    <script>
+        var WebFontConfig = {
+            google: {families: ['Roboto:100,100i,300,300i,400,400i,500,500i,700,700i:latin']}
+        };
+        (function () {
+            var wf = document.createElement('script');
+            wf.src = ('https:' == document.location.protocol ? 'https' : 'http') +
+                    '://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js';
+            wf.type = 'text/javascript';
+            wf.async = 'true';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(wf, s);
+        })();
+    </script>
 </head>
-{% with container="max-width: 800px;margin: 50px auto 0;" left="text-align: left;" right="text-align: right;" %}
-<body style="font-family: sans-serif;padding: 0;margin: 0;">
-	<div style="{{ container }}">
+<body>
+<div class="container">
 
-		<div style="margin: 20px 0 10px;text-align: left;">
-			<div style="font-weight: bold">
+    <div style="margin: 20px 0 10px;text-align: left;">
+        {% if context.is_developer %}
+        {% else %}
+            <div class="bold">
                 {{ invoice.client.profile.company }}<br/>
-                {{ invoice.client.display_name }}
+                {{ invoice.client.display_name }}<br/>
+                {{ invoice.client.profile.street }} {{ invoice.client.profile.plot_number }}<br/>
+                {{ invoice.client.profile.postal_code }}<br/>
+                {{ invoice.client.profile.country_name }}
             </div>
 
-            <p style="margin: 20px 0;">Invoice generated on behalf of</p>
+            <p style="margin: 20px 0;">Invoice generated on behalf of:</p>
+        {% endif %}
 
-            <div>
-                {{ invoice.developer.display_name }}<br/>
-                {{ invoice.developer.profile.street }} {{ invoice.developer.profile.plot_number }}<br/>
-                {{ invoice.developer.profile.postal_code }}<br/>
-                {{ invoice.developer.profile.country_name }}
+        <div {% if context.is_developer %}class="bold"{% endif %}>
+            {{ invoice.developer.display_name }}<br/>
+            {{ invoice.developer.profile.street }} {{ invoice.developer.profile.plot_number }}<br/>
+            {{ invoice.developer.profile.postal_code }}<br/>
+            {{ invoice.developer.profile.country_name }}
+        </div>
+
+        {% if context.is_developer %}
+            <div style="margin: 20px 0;">
+
+                Stichting Butterfly Works<br/>
+                Ms. van Riemsdijkweg 57<br/>
+                1033 RC, Amsterdam<br/>
+                The Netherlands<br/>
             </div>
+        {% endif %}
 
-            <div style="margin-top: 20px;">
-                Invoice number: {{ invoice.number }}<br/>
-                Invoicing date: {{ invoice.invoice_date | date:"D, d M, Y" }}
-            </div>
+        <div style="margin-top: 20px;">
+            Invoice number: {{ invoice.number | default:'' }}<br/>
+            Invoicing date: {{ invoice_date }}
+        </div>
 
-            <table style="width:100%; border-width: 0;border-collapse: collapse; margin-top: 20px;">
-                <tr style="border-bottom: 1px solid #000;">
-                    <th colspan="2">Description</th>
+        <table>
+            <tr style="border-bottom: 1px solid #000;">
+                <th colspan="2">Description</th>
+            </tr>
+
+            {% if context.is_developer %}
+                <tr>
+                    <td>Tunga fee for {{ invoice.title }}</td>
+                    <td class="text-right">{{ invoice.amount.currency | safe }} {{ invoice.amount.tunga | floatformat:2 }}</td>
                 </tr>
-
+            {% else %}
                 <tr>
                     <td>{{ invoice.title }}</td>
-                    <td style="{{ right }}">{{ invoice.amount.currency | safe }} {{ invoice.amount.developer | floatformat:2 }}</td>
+                    <td class="text-right">{{ invoice.amount.currency | safe }} {{ invoice.amount.pledge | floatformat:2 }}</td>
                 </tr>
+            {% endif %}
 
-                <tr>
-                    <td>Payment costs</td>
-                    <td style="{{ right }}">{{ invoice.amount.currency | safe }} {{ invoice.amount.processing | floatformat:2 }}</td>
-                </tr>
+            <tr>
+                <td>Payment costs</td>
+                <td class="text-right">{{ invoice.amount.currency | safe }} {{ invoice.amount.processing | floatformat:2 }}</td>
+            </tr>
 
-                <tr>
-                    <td>Tunga fee</td>
-                    <td style="{{ right }}">{{ invoice.amount.currency | safe }} {{ invoice.amount.tunga | floatformat:2 }}</td>
-                </tr>
+            <tr style="border-top: 1px solid #000; ">
+                <td class="text-right">Subtotal</td>
+                <td class="text-right">{{ invoice.amount.currency | safe }}
+                    {% if context.is_developer %}{{ invoice.amount.total_dev | floatformat:2 }}{% else %}
+                        {{ invoice.amount.total | floatformat:2 }}{% endif %}</td>
+            </tr>
 
-                <tr style="border-top: 1px solid #000; ">
-                    <td style="text-align: right">Subtotal</td>
-                    <td style="{{ right }}">{{ invoice.amount.currency | safe}} {{ invoice.amount.total | floatformat:2  }}</td>
-                </tr>
+            <tr>
+                <td class="text-right">VAT 0%</td>
+                <td class="text-right">{{ invoice.amount.currency | safe }} 0.00</td>
+            </tr>
 
-                <tr>
-                    <td style="text-align: right">VAT 0%</td>
-                    <td style="{{ right }}">{{ invoice.amount.currency | safe }} 0.00</td>
-                </tr>
+            <tr style="border-top: 1px solid #000; ">
+                <td class="text-right">Total</td>
+                <td class="text-right">{{ invoice.amount.currency | safe }}
+                    {% if context.is_developer %}{{ invoice.amount.total_dev | floatformat:2 }}{% else %}
+                        {{ invoice.amount.total | floatformat:2 }}{% endif %}</td>
+            </tr>
+        </table>
 
-                {% if user.is_developer %}
-                    <tr>
-                        <td style="text-align: right">Tunga fee</td>
-                        <td style="{{ right }}">- {{ invoice.amount.currency | safe }} {{ invoice.amount.tunga | floatformat:2 }}</td>
-                    </tr>
+    </div>
 
-                    <tr>
-                        <td style="text-align: right">Payment costs</td>
-                        <td style="{{ right }}">- {{ invoice.amount.currency | safe }} {{ invoice.amount.processing | floatformat:2 }}</td>
-                    </tr>
-                {% endif %}
-
-                <tr style="border-top: 1px solid #000; ">
-                    <td style="text-align: right">Total</td>
-                    <td style="{{ right }}">{{ invoice.amount.currency | safe }} {% if user.is_developereloper %}{{ invoice.amount.developer | floatformat:2 }}{% else %}{{ invoice.amount.total | floatformat:2 }}{% endif %}</td>
-                </tr>
-            </table>
-
-		</div>
-	</div>
+    <div class="footer">
+        {% if context.is_developer %}{% else %}
+            <div>Generated on behalf of {{ invoice.developer.display_name }} by:</div>{% endif %}
+        Stichting Butterfly Works | Ms. van Riemsdijkweg 57, 1033RC Amsterdam | VAT: NL.8138.72.327.B.01
+    </div>
+</div>
 </body>
-{% endwith %}
 </html>

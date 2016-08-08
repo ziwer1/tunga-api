@@ -54,7 +54,14 @@ class Channel(models.Model):
     )
     object_id = models.PositiveIntegerField(blank=True, null=True)
     content_object = GenericForeignKey('content_type', 'object_id')
+
     attachments = GenericRelation(Upload, related_query_name='channels')
+    action_targets = GenericRelation(
+        Action,
+        object_id_field='target_object_id',
+        content_type_field='target_content_type',
+        related_query_name='channels'
+    )
 
     def __unicode__(self):
         return '{0} - {1}'.format(self.get_type_display(), self.subject or self.created_by)
@@ -76,13 +83,29 @@ class Channel(models.Model):
     def all_attachments(self):
         return Upload.objects.filter(Q(channels=self) | Q(messages__channel=self))
 
+    def get_receiver(self, sender):
+        if sender and self.type == CHANNEL_TYPE_DIRECT:
+            participation = self.channeluser_set.filter(~Q(user_id=sender.id))
+            if participation:
+                return participation[0].user
+        return None
+
+    def get_channel_display_name(self, sender):
+        if self.type == CHANNEL_TYPE_DIRECT:
+            user = self.get_receiver(sender)
+            if user:
+                return user.display_name
+        elif self.subject:
+            return self.subject
+        return self
+
 
 class ChannelUser(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     last_read = models.IntegerField(default=0)
-    read_at = models.DateTimeField(blank=True, null=True)
+    last_email_at = models.DateTimeField(blank=True, null=True)
 
     def __unicode__(self):
         return '%s - %s' % (self.channel, self.user.get_short_name() or self.user.username)

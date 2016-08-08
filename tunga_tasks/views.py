@@ -3,6 +3,7 @@ import json
 from urllib import urlencode
 
 from dateutil.parser import parse
+from decimal import Decimal
 from django.http.response import HttpResponse
 from django.shortcuts import redirect
 from django.template.loader import render_to_string
@@ -22,7 +23,7 @@ from rest_framework.reverse import reverse
 from weasyprint import HTML
 
 from tunga.settings import BITONIC_CONSUMER_KEY, BITONIC_CONSUMER_SECRET, BITONIC_ACCESS_TOKEN, BITONIC_TOKEN_SECRET, \
-    BITONIC_URL
+    BITONIC_URL, BITONIC_PAYMENT_COST_PERCENTAGE
 from tunga_activity.filters import ActionFilter
 from tunga_activity.serializers import SimpleActivitySerializer
 from tunga_tasks import slugs
@@ -34,12 +35,12 @@ from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilt
     ProjectFilter, ProgressReportFilter, ProgressEventFilter
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, Project, ProgressReport, ProgressEvent, \
     Integration, IntegrationMeta, IntegrationActivity, TASK_PAYMENT_METHOD_BITONIC, TaskPayment, \
-    TASK_PAYMENT_METHOD_BANK
+    TASK_PAYMENT_METHOD_BANK, TaskInvoice
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TaskRequestSerializer, SavedTaskSerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
     IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer
-from tunga_tasks.tasks import distribute_task_payment
+from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number
 from tunga_utils import github, coinbase_utils, bitcoin_utils
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.mixins import SaveUploadsMixin
@@ -58,12 +59,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
               type: string
               paramType: query
     """
-    queryset = Project.objects.all()
+    queryset = Project.objects.exclude(archived=True)
     serializer_class = ProjectSerializer
     permission_classes = [IsAuthenticated, DRYPermissions]
     filter_class = ProjectFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (ProjectFilterBackend,)
     search_fields = ('title', 'description')
+
+    def perform_destroy(self, instance):
+        instance.archived = True
+        instance.archived_at = datetime.datetime.utcnow()
+        instance.save()
 
 
 class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
@@ -78,12 +84,17 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
               type: string
               paramType: query
     """
-    queryset = Task.objects.all()
+    queryset = Task.objects.exclude(archived=True)
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated, DRYPermissions]
     filter_class = TaskFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (TaskFilterBackend,)
     search_fields = ('title', 'description', 'skills__name')
+
+    def perform_destroy(self, instance):
+        instance.archived = True
+        instance.archived_at = datetime.datetime.utcnow()
+        instance.save()
 
     @detail_route(
         methods=['get'], url_path='activity',
@@ -104,7 +115,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         task = get_object_or_404(self.get_queryset(), pk=pk)
         self.check_object_permissions(request, task)
 
-        queryset = ActionFilter(request.GET, self.filter_queryset(task.target_actions.all()))
+        queryset = ActionFilter(request.GET, self.filter_queryset(task.target_actions.all().order_by('-id')))
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -135,21 +146,21 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
     @detail_route(
         methods=['get', 'post', 'put'], url_path='invoice',
-        serializer_class=TaskPaymentSerializer
+        serializer_class=TaskPaymentSerializer, permission_classes=[IsAuthenticated]
     )
     def invoice(self, request, pk=None):
         """
         Task Invoice Endpoint
         ---
         request_serializer: TaskPaymentSerializer
-        response_serializer: TaskSerializer
+        response_serializer: TaskInvoiceSerializer
         omit_parameters:
             - query
         """
         task = get_object_or_404(self.get_queryset(), pk=pk)
         self.check_object_permissions(request, task)
 
-        has_updated = False
+        invoice = task.invoice
 
         if request.method == 'POST':
             serializer = self.get_serializer(task, data=request.data)
@@ -168,23 +179,43 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
             btc_price = coinbase_utils.get_btc_price(task.currency)
             task.btc_price = btc_price
-            has_updated = True
 
-        if not task.btc_address or not bitcoin_utils.is_valid_btc_address(task.btc_address):
-            has_updated = True
-            address = coinbase_utils.get_new_address(coinbase_utils.get_api_client())
-            task.btc_address = address
+            if not task.btc_address or not bitcoin_utils.is_valid_btc_address(task.btc_address):
+                address = coinbase_utils.get_new_address(coinbase_utils.get_api_client())
+                task.btc_address = address
 
-        if has_updated:
-            task.invoice_date = datetime.datetime.utcnow()
             task.full_clean()
             task.save()
+
+            developer = None
+            try:
+                assignee = task.participation_set.filter(accepted=True).order_by('-assignee').earliest('created_at')
+                developer = assignee.user
+            except:
+                pass
+
+            if not developer:
+                raise ValidationError({
+                    'fee': 'Please assign a developer to the task or contact support@tunga.io for assistance'
+                })
+
+            # Save Invoice
+            invoice = TaskInvoice.objects.create(
+                task=task,
+                title=task.title,
+                fee=task.fee,
+                client=task.user,
+                developer=developer,
+                payment_method=task.payment_method,
+                btc_price=btc_price,
+                btc_address=task.btc_address
+            )
 
             if task.payment_method == TASK_PAYMENT_METHOD_BANK:
                 # Send notification for requested invoice
                 send_task_invoice_request_email.delay(task.id)
 
-        response_serializer = self.get_serializer(task)
+        response_serializer = TaskInvoiceSerializer(invoice, context={'request': request})
         return Response(response_serializer.data)
 
     @detail_route(
@@ -199,7 +230,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                 - query
             """
         task = self.get_object()
-        callback = '%s://%s/task/%s/pay/' % (request.scheme, request.get_host(), pk)
+        callback = '%s://%s/task/%s/rate/' % (request.scheme, request.get_host(), pk)
         next_url = callback
         if task and task.has_object_write_permission(request) and bitcoin_utils.is_valid_btc_address(task.btc_address):
             if provider == TASK_PAYMENT_METHOD_BITONIC:
@@ -208,11 +239,12 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                     callback_uri=callback, signature_type=SIGNATURE_TYPE_QUERY
                 )
                 amount = task.fee
+                increase_factor = 1 + (Decimal(BITONIC_PAYMENT_COST_PERCENTAGE)*Decimal(0.01))
                 q_string = urlencode({
                     'ext_data': task.summary.encode('utf-8'),
                     'bitcoinaddress': task.btc_address,
                     'ordertype': 'buy',
-                    'euros': amount
+                    'euros': amount * increase_factor
                 })
                 req_data = client.sign('%s/?%s' % (BITONIC_URL, q_string), http_method='GET')
                 next_url = req_data[0]
@@ -220,7 +252,8 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
     @detail_route(
         methods=['get'], url_path='download/invoice',
-        renderer_classes=[PDFRenderer, StaticHTMLRenderer]
+        renderer_classes=[PDFRenderer, StaticHTMLRenderer],
+        permission_classes=[IsAuthenticated]
     )
     def download_invoice(self, request, pk=None):
         """
@@ -238,25 +271,42 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         except PermissionDenied:
             return HttpResponse("You do not have permission to access this item")
 
-        participation = None
-        try:
-            participation = task.participation_set.filter(accepted=True).order_by('-assignee').earliest('created_at')
-        except:
-            pass
+        invoice = task.invoice
+        if invoice:
+            if not invoice.number:
+                try:
+                    invoice = generate_invoice_number(invoice)
+                except:
+                    pass
 
-        if participation:
-            invoice = TaskInvoiceSerializer(task).data
-            ctx = {
-                'user': request.user, 'invoice': invoice
-            }
+            if invoice.number:
+                invoice_data = TaskInvoiceSerializer(invoice).data
 
-            rendered_html = render_to_string("tunga/pdf/invoice.html", context=ctx).encode(encoding="UTF-8")
-            if request.accepted_renderer.format == 'html':
-                return HttpResponse(rendered_html)
-            pdf_file = HTML(string=rendered_html, encoding='utf-8').write_pdf()
-            http_response = HttpResponse(pdf_file, content_type='application/pdf')
-            http_response['Content-Disposition'] = 'filename="invoice_%s.pdf"' % task.summary
-            return http_response
+                context = {"is_developer": request.user.is_developer}
+                if request.user.is_developer or request.user.is_staff:
+                    invoice_type = request.query_params.get('type', None)
+                    if invoice_type:
+                        context["is_developer"] = invoice_type != 'client'
+
+                if context["is_developer"]:
+                    invoice_data['number'] += 'D'
+                else:
+                    invoice_data['number'] += 'C'
+
+                ctx = {
+                    'user': request.user,
+                    'context': context,
+                    'invoice': invoice_data,
+                    'invoice_date': task.invoice.created_at.strftime('%d %B %Y')
+                }
+
+                rendered_html = render_to_string("tunga/pdf/invoice.html", context=ctx).encode(encoding="UTF-8")
+                if request.accepted_renderer.format == 'html':
+                    return HttpResponse(rendered_html)
+                pdf_file = HTML(string=rendered_html, encoding='utf-8').write_pdf()
+                http_response = HttpResponse(pdf_file, content_type='application/pdf')
+                http_response['Content-Disposition'] = 'filename="invoice_%s.pdf"' % task.summary
+                return http_response
 
         return HttpResponse("Could not generate an invoice, Please contact support@tunga.io")
 

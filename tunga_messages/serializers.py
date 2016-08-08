@@ -105,7 +105,7 @@ class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedS
     def get_new(self, obj):
         user = self.get_current_user()
         if user:
-            return new_messages_filter(queryset=obj.messages.all(), user=user).count()
+            return new_messages_filter(queryset=obj.target_actions.filter(channels__channeluser__user=user), user=user).count()
         return 0
 
     def get_last_read(self, obj):

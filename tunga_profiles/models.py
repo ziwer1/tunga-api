@@ -94,6 +94,7 @@ class UserProfile(models.Model):
     company_profile = models.TextField(blank=True, null=True)
     company_bio = models.TextField(blank=True, null=True)
     vat_number = models.CharField(max_length=50, blank=True, null=True)
+    company_reg_no = models.CharField(max_length=50, blank=True, null=True)
 
     payment_method = models.CharField(
         max_length=30, choices=PAYMENT_METHOD_CHOICES,
@@ -255,3 +256,18 @@ class DeveloperApplication(models.Model):
     def country_name(self):
         return self.country.name
     country_name.fget.short_description = 'country'
+
+
+class ClientNumber(models.Model):
+    """
+    Helper table for generating client numbers in a sequence
+    """
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __unicode__(self):
+        return self.number
+
+    @property
+    def number(self):
+        return 'A{:04d}'.format(self.id)

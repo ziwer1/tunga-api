@@ -2,7 +2,7 @@ from coinbase.wallet.client import Client, OAuthClient
 
 from tunga.settings import COINBASE_BASE_URL, COINBASE_CLIENT_ID, COINBASE_SCOPES, \
     COINBASE_BASE_API_URL, COINBASE_API_KEY, COINBASE_API_SECRET
-
+from tunga_profiles.models import BTCWallet, BTC_WALLET_PROVIDER_COINBASE
 
 PAYLOAD_ID = 'id'
 
@@ -41,8 +41,19 @@ def get_api_client():
     return Client(COINBASE_API_KEY, COINBASE_API_SECRET, base_api_uri=COINBASE_BASE_API_URL)
 
 
-def get_oauth_client(access_token, refresh_token):
-    return OAuthClient(access_token, refresh_token, base_api_uri=COINBASE_BASE_API_URL)
+def get_oauth_client(access_token, refresh_token, user=None):
+    oauth_client = OAuthClient(access_token, refresh_token, base_api_uri=COINBASE_BASE_API_URL)
+    new_credentials = oauth_client.refresh()
+    if user:
+        defaults = {
+            'token': new_credentials['access_token'],
+            'token_secret': new_credentials['refresh_token'],
+            # 'expires_at': response['expires_in'] # Coinbase returns an interval here
+        }
+        BTCWallet.objects.update_or_create(
+            user=user, provider=BTC_WALLET_PROVIDER_COINBASE, defaults=defaults
+        )
+    return oauth_client
 
 
 def get_new_address(client):

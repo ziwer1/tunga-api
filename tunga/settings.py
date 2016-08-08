@@ -163,9 +163,13 @@ USE_TZ = False
 STATIC_URL = '/static/'
 
 # Core
-MEDIA_URL = '/media/'
+STATICFILES_DIRS = (
+    os.path.join(BASE_DIR, 'tunga/static'),
+)
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+MEDIA_URL = '/media/'
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -358,9 +362,9 @@ BITONIC_TOKEN_SECRET = ''
 
 BITONIC_URL = 'https://bitonic.nl/order'
 
-BITONIC_PAYMENT_COST_PERCENTAGE = 2.5
+BITONIC_PAYMENT_COST_PERCENTAGE = 3
 
-BANK_TRANSFER_PAYMENT_COST_PERCENTAGE = 3
+BANK_TRANSFER_PAYMENT_COST_PERCENTAGE = 5.5
 
 try:
     from .env.dev import *
@@ -369,10 +373,5 @@ except ImportError:
 
 
 if DEBUG:
-    STATICFILES_DIRS = (
-        os.path.join(BASE_DIR, 'static'),
-    )
-    STATIC_ROOT = None
-
     for template_engine in TEMPLATES:
         template_engine['OPTIONS']['debug'] = True

@@ -77,10 +77,10 @@ def send_new_task_email(instance):
 @job
 def send_new_task_invitation_email(instance):
     instance = clean_instance(instance, Participation)
-    subject = "%s Task invitation from %s" % (EMAIL_SUBJECT_PREFIX, instance.created_by.first_name)
+    subject = "%s Task invitation from %s" % (EMAIL_SUBJECT_PREFIX, instance.task.user.first_name)
     to = [instance.user.email]
     ctx = {
-        'inviter': instance.created_by,
+        'inviter': instance.task.user,
         'invitee': instance.user,
         'task': instance.task,
         'task_url': '%s/task/%s/' % (TUNGA_URL, instance.task.id)
@@ -93,9 +93,9 @@ def send_new_task_invitation_response_email(instance):
     instance = clean_instance(instance, Participation)
     subject = "%s Task invitation %s by %s" % (
         EMAIL_SUBJECT_PREFIX, instance.accepted and 'accepted' or 'rejected', instance.user.first_name)
-    to = [instance.created_by.email]
+    to = [instance.task.user.email]
     ctx = {
-        'inviter': instance.created_by,
+        'inviter': instance.task.user,
         'invitee': instance.user,
         'accepted': instance.accepted,
         'task': instance.task,

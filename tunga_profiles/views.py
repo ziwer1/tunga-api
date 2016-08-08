@@ -1,3 +1,5 @@
+from actstream.models import Action
+from django.contrib.contenttypes.models import ContentType
 from django.db.models.query_utils import Q
 from django.shortcuts import get_object_or_404
 from django_countries.fields import CountryField
@@ -9,7 +11,7 @@ from rest_framework.response import Response
 
 from tunga_auth.models import USER_TYPE_PROJECT_OWNER
 from tunga_messages.filterbackends import new_messages_filter
-from tunga_messages.models import Message
+from tunga_messages.models import Channel
 from tunga_profiles.filterbackends import ConnectionFilterBackend
 from tunga_profiles.filters import EducationFilter, WorkFilter, ConnectionFilter, SocialLinkFilter, \
     DeveloperApplicationFilter
@@ -152,10 +154,17 @@ class NotificationView(views.APIView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        new_messages = new_messages_filter(queryset=Message.objects.all(), user=user).count()
+        new_messages = new_messages_filter(
+            queryset=Action.objects.filter(
+                target_content_type=ContentType.objects.get_for_model(Channel),
+                channels__channeluser__user=user
+            ), user=user
+        ).count()
 
-        requests = user.connection_requests.filter(responded=False).count()
-        tasks = user.tasks_created.filter(closed=False).count() + user.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=user).count()
+        requests = user.connection_requests.filter(responded=False, from_user__pending=False).count()
+        tasks = user.tasks_created.filter(closed=False).count() + user.participation_set.filter(
+            (Q(accepted=True) | Q(responded=False)), task__closed=False, user=user
+        ).count()
         profile = None
         profile_notifications = {'count': 0, 'missing': [], 'improve': [], 'more': [], 'section': None}
         try:

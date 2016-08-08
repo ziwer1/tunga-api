@@ -28,9 +28,9 @@ TUNGA_URL = 'http://test.tunga.io'
 COINBASE_BASE_URL = 'https://sandbox.coinbase.com'
 
 COINBASE_BASE_API_URL = 'https://api.sandbox.coinbase.com'
-"""
 
 BITONIC_URL = 'https://niels-bitonic-664-web.garage.bitonic.nl:33488'
+"""
 
 try:
     from .local import *

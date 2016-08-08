@@ -1,0 +1,11 @@
+{% extends "tunga/email/base.html" %}
+{% block email_content %}
+    <p>Hello {{ receiver.display_name }},</p>
+
+    <p>You have {{ new_messages }} new message{{ new_messages | pluralize }} from {% if channel.type == 1 %}your conversation with{% else %}the conversation: {% endif %} <a href="{{ channel_url }}">{{ channel_name }}</a></p>
+
+    <p>
+        Click the link below to go to the conversation:<br/>
+        {{ channel_url }}
+    </p>
+{% endblock %}

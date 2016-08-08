@@ -3,7 +3,6 @@ from django.db.models.signals import post_save
 from django.dispatch.dispatcher import receiver
 
 from tunga_activity import verbs
-from tunga_messages.emails import send_new_message_email
 from tunga_messages.models import Message, Channel, CHANNEL_TYPE_DIRECT, ChannelUser
 from tunga_messages.tasks import clean_direct_channel
 
@@ -38,5 +37,3 @@ def activity_handler_new_message(sender, instance, created, **kwargs):
             instance.user, verb=verbs.SEND, action_object=instance, target=instance.channel,
             timestamp=instance.created_at
         )
-
-        send_new_message_email.delay(instance.id)

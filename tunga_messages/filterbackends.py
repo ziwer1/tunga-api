@@ -4,10 +4,12 @@ from django.db.models.fields import IntegerField
 from django.db.models.query_utils import Q
 from dry_rest_permissions.generics import DRYPermissionFiltersBase
 
+from tunga_activity import verbs
+
 
 def received_messages_q_filter(user):
     return (
-        ~Q(user=user) & Q(channel__channeluser__user=user)
+        ~Q(actor_object_id=user.id)
     )
 
 
@@ -18,8 +20,8 @@ def all_messages_q_filter(user):
 def channel_last_read_annotation(user):
     return Case(
         When(
-            channel__channeluser__user=user,
-            then='channel__channeluser__last_read'
+            channels__channeluser__user=user,
+            then='channels__channeluser__last_read'
         ),
         default=0,
         output_field=IntegerField()
@@ -28,11 +30,12 @@ def channel_last_read_annotation(user):
 
 def new_messages_filter(queryset, user):
     return queryset.filter(
-        received_messages_q_filter(user)
+        ~Q(actor_object_id=user.id) &
+        Q(verb__in=[verbs.SEND, verbs.UPLOAD])
     ).annotate(
         channel_last_read=channel_last_read_annotation(user)
     ).filter(
-        Q(channel_last_read=None) | Q(id__gt=F('channel_last_read'))
+        id__gt=F('channel_last_read')
     )
 
 

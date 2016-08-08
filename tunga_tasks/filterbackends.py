@@ -13,7 +13,7 @@ from tunga_utils.filterbackends import dont_filter_staff_or_superuser
 class ProjectFilterBackend(DRYPermissionFiltersBase):
     # @dont_filter_staff_or_superuser
     def filter_list_queryset(self, request, queryset, view):
-        queryset = queryset.filter(user=request.user)
+        queryset = queryset.exclude(archived=True).filter(user=request.user)
         label_filter = request.query_params.get('filter', None)
         if label_filter == 'running':
             queryset = queryset.filter(closed=False)
@@ -23,21 +23,23 @@ class ProjectFilterBackend(DRYPermissionFiltersBase):
 class TaskFilterBackend(DRYPermissionFiltersBase):
     # @dont_filter_staff_or_superuser
     def filter_list_queryset(self, request, queryset, view):
+        queryset = queryset.exclude(archived=True)
         label_filter = request.query_params.get('filter', None)
         if label_filter in ['running', 'my-tasks', 'payments']:
             if label_filter == 'running':
                 queryset = queryset.filter(closed=False)
             elif label_filter == 'payments':
                 queryset = queryset.filter(closed=True).order_by('paid', 'pay_distributed')
-            queryset = queryset.filter(
-                Q(user=request.user) |
-                (
-                    Q(participation__user=request.user) &
+            if label_filter != 'payments' or not (request.user.is_staff or request.user.is_superuser):
+                queryset = queryset.filter(
+                    Q(user=request.user) |
                     (
-                        Q(participation__accepted=True) | Q(participation__responded=False)
+                        Q(participation__user=request.user) &
+                        (
+                            Q(participation__accepted=True) | Q(participation__responded=False)
+                        )
                     )
                 )
-            )
         elif label_filter == 'saved':
             queryset = queryset.filter(savedtask__user=request.user)
         elif label_filter == 'skills':

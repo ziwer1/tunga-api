@@ -1,6 +1,7 @@
 # encoding=utf8
 from __future__ import unicode_literals
 
+import uuid
 from decimal import Decimal
 
 import tagulous.models
@@ -64,6 +65,9 @@ class Project(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     closed_at = models.DateTimeField(blank=True, null=True)
 
+    archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(blank=True, null=True)
+
     def __unicode__(self):
         return self.title
 
@@ -109,7 +113,7 @@ TASK_PAYMENT_METHOD_CHOICES = (
 
 
 class Task(models.Model):
-    project = models.ForeignKey(Project, related_name='tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
+    project = models.ForeignKey(Project, related_name='tasks', on_delete=models.SET_NULL, blank=True, null=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='tasks_created', on_delete=models.DO_NOTHING)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
@@ -151,6 +155,9 @@ class Task(models.Model):
     btc_address = models.CharField(max_length=40, blank=True, null=True, validators=[validate_btc_address])
     btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
     pay_distributed = models.BooleanField(default=False)
+
+    archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(blank=True, null=True)
 
     comments = GenericRelation(Comment, related_query_name='tasks')
     uploads = GenericRelation(Upload, related_query_name='tasks')
@@ -208,6 +215,10 @@ class Task(models.Model):
             if not [x for x in request.data.keys() if not x in allowed_keys]:
                 return self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
         return False
+
+    @property
+    def task_number(self):
+        return 'A{:03d}'.format(self.id)
 
     def display_fee(self, amount=None):
         if amount is None:
@@ -270,6 +281,13 @@ class Task(models.Model):
     def assignee(self):
         try:
             return self.participation_set.get((Q(accepted=True) | Q(responded=False)), assignee=True)
+        except:
+            return None
+
+    @property
+    def invoice(self):
+        try:
+            return self.taskinvoice_set.all().latest('created_at')
         except:
             return None
 
@@ -758,6 +776,7 @@ class ParticipantPayment(models.Model):
     participant = models.ForeignKey(Participation)
     source = models.ForeignKey(TaskPayment)
     destination = models.CharField(max_length=40, validators=[validate_btc_address])
+    idem_key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     ref = models.CharField(max_length=255)
     btc_sent = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
     btc_received = models.DecimalField(max_digits=18, decimal_places=8, default=0)
@@ -776,3 +795,59 @@ class ParticipantPayment(models.Model):
     class Meta:
         unique_together = ('participant', 'source')
         ordering = ['created_at']
+
+
+class TaskInvoice(models.Model):
+    task = models.ForeignKey(Task)
+    title = models.CharField(max_length=200)
+    fee = models.DecimalField(max_digits=19, decimal_places=4)
+    client = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='client_invoices')
+    developer = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='developer_invoices')
+    currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
+    payment_method = models.CharField(
+        max_length=30, choices=TASK_PAYMENT_METHOD_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in TASK_PAYMENT_METHOD_CHOICES])
+    )
+    btc_address = models.CharField(max_length=40, validators=[validate_btc_address])
+    btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
+    number = models.CharField(max_length=20, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __unicode__(self):
+        return self.summary
+
+    class Meta:
+        ordering = ['created_at']
+
+    def display_fee(self, amount=None):
+        if amount is None:
+            amount = self.fee
+        if self.currency in CURRENCY_SYMBOLS:
+            return '%s%s' % (CURRENCY_SYMBOLS[self.currency], floatformat(amount, arg=-2))
+        return amount
+
+    @property
+    def amount(self):
+        tunga_share = TUNGA_SHARE_PERCENTAGE * 0.01
+        dev_share = 1 - tunga_share
+        processing_share = 0
+        if self.payment_method == TASK_PAYMENT_METHOD_BITONIC:
+            processing_share = BITONIC_PAYMENT_COST_PERCENTAGE * 0.01
+        elif self.payment_method == TASK_PAYMENT_METHOD_BANK:
+            processing_share = BANK_TRANSFER_PAYMENT_COST_PERCENTAGE * 0.01
+        amount_details = {
+            'currency': CURRENCY_SYMBOLS.get(self.currency, ''),
+            'pledge': self.fee,
+            'developer': Decimal(dev_share) * self.fee,
+            'tunga': Decimal(tunga_share) * self.fee,
+            'processing': Decimal(processing_share) * self.fee
+        }
+
+        amount_details['total'] = amount_details['pledge'] + amount_details['processing']
+        amount_details['total_dev'] = amount_details['tunga'] + amount_details['processing']
+        return amount_details
+
+    @property
+    def summary(self):
+        return '%s - Fee: %s' % (self.title, self.display_fee())
