@@ -3,14 +3,9 @@ from django.contrib.auth import get_user_model
 
 
 class UserFilter(django_filters.FilterSet):
-    skills = django_filters.MethodFilter(label='Skills (Name)')
-    skills_id = django_filters.NumberFilter(name='userprofile__skills', label='Skills (ID)')
+    skill = django_filters.CharFilter(name='userprofile__skills__name', label='skills')
+    skill_id = django_filters.NumberFilter(name='userprofile__skills', label='skills (by ID)')
 
     class Meta:
         model = get_user_model()
-        fields = ('type', 'skills', 'skills_id')
-
-    def filter_skills(self, queryset, value):
-        return queryset
-
-
+        fields = ('type', 'skill', 'skill_id')

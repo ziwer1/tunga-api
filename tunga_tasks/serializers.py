@@ -49,13 +49,7 @@ class SimpleApplicationSerializer(ContentTypeAnnotatedModelSerializer):
         exclude = ('created_at',)
 
 
-class BasicParticipationSerializer(ContentTypeAnnotatedModelSerializer):
-    class Meta:
-        model = Participation
-        exclude = ('created_at',)
-
-
-class SimpleParticipationSerializer(BasicParticipationSerializer):
+class SimpleParticipationSerializer(ContentTypeAnnotatedModelSerializer):
     user = SimpleUserSerializer()
 
     class Meta:
@@ -167,21 +161,19 @@ class ParticipantShareSerializer(serializers.Serializer):
 
 class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
     project = SimpleProjectSerializer()
-    user = SimpleUserSerializer()
     skills = SkillSerializer(many=True)
-    assignee = SimpleParticipationSerializer(required=False, read_only=True)
     applications = SimpleApplicationSerializer(many=True, source='application_set')
     participation = SimpleParticipationSerializer(many=True, source='participation_set')
     participation_shares = ParticipantShareSerializer(many=True, source='get_participation_shares')
 
     class Meta:
         model = Task
-        fields = ('project', 'user', 'amount', 'skills', 'assignee', 'applications', 'participation', 'participation_shares')
+        fields = ('project', 'amount', 'skills', 'applications', 'participation', 'participation_shares')
 
 
 class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer,
                      GetCurrentUserAnnotatedSerializerMixin):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     display_fee = serializers.SerializerMethodField(required=False, read_only=True)
     amount = serializers.JSONField(required=False, read_only=True)
     excerpt = serializers.CharField(required=False, read_only=True)
@@ -193,11 +185,10 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     is_participant = serializers.SerializerMethodField(read_only=True, required=False)
     my_participation = serializers.SerializerMethodField(read_only=True, required=False)
     summary = serializers.CharField(read_only=True, required=False)
-    assignee = BasicParticipationSerializer(required=False, read_only=True)
+    assignee = SimpleParticipationSerializer(required=False, read_only=True)
     participants = serializers.PrimaryKeyRelatedField(
         many=True, queryset=get_user_model().objects.all(), required=False, write_only=True
     )
-    open_applications = serializers.SerializerMethodField(required=False, read_only=True)
     update_schedule_display = serializers.CharField(required=False, read_only=True)
     participation = NestedTaskParticipationSerializer(required=False, read_only=False, many=True)
     milestones = NestedProgressEventSerializer(required=False, read_only=False, many=True)
@@ -428,9 +419,6 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             except:
                 pass
         return None
-
-    def get_open_applications(self, obj):
-        return obj.application_set.filter(responded=False).count()
 
 
 class ApplicationDetailsSerializer(SimpleApplicationSerializer):

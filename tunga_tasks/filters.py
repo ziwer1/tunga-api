@@ -15,10 +15,16 @@ class TaskFilter(GenericDateFilterSet):
     applicant = django_filters.NumberFilter(name='applications__user', label='Applicant')
     participant = django_filters.NumberFilter(name='participants__user', label='Participant')
     payment_status = django_filters.MethodFilter()
+    skill = django_filters.CharFilter(name='skills__name', label='skills')
+    skill_id = django_filters.NumberFilter(name='skills', label='skills (by ID)')
 
     class Meta:
         model = Task
-        fields = ('user', 'project', 'closed', 'applicant', 'participant', 'paid', 'pay_distributed', 'payment_status')
+        fields = (
+            'user', 'project', 'closed', 'applicant', 'participant',
+            'paid', 'pay_distributed', 'payment_status',
+            'skill', 'skill_id'
+        )
 
     def filter_payment_status(self, queryset, value):
         queryset = queryset.filter(closed=True)

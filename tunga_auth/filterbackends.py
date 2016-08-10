@@ -25,14 +25,16 @@ def my_connections_q_filter(user):
 class UserFilterBackend(DRYPermissionFiltersBase):
 
     def filter_list_queryset(self, request, queryset, view):
-        queryset = queryset.exclude(Q(id=request.user.id) | Q(pending=True))
+        if view.action == 'list':
+            queryset = queryset.exclude(id=request.user.id)
+        queryset = queryset.exclude(pending=True)
         user_filter = request.query_params.get('filter', None)
         if user_filter == 'developers':
             queryset = queryset.filter(type=USER_TYPE_DEVELOPER)
-        elif user_filter == 'project-owners':
+        elif user_filter in ['project-owners', 'clients']:
             queryset = queryset.filter(type=USER_TYPE_PROJECT_OWNER)
-        elif user_filter in ['team', 'my-project-owners']:
-            if user_filter == 'my-project-owners':
+        elif user_filter in ['team', 'my-project-owners', 'my-clients']:
+            if user_filter in ['my-project-owners', 'my-clients']:
                 user_type = USER_TYPE_PROJECT_OWNER
             else:
                 user_type = USER_TYPE_DEVELOPER

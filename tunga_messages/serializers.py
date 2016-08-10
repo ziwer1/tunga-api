@@ -28,12 +28,11 @@ class ChannelLastReadSerializer(serializers.Serializer):
 
 
 class ChannelDetailsSerializer(serializers.ModelSerializer):
-    created_by = SimpleUserSerializer()
     participants = SimpleUserSerializer(many=True)
 
     class Meta:
         model = Channel
-        fields = ('created_by', 'participants')
+        fields = ('participants',)
 
 
 class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
@@ -53,14 +52,19 @@ class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedS
         details_serializer = ChannelDetailsSerializer
 
     def validate_participants(self, value):
+        error = 'Select some participants for this conversation'
         if not isinstance(value, list) or not value:
-            raise ValidationError('Select some participants for this conversation')
+            raise ValidationError(error)
+        participants = self.clean_participants(value)
+        if not participants:
+            raise ValidationError(error)
         return value
 
     def create(self, validated_data):
         participants = None
         if 'participants' in validated_data:
             participants = validated_data.pop('participants')
+        participants = self.clean_participants(participants)
         subject = validated_data.get('subject', None)
         if not subject and isinstance(participants, list) and len(participants) == 1:
             # Create or get a direct channel
@@ -78,11 +82,21 @@ class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedS
         participants = None
         if 'participants' in validated_data:
             participants = validated_data.pop('participants')
+        participants = self.clean_participants(participants)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        subject = validated_data.get('subject', None)
+        if not subject and isinstance(participants, list) and len(participants) > 1:
+            raise ValidationError({'subject': 'Enter a subject for this conversation'})
         instance.save()
         self.save_participants(instance, participants)
         return instance
+
+    def clean_participants(self, participants):
+        current_user = self.get_current_user()
+        if isinstance(participants, (list, tuple)) and current_user:
+            return [user_id for user_id in participants if user_id != current_user.id]
+        return participants
 
     def save_participants(self, instance, participants):
         if participants:
