@@ -97,7 +97,7 @@ class UserSerializer(SimpleUserSerializer, GetCurrentUserAnnotatedSerializerMixi
                 tasks__closed=True, tasks__participants=obj, tasks__participation__accepted=True
             ).order_by('criteria')
             details = query.values('criteria').annotate(avg=Avg('score'))
-            criteria_choices = dict(Rating._meta.get_field_by_name('criteria')[0].flatchoices)
+            criteria_choices = dict(Rating._meta.get_field('criteria').flatchoices)
             for rating in details:
                 rating['display_criteria'] = criteria_choices[rating['criteria']]
                 rating['display_avg'] = rating['avg'] and '{:0,.0f}%'.format(rating['avg']*10)

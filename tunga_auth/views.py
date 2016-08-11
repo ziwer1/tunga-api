@@ -65,7 +65,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     """
     User Resource
     """
-    queryset = get_user_model().objects.all()
+    queryset = get_user_model().objects.order_by('first_name', 'last_name')
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'user_id'

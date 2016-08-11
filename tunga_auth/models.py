@@ -29,7 +29,7 @@ class TungaUser(AbstractUser):
 
     @property
     def display_name(self):
-        return self.get_full_name() or self.username
+        return (self.get_full_name() or self.username).title()
 
     @property
     def display_type(self):

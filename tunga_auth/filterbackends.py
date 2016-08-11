@@ -1,6 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.aggregates import Count, Sum
-from django.db.models.expressions import When, Case
+from django.db.models.expressions import When, Case, F
 from django.db.models.fields import IntegerField
 from django.db.models.query_utils import Q
 from dry_rest_permissions.generics import DRYPermissionFiltersBase
@@ -29,10 +29,33 @@ class UserFilterBackend(DRYPermissionFiltersBase):
             queryset = queryset.exclude(id=request.user.id)
         queryset = queryset.exclude(pending=True)
         user_filter = request.query_params.get('filter', None)
-        if user_filter == 'developers':
-            queryset = queryset.filter(type=USER_TYPE_DEVELOPER)
-        elif user_filter in ['project-owners', 'clients']:
-            queryset = queryset.filter(type=USER_TYPE_PROJECT_OWNER)
+        if user_filter in ['developers', 'project-owners', 'clients']:
+            if user_filter == 'developers':
+                queryset = queryset.filter(type=USER_TYPE_DEVELOPER)
+            else:
+                queryset = queryset.filter(type=USER_TYPE_PROJECT_OWNER)
+            queryset = queryset.annotate(
+                skills_count=Count('userprofile__skills')
+            ).annotate(
+                skills_rank=Case(
+                    When(
+                        skills_count__gte=3,
+                        then=3
+                    ),
+                    default='skills_count',
+                    output_field=IntegerField()
+                )
+            ).annotate(
+                profile_rank=Case(
+                    When(
+                        ~Q(userprofile__bio='') &
+                        Q(userprofile__bio__isnull=False),
+                        then=2 + F('skills_rank')
+                    ),
+                    default='skills_rank',
+                    output_field=IntegerField()
+                )
+            ).order_by('-profile_rank', 'first_name', 'last_name')
         elif user_filter in ['team', 'my-project-owners', 'my-clients']:
             if user_filter in ['my-project-owners', 'my-clients']:
                 user_type = USER_TYPE_PROJECT_OWNER
@@ -62,7 +85,7 @@ class UserFilterBackend(DRYPermissionFiltersBase):
                         default=0,
                         output_field=IntegerField()
                     )
-                )).order_by('-matches', '-date_joined')
+                )).order_by('-matches', 'first_name', 'last_name', '-date_joined')
             except (ObjectDoesNotExist, UserProfile.DoesNotExist):
                 return queryset.none()
         return queryset
