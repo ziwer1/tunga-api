@@ -1,4 +1,5 @@
 import datetime
+
 from django.contrib.auth import get_user_model
 from django.db.models.aggregates import Avg
 from django.db.models.query_utils import Q
@@ -10,6 +11,7 @@ from rest_framework.exceptions import ValidationError
 from tunga_auth.models import USER_TYPE_CHOICES, USER_TYPE_DEVELOPER
 from tunga_profiles.models import Connection, DeveloperApplication, UserProfile
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
+from tunga_utils.models import Rating
 from tunga_utils.serializers import SimpleProfileSerializer, SimpleUserSerializer, SimpleWorkSerializer, \
     SimpleEducationSerializer, SimpleConnectionSerializer
 
@@ -28,6 +30,7 @@ class UserSerializer(SimpleUserSerializer, GetCurrentUserAnnotatedSerializerMixi
     tasks_created = serializers.SerializerMethodField(read_only=True, required=False)
     tasks_completed = serializers.SerializerMethodField(read_only=True, required=False)
     satisfaction = serializers.SerializerMethodField(read_only=True, required=False)
+    ratings = serializers.SerializerMethodField(read_only=True, required=False)
 
     class Meta:
         model = get_user_model()
@@ -85,6 +88,21 @@ class UserSerializer(SimpleUserSerializer, GetCurrentUserAnnotatedSerializerMixi
             ).aggregate(satisfaction=Avg('task__satisfaction'))['satisfaction']
             if score:
                 score = '{:0,.0f}%'.format(score*10)
+        return score
+
+    def get_ratings(self, obj):
+        score = None
+        if obj.type == USER_TYPE_DEVELOPER:
+            query = Rating.objects.filter(
+                tasks__closed=True, tasks__participants=obj, tasks__participation__accepted=True
+            ).order_by('criteria')
+            details = query.values('criteria').annotate(avg=Avg('score'))
+            criteria_choices = dict(Rating._meta.get_field_by_name('criteria')[0].flatchoices)
+            for rating in details:
+                rating['display_criteria'] = criteria_choices[rating['criteria']]
+                rating['display_avg'] = rating['avg'] and '{:0,.0f}%'.format(rating['avg']*10)
+            avg = query.aggregate(avg=Avg('score'))['avg']
+            score = {'avg': avg, 'display_avg': avg and '{:0,.0f}%'.format(avg*10) or None, 'details': details}
         return score
 
 

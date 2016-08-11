@@ -119,7 +119,7 @@ class Rating(models.Model):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name=_('content type'))
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
-    score = models.SmallIntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
+    score = models.SmallIntegerField(validators=[MinValueValidator(0), MaxValueValidator(10)])
     criteria = models.PositiveSmallIntegerField(
         choices=RATING_CRITERIA_CHOICES, blank=True, null=True,
         help_text=','.join(['%s - %s' % (item[0], item[1]) for item in RATING_CRITERIA_CHOICES])
@@ -129,8 +129,8 @@ class Rating(models.Model):
 
     def __unicode__(self):
         criteria = self.get_criteria_display()
-        return '{0}{1} - {:0,.0f}%'.format(
-            self.content_object, (criteria and ' - {0}'.format(criteria) or ''), self.score
+        return '{}{} - {:0,.0f}%'.format(
+            self.content_object, (criteria and ' - {0}'.format(criteria) or ''), self.score*10
         )
 
     class Meta:

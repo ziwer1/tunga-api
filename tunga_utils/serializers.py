@@ -175,6 +175,7 @@ class UploadSerializer(SimpleUploadSerializer):
         model = Upload
         fields = SimpleUploadSerializer.Meta.fields + ('user',)
 
+
 class ContactRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
