@@ -1,11 +1,12 @@
 import datetime
+
 from django.core.mail.message import EmailMultiAlternatives, EmailMessage
 from django.template.exceptions import TemplateDoesNotExist
 from django.template.loader import render_to_string
 from django_rq.decorators import job
 
 from tunga.settings import DEFAULT_FROM_EMAIL, CONTACT_REQUEST_EMAIL_RECIPIENT, EMAIL_SUBJECT_PREFIX
-from tunga_utils.decorators import convert_first_arg_to_instance, clean_instance
+from tunga_utils.decorators import clean_instance
 from tunga_utils.models import ContactRequest
 
 

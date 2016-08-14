@@ -2,7 +2,8 @@ from django_rq.decorators import job
 
 from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL
 from tunga_messages.models import Message
-from tunga_utils.decorators import convert_first_arg_to_instance, clean_instance
+from tunga_settings.slugs import DIRECT_MESSAGES_EMAIL
+from tunga_utils.decorators import clean_instance
 from tunga_utils.emails import send_mail
 
 
@@ -10,7 +11,10 @@ from tunga_utils.emails import send_mail
 def send_new_message_email(instance):
     instance = clean_instance(instance, Message)
     to = []
-    recipients = instance.channel.participants.exclude(id=instance.user.id)
+    recipients = instance.channel.participants.exclude(id=instance.user.id).exclude(
+        userswitchsetting__setting__slug=DIRECT_MESSAGES_EMAIL,
+        userswitchsetting__value=False
+    )
     if recipients:
         to = [recipient.email for recipient in recipients]
     if to and isinstance(to, (list, tuple)):
@@ -23,4 +27,3 @@ def send_new_message_email(instance):
             'message_url': '%s/channel/%s/' % (TUNGA_URL, instance.channel.id)
         }
         send_mail(subject, 'tunga/email/email_new_message', to, ctx)
-

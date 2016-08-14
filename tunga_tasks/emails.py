@@ -9,9 +9,11 @@ from django_rq.decorators import job
 from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
 from tunga_auth.filterbackends import my_connections_q_filter
 from tunga_auth.models import USER_TYPE_DEVELOPER
+from tunga_settings import slugs as settings_slugs
 from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM
+from tunga_settings.utils import check_switch_setting
 from tunga_tasks.models import Task, Participation, Application, ProgressEvent
-from tunga_utils.decorators import convert_first_arg_to_instance, clean_instance
+from tunga_utils.decorators import clean_instance
 from tunga_utils.emails import send_mail
 
 
@@ -19,7 +21,12 @@ from tunga_utils.emails import send_mail
 def send_new_task_email(instance):
     instance = clean_instance(instance, Task)
     if instance.visibility in [VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM]:
-        queryset = get_user_model().objects.filter(type=USER_TYPE_DEVELOPER)
+        queryset = get_user_model().objects.filter(
+            type=USER_TYPE_DEVELOPER
+        ).exclude(
+            userswitchsetting__setting__slug=settings_slugs.NEW_TASK_EMAIL,
+            userswitchsetting__value=False
+        )
         if instance.visibility == VISIBILITY_MY_TEAM:
             queryset = queryset.filter(
                 my_connections_q_filter(instance.user)
@@ -77,6 +84,8 @@ def send_new_task_email(instance):
 @job
 def send_new_task_invitation_email(instance):
     instance = clean_instance(instance, Participation)
+    if not check_switch_setting(instance.user, settings_slugs.NEW_TASK_INVITATION_EMAIL):
+        return
     subject = "%s Task invitation from %s" % (EMAIL_SUBJECT_PREFIX, instance.task.user.first_name)
     to = [instance.user.email]
     ctx = {
@@ -91,6 +100,8 @@ def send_new_task_invitation_email(instance):
 @job
 def send_new_task_invitation_response_email(instance):
     instance = clean_instance(instance, Participation)
+    if not check_switch_setting(instance.task.user, settings_slugs.TASK_INVITATION_RESPONSE_EMAIL):
+        return
     subject = "%s Task invitation %s by %s" % (
         EMAIL_SUBJECT_PREFIX, instance.accepted and 'accepted' or 'rejected', instance.user.first_name)
     to = [instance.task.user.email]
@@ -107,6 +118,8 @@ def send_new_task_invitation_response_email(instance):
 @job
 def send_new_task_application_email(instance):
     instance = clean_instance(instance, Application)
+    if not check_switch_setting(instance.task.user, settings_slugs.NEW_TASK_APPLICATION_EMAIL):
+        return
     subject = "%s New application from %s" % (EMAIL_SUBJECT_PREFIX, instance.user.first_name)
     to = [instance.task.user.email]
     ctx = {
@@ -121,6 +134,8 @@ def send_new_task_application_email(instance):
 @job
 def send_new_task_application_response_email(instance):
     instance = clean_instance(instance, Application)
+    if not check_switch_setting(instance.user, settings_slugs.TASK_APPLICATION_RESPONSE_EMAIL):
+        return
     subject = "%s Task application %s" % (EMAIL_SUBJECT_PREFIX, instance.accepted and 'accepted' or 'rejected')
     to = [instance.user.email]
     ctx = {
@@ -136,6 +151,8 @@ def send_new_task_application_response_email(instance):
 @job
 def send_new_task_application_applicant_email(instance):
     instance = clean_instance(instance, Application)
+    if not check_switch_setting(instance.user, settings_slugs.TASK_ACTIVITY_UPDATE_EMAIL):
+        return
     subject = "%s You applied for a task: %s" % (EMAIL_SUBJECT_PREFIX, instance.task.summary)
     to = [instance.user.email]
     ctx = {
@@ -150,7 +167,12 @@ def send_new_task_application_applicant_email(instance):
 @job
 def send_task_application_not_selected_email(instance):
     instance = clean_instance(instance, Task)
-    rejected_applicants = instance.application_set.filter(responded=False)
+    rejected_applicants = instance.application_set.filter(
+        responded=False
+    ).exclude(
+        user__userswitchsetting__setting__slug=settings_slugs.TASK_APPLICATION_RESPONSE_EMAIL,
+        user__userswitchsetting__value=False
+    )
     if rejected_applicants:
         subject = "%s Your application was not accepted for: %s" % (EMAIL_SUBJECT_PREFIX, instance.summary)
         to = [rejected_applicants[0].user.email]
@@ -166,7 +188,12 @@ def send_task_application_not_selected_email(instance):
 def send_progress_event_reminder_email(instance):
     instance = clean_instance(instance, ProgressEvent)
     subject = "%s Upcoming Task Update" % (EMAIL_SUBJECT_PREFIX,)
-    participants = instance.task.participation_set.filter(accepted=True)
+    participants = instance.task.participation_set.filter(
+        accepted=True
+    ).exclude(
+        user__userswitchsetting__setting__slug=settings_slugs.TASK_PROGRESS_REPORT_REMINDER_EMAIL,
+        user__userswitchsetting__value=False
+    )
     if participants:
         to = [participants[0].user.email]
         bcc = [participant.user.email for participant in participants[1:]] if participants.count() > 1 else None
@@ -184,7 +211,7 @@ def send_progress_event_reminder_email(instance):
 def send_task_invoice_request_email(instance):
     instance = clean_instance(instance, Task)
     subject = "%s %s requested for an invoice" % (EMAIL_SUBJECT_PREFIX, instance.user.display_name)
-    to = [instance.user.email]
+    to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
     ctx = {
         'owner': instance.user,
         'task': instance,
