@@ -7,6 +7,7 @@ from django.http.response import StreamingHttpResponse
 from django.utils.translation import ugettext_lazy as _
 
 from tunga_auth.forms import TungaUserChangeForm, TungaUserCreationForm
+from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_profiles.admin import UserProfileInline
 from tunga_utils.views import Echo
 
@@ -35,25 +36,60 @@ class TungaUserAdmin(UserAdmin):
         rows_updated = queryset.update(pending=True)
         self.message_user(
             request, "%s user%s successfully marked as pending." % (rows_updated, (rows_updated > 1 and 's' or '')))
+
     make_pending.short_description = "Mark selected users as pending"
 
     def make_not_pending(self, request, queryset):
         rows_updated = queryset.update(pending=False)
         self.message_user(
             request, "%s user%s successfully marked as active." % (rows_updated, (rows_updated > 1 and 's' or '')))
+
     make_not_pending.short_description = "Mark selected users as active"
 
     def download_csv(self, request, queryset):
         pseudo_buffer = Echo()
         writer = csv.writer(pseudo_buffer)
 
-        report_rows = [["Name", "E-mail", "User Type"]]
+        filter_type = request.GET.get('type__exact', None)
+
+        report_header = [
+            "Name", "E-mail", "Phone Number", "User Type",
+            "Company", "Country", "City", "Street", "Plot Number", "ZIP Code", "Postal Address",
+            "VAT Number"
+        ]
+
+        if filter_type != str(USER_TYPE_DEVELOPER):
+            report_header.append("Company Reg. Number")
+
+        report_rows = [report_header]
         for user in queryset:
-            report_rows.append([
-                user.display_name and user.display_name.encode('utf-8') or '', user.email, user.display_type]
-            )
+            phone_number = user.profile and user.profile.phone_number or ""
+            user_info = [
+                user.display_name and user.display_name.encode('utf-8') or '',
+                user.email,
+                "=\"%s\"" % phone_number,
+                user.display_type,
+                user.profile and user.profile.company or "",
+                user.profile and user.profile.country_name or "",
+                user.profile and user.profile.city_name or "",
+                user.profile and user.profile.street or "",
+                user.profile and user.profile.plot_number or "",
+                user.profile and user.profile.postal_code or "",
+                user.profile and user.profile.postal_address or "",
+                user.profile and user.profile.vat_number or "",
+            ]
+            if filter_type != str(USER_TYPE_DEVELOPER):
+                user_info.append(user.profile and user.profile.company_reg_no or "")
+            report_rows.append(user_info)
+
+        file_suffix = "users"
+        if filter_type == str(USER_TYPE_DEVELOPER):
+            file_suffix = "developers"
+        elif filter_type == str(USER_TYPE_PROJECT_OWNER):
+            file_suffix = "clients"
 
         response = StreamingHttpResponse((writer.writerow(row) for row in report_rows), content_type="text/csv")
-        response['Content-Disposition'] = 'attachment; filename=tunga_users.csv'
+        response['Content-Disposition'] = 'attachment; filename=tunga_%s.csv' % file_suffix
         return response
+
     download_csv.short_description = "Download CSV of selected users"

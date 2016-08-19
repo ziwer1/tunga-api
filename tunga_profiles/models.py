@@ -110,7 +110,7 @@ class UserProfile(models.Model):
 
     @property
     def city_name(self):
-        return str(self.city)
+        return self.city and str(self.city) or ""
 
     @property
     def country_name(self):
