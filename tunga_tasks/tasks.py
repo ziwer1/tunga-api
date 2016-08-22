@@ -176,10 +176,20 @@ def send_payment_share(destination, amount, idem, description=None):
 @job
 def generate_invoice_number(invoice):
     invoice = clean_instance(invoice, TaskInvoice)
-    client, created = ClientNumber.objects.get_or_create(user=invoice.client)
-    client_number = client.number
-    task_number = invoice.task.task_number
-    invoice_number = '%s%s%s%s' % (client_number, invoice.created_at.strftime('%Y%m'), '{:02d}'.format(invoice.id), task_number)
-    invoice.number = invoice_number
-    invoice.save()
+    if not invoice.number:
+        client, created = ClientNumber.objects.get_or_create(user=invoice.client)
+        client_number = client.number
+        task_number = invoice.task.task_number
+        previous_for_month = TaskInvoice.objects.filter(
+            created_at__year=invoice.created_at.year,
+            created_at__month=invoice.created_at.month,
+            created_at__lt=invoice.created_at
+        ).count()
+
+        month_number = previous_for_month + 1
+        invoice_number = '%s%s%s%s' % (
+            client_number, invoice.created_at.strftime('%Y%m'), '{:02d}'.format(month_number), task_number
+        )
+        invoice.number = invoice_number
+        invoice.save()
     return invoice

@@ -295,7 +295,7 @@ class Task(models.Model):
     @property
     def invoice(self):
         try:
-            return self.taskinvoice_set.all().latest('created_at')
+            return self.taskinvoice_set.all().order_by('-id', '-created_at').first()
         except:
             return None
 
@@ -868,4 +868,4 @@ class TaskInvoice(models.Model):
 
     @property
     def summary(self):
-        return '%s - Fee: %s' % (self.title, self.display_fee())
+        return self.number or '%s - Fee: %s' % (self.title, self.display_fee())
