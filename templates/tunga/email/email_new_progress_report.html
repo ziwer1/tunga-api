@@ -1,0 +1,37 @@
+{% extends "tunga/email/base.html" %}
+{% load i18n %}
+{% block email_content %}
+    <p>Hello {{ owner.first_name }},</p>
+
+    <p>{{ reporter.first_name }} submitted a progress report:</p>
+
+    <p>Task: {{ event.task.summary }}</p>
+
+    <p>
+        Accomplished:<br/>
+        {{ report.accomplished }}
+    </p>
+
+    <p>
+        Percentage Completed: {{ report.percentage | default:'0' }}%
+    </p>
+
+    {% if report.next_steps %}
+        <p>
+            Next steps:<br/>
+            {{ report.next_steps }}
+        </p>
+    {% endif %}
+
+    {% if report.remarks %}
+        <p>
+            Remarks:<br/>
+            {{ report.remarks }}
+        </p>
+    {% endif %}
+
+    <p>
+        Click the link below to view the full report:<br/>
+        {{ update_url }}
+    </p>
+{% endblock %}

@@ -6,7 +6,7 @@ from tunga_activity import verbs
 from tunga_messages.tasks import create_channel
 from tunga_tasks.emails import send_new_task_application_email, send_new_task_application_applicant_email, \
     send_new_task_invitation_email, send_new_task_application_response_email, send_new_task_invitation_response_email, \
-    send_task_application_not_selected_email
+    send_task_application_not_selected_email, send_new_progress_report_email
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, ProgressEvent, ProgressReport, \
     IntegrationActivity, Integration
 from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates
@@ -119,6 +119,8 @@ def activity_handler_progress_event(sender, instance, created, **kwargs):
 def activity_handler_progress_report(sender, instance, created, **kwargs):
     if created:
         action.send(instance.user, verb=verbs.REPORT, action_object=instance, target=instance.event)
+
+        send_new_progress_report_email(instance.id)
 
 
 @receiver(post_save, sender=Integration)

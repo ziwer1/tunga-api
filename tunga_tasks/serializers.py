@@ -1,6 +1,6 @@
 import datetime
-
 from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.query_utils import Q
@@ -8,7 +8,7 @@ from django.template.defaultfilters import floatformat
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from tunga.settings import TUNGA_SHARE_PERCENTAGE, BITONIC_PAYMENT_COST_PERCENTAGE
+from tunga.settings import TUNGA_SHARE_PERCENTAGE
 from tunga_auth.serializers import UserSerializer
 from tunga_profiles.utils import profile_check
 from tunga_tasks import slugs
@@ -16,9 +16,8 @@ from tunga_tasks.emails import send_new_task_email
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, ProgressEvent, ProgressReport, \
     PROGRESS_EVENT_TYPE_MILESTONE, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
-    TASK_PAYMENT_METHOD_BITONIC, CURRENCY_USD, CURRENCY_SYMBOLS, TaskInvoice
+    TaskInvoice
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed
-from tunga_utils import coinbase_utils
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.models import Rating
 from tunga_utils.serializers import ContentTypeAnnotatedModelSerializer, SkillSerializer, \
@@ -57,6 +56,13 @@ class SimpleParticipationSerializer(ContentTypeAnnotatedModelSerializer):
         exclude = ('created_at',)
 
 
+class BasicProgressEventSerializer(ContentTypeAnnotatedModelSerializer):
+    created_by = SimpleUserSerializer()
+
+    class Meta:
+        model = ProgressEvent
+
+
 class BasicProgressReportSerializer(ContentTypeAnnotatedModelSerializer):
     user = SimpleUserSerializer()
     status_display = serializers.CharField(required=False, read_only=True, source='get_status_display')
@@ -65,13 +71,11 @@ class BasicProgressReportSerializer(ContentTypeAnnotatedModelSerializer):
         model = ProgressReport
 
 
-class SimpleProgressEventSerializer(ContentTypeAnnotatedModelSerializer):
-    created_by = SimpleUserSerializer()
+class SimpleProgressEventSerializer(BasicProgressEventSerializer):
     report = BasicProgressReportSerializer(read_only=True, required=False, source='progressreport')
 
     class Meta:
         model = ProgressEvent
-        exclude = ('created_at',)
 
 
 class SimpleProgressReportSerializer(BasicProgressReportSerializer):
@@ -82,7 +86,7 @@ class SimpleProgressReportSerializer(BasicProgressReportSerializer):
 
 
 class NestedTaskParticipationSerializer(ContentTypeAnnotatedModelSerializer):
-    created_by = serializers.PrimaryKeyRelatedField(
+    created_by = SimpleUserSerializer(
         required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
     )
 
@@ -92,7 +96,7 @@ class NestedTaskParticipationSerializer(ContentTypeAnnotatedModelSerializer):
 
 
 class NestedProgressEventSerializer(ContentTypeAnnotatedModelSerializer):
-    created_by = serializers.PrimaryKeyRelatedField(
+    created_by = SimpleUserSerializer(
         required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
     )
     report = BasicProgressReportSerializer(read_only=True, required=False, source='progressreport')
@@ -112,7 +116,7 @@ class ProjectDetailsSerializer(ContentTypeAnnotatedModelSerializer):
 
 
 class ProjectSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     excerpt = serializers.CharField(required=False, read_only=True)
     deadline = serializers.DateTimeField(required=False, allow_null=True)
     tasks = serializers.PrimaryKeyRelatedField(required=False, read_only=True, many=True)
@@ -146,7 +150,6 @@ class TaskInvoiceSerializer(serializers.ModelSerializer, GetCurrentUserAnnotated
 
 
 class ParticipantShareSerializer(serializers.Serializer):
-
     participant = SimpleParticipationSerializer()
     share = serializers.DecimalField(max_digits=5, decimal_places=2)
     percentage = serializers.SerializerMethodField()
@@ -431,7 +434,7 @@ class ApplicationDetailsSerializer(SimpleApplicationSerializer):
 
 
 class ApplicationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = Application
@@ -463,7 +466,7 @@ class ParticipationDetailsSerializer(SimpleParticipationSerializer):
 
 
 class ParticipationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
-    created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True,
+    created_by = SimpleUserSerializer(required=False, read_only=True,
                                                     default=CreateOnlyCurrentUserDefault())
 
     class Meta:
@@ -492,7 +495,7 @@ class TaskRequestDetailsSerializer(serializers.ModelSerializer):
 
 
 class TaskRequestSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = TaskRequest
@@ -510,7 +513,7 @@ class SavedTaskDetailsSerializer(serializers.ModelSerializer):
 
 
 class SavedTaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = SavedTask
@@ -528,7 +531,7 @@ class ProgressEventDetailsSerializer(serializers.ModelSerializer):
 
 
 class ProgressEventSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
-    created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True,
+    created_by = SimpleUserSerializer(required=False, read_only=True,
                                                     default=CreateOnlyCurrentUserDefault())
     report = SimpleProgressReportSerializer(read_only=True, required=False, source='progressreport')
 
@@ -539,16 +542,15 @@ class ProgressEventSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotat
 
 
 class ProgressReportDetailsSerializer(serializers.ModelSerializer):
-    user = SimpleUserSerializer()
-    event = SimpleProgressEventSerializer()
+    event = BasicProgressEventSerializer()
 
     class Meta:
         model = SavedTask
-        fields = ('user', 'event')
+        fields = ('event',)
 
 
 class ProgressReportSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     status_display = serializers.CharField(required=False, read_only=True, source='get_status_display')
     uploads = UploadSerializer(required=False, read_only=True, many=True)
 
@@ -559,7 +561,7 @@ class ProgressReportSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnota
 
 
 class NestedIntegrationMetaSerializer(serializers.ModelSerializer):
-    created_by = serializers.PrimaryKeyRelatedField(
+    created_by = SimpleUserSerializer(
         required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
     )
 
@@ -575,7 +577,7 @@ class SimpleIntegrationSerializer(ContentTypeAnnotatedModelSerializer):
 
 
 class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
-    created_by = serializers.PrimaryKeyRelatedField(
+    created_by = SimpleUserSerializer(
         required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
     )
     events = serializers.PrimaryKeyRelatedField(

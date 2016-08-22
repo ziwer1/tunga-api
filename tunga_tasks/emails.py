@@ -12,7 +12,7 @@ from tunga_auth.models import USER_TYPE_DEVELOPER
 from tunga_settings import slugs as settings_slugs
 from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM
 from tunga_settings.utils import check_switch_setting
-from tunga_tasks.models import Task, Participation, Application, ProgressEvent
+from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport
 from tunga_utils.decorators import clean_instance
 from tunga_utils.emails import send_mail
 
@@ -205,6 +205,23 @@ def send_progress_event_reminder_email(instance):
         if send_mail(subject, 'tunga/email/email_progress_event_reminder', to, ctx, bcc=bcc):
             instance.last_reminder_at = datetime.datetime.utcnow()
             instance.save()
+
+
+@job
+def send_new_progress_report_email(instance):
+    instance = clean_instance(instance, ProgressReport)
+    subject = "%s %s submitted a Progress Report" % (EMAIL_SUBJECT_PREFIX, instance.user.display_name)
+    if not check_switch_setting(instance.event.task.user, settings_slugs.TASK_ACTIVITY_UPDATE_EMAIL):
+        return
+    to = [instance.event.task.user.email]
+    ctx = {
+        'owner': instance.event.task.user,
+        'reporter': instance.user,
+        'event': instance.event,
+        'report': instance,
+        'update_url': '%s/task/%s/event/%s/' % (TUNGA_URL, instance.event.task.id, instance.event.id)
+    }
+    send_mail(subject, 'tunga/email/email_new_progress_report', to, ctx)
 
 
 @job

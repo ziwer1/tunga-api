@@ -13,7 +13,7 @@ from tunga_tasks.models import Task, Application, Participation, TaskRequest, In
     IntegrationActivity
 from tunga_tasks.serializers import ApplicationSerializer, ParticipationSerializer, \
     TaskRequestSerializer, SimpleTaskSerializer, SimpleIntegrationSerializer, SimpleProgressEventSerializer, \
-    SimpleProgressReportSerializer, SimpleIntegrationActivitySerializer
+    SimpleProgressReportSerializer, SimpleIntegrationActivitySerializer, ProgressReportSerializer
 from tunga_utils.models import Upload
 from tunga_utils.serializers import SimpleUserSerializer, UploadSerializer
 
@@ -34,7 +34,7 @@ class SimpleActivitySerializer(serializers.ModelSerializer):
         Participation: ParticipationSerializer(),
         TaskRequest: TaskRequestSerializer(),
         ProgressEvent: SimpleProgressEventSerializer(),
-        ProgressReport: SimpleProgressReportSerializer(),
+        ProgressReport: ProgressReportSerializer(),
         Integration: SimpleIntegrationSerializer(),
         IntegrationActivity: SimpleIntegrationActivitySerializer()
     }, source='action_object')

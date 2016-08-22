@@ -1,0 +1,26 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello {{ owner.first_name }},
+
+{{ reporter.first_name }} submitted a progress report:
+
+Task: {{ event.task.summary }}
+
+Accomplished:
+{{ report.accomplished }}
+
+Percentage Completed: {{ report.percentage | default:'0' }}%
+
+{% if report.next_steps %}
+Next steps:
+{{ report.next_steps }}
+{% endif %}
+
+{% if report.remarks %}
+Remarks:
+{{ report.remarks }}
+{% endif %}
+
+Click the link below to view the full report:
+{{ update_url }}
+
+{% endblock %}{% endautoescape %}

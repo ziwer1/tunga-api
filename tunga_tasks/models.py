@@ -5,8 +5,10 @@ import uuid
 from decimal import Decimal
 
 import tagulous.models
+from actstream.models import Action
 from allauth.socialaccount import providers
 from django.contrib.contenttypes.fields import GenericRelation
+from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.query_utils import Q
@@ -162,6 +164,12 @@ class Task(models.Model):
     comments = GenericRelation(Comment, related_query_name='tasks')
     uploads = GenericRelation(Upload, related_query_name='tasks')
     ratings = GenericRelation(Rating, related_query_name='tasks')
+    activity_objects = GenericRelation(
+        Action,
+        object_id_field='target_object_id',
+        content_type_field='target_content_type',
+        related_query_name='tasks'
+    )
 
     def __unicode__(self):
         return self.summary
@@ -314,6 +322,10 @@ class Task(models.Model):
     def meta_payment(self):
         return {'task_url': '/task/%s/' % self.id, 'amount': self.fee, 'currency': self.currency}
 
+    @property
+    def activity_stream(self):
+        return Action.objects.filter(Q(tasks=self) | Q(progress_events__task=self))
+
     def get_participation_shares(self):
         participants = self.participation_set.filter(accepted=True).order_by('-share')
         num_participants = participants.count()
@@ -325,7 +337,6 @@ class Task(models.Model):
             total_shares = all_shares and sum(all_shares) or 0
 
             for participant in participants:
-                share = 0
                 if not total_shares:
                     share = 1/Decimal(num_participants)
                 else:
@@ -525,6 +536,13 @@ class ProgressEvent(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='progress_events_created', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     last_reminder_at = models.DateTimeField(blank=True, null=True)
+
+    activity_objects = GenericRelation(
+        Action,
+        object_id_field='target_object_id',
+        content_type_field='target_content_type',
+        related_query_name='progress_events'
+    )
 
     def __unicode__(self):
         return '%s | %s - %s' % (self.get_type_display(), self.task.summary, self.due_at)

@@ -101,7 +101,7 @@ class SocialLinkDetailsSerializer(DetailAnnotatedModelSerializer):
 
 
 class SocialLinkSerializer(DetailAnnotatedModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = SocialLink

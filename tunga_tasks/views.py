@@ -115,7 +115,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         task = get_object_or_404(self.get_queryset(), pk=pk)
         self.check_object_permissions(request, task)
 
-        queryset = ActionFilter(request.GET, self.filter_queryset(task.target_actions.all().order_by('-id')))
+        queryset = ActionFilter(request.GET, self.filter_queryset(task.activity_stream.all().order_by('-id')))
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
