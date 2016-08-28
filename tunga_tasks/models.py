@@ -20,6 +20,7 @@ from dry_rest_permissions.generics import allow_staff_or_superuser
 from tunga import settings
 from tunga.settings import TUNGA_SHARE_PERCENTAGE, BITONIC_PAYMENT_COST_PERCENTAGE, \
     BANK_TRANSFER_PAYMENT_COST_PERCENTAGE
+from tunga_activity.models import ActivityReadLog
 from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_comments.models import Comment
 from tunga_messages.models import Channel
@@ -170,6 +171,7 @@ class Task(models.Model):
         content_type_field='target_content_type',
         related_query_name='tasks'
     )
+    read_logs = GenericRelation(ActivityReadLog, related_query_name='tasks')
 
     def __unicode__(self):
         return self.summary
@@ -317,10 +319,6 @@ class Task(models.Model):
     @property
     def all_uploads(self):
         return Upload.objects.filter(Q(tasks=self) | Q(comments__tasks=self) | Q(progress_reports__event__task=self))
-
-    @property
-    def meta_payment(self):
-        return {'task_url': '/task/%s/' % self.id, 'amount': self.fee, 'currency': self.currency}
 
     @property
     def activity_stream(self):

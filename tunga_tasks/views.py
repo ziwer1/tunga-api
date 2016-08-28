@@ -4,6 +4,8 @@ from urllib import urlencode
 
 from dateutil.parser import parse
 from decimal import Decimal
+
+from django.contrib.contenttypes.models import ContentType
 from django.http.response import HttpResponse
 from django.shortcuts import redirect
 from django.template.loader import render_to_string
@@ -25,7 +27,8 @@ from weasyprint import HTML
 from tunga.settings import BITONIC_CONSUMER_KEY, BITONIC_CONSUMER_SECRET, BITONIC_ACCESS_TOKEN, BITONIC_TOKEN_SECRET, \
     BITONIC_URL, BITONIC_PAYMENT_COST_PERCENTAGE
 from tunga_activity.filters import ActionFilter
-from tunga_activity.serializers import SimpleActivitySerializer
+from tunga_activity.models import ActivityReadLog
+from tunga_activity.serializers import SimpleActivitySerializer, LastReadActivitySerializer
 from tunga_tasks import slugs
 from tunga_tasks.emails import send_task_invoice_request_email
 from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBackend, ParticipationFilterBackend, \
@@ -97,6 +100,34 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         instance.save()
 
     @detail_route(
+        methods=['post'], url_path='read',
+        permission_classes=[IsAuthenticated], serializer_class=LastReadActivitySerializer
+    )
+    def update_read(self, request, pk=None):
+        """
+        Updates user's read_at for channel
+        ---
+        request_serializer: LastReadActivitySerializer
+        response_serializer: TaskSerializer
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        last_read = serializer.validated_data['last_read']
+        task = get_object_or_404(self.get_queryset(), pk=pk)
+        if task.has_object_read_permission(request):
+            ActivityReadLog.objects.update_or_create(
+                user=request.user,
+                content_type=ContentType.objects.get_for_model(task), object_id=task.id,
+                defaults={'last_read': last_read}
+            )
+            response_serializer = TaskSerializer(task, context={'request': request})
+            return Response(response_serializer.data)
+        return Response(
+            {'status': 'Unauthorized', 'message': 'No access to this task'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    @detail_route(
         methods=['get'], url_path='activity',
         permission_classes=[IsAuthenticated],
         serializer_class=SimpleActivitySerializer,
@@ -123,26 +154,6 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-
-    @detail_route(
-        methods=['get'], url_path='meta',
-        permission_classes=[IsAuthenticated]
-    )
-    def meta(self, request, pk=None):
-        """
-        Get task meta data
-        ---
-        omit_serializer: true
-        omit_parameters:
-            - query
-        """
-        task = get_object_or_404(self.get_queryset(), pk=pk)
-        self.check_object_permissions(request, task)
-
-        payment_meta = task.meta_payment
-        payment_meta['task_url'] = '%s://%s%s' % (request.scheme, request.get_host(), payment_meta['task_url'])
-        payment = json.dumps(payment_meta)
-        return Response({'task': task.id, 'participation': {}, 'payment': payment})
 
     @detail_route(
         methods=['get', 'post', 'put'], url_path='invoice',

@@ -1,5 +1,6 @@
 import datetime
 
+from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
 from django.core.management.base import BaseCommand
 from django.db.models.aggregates import Sum
@@ -22,6 +23,7 @@ class Command(BaseCommand):
         """
         # command to run: python manage.py tunga_send_message_emails
         min_date = datetime.datetime.utcnow() - relativedelta(hours=1)
+        commission_date = parse('2016-08-08 00:00:00')  # Don't notify about events before the commissioning date
 
         user_channels = ChannelUser.objects.filter(
             Q(last_email_at__isnull=True) |
@@ -35,7 +37,8 @@ class Command(BaseCommand):
                     ~Q(channel__action_targets__actor_object_id=F('user_id')) &
                     Q(channel__action_targets__gt=F('last_read')) &
                     Q(channel__action_targets__timestamp__lte=min_date) &
-                    Q(channel__action_targets__timestamp__gt=F('last_email_at')) &
+                    Q(tasks__activity_objects__timestamp__gte=commission_date) &
+                    (Q(last_email_at__isnull=True) | Q(channel__action_targets__timestamp__gt=F('last_email_at'))) &
                     Q(channel__action_targets__verb__in=[verbs.SEND, verbs.UPLOAD]),
                     then=1
                 ),

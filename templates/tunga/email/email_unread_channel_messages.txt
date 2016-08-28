@@ -1,5 +1,5 @@
 {% load i18n %}{% autoescape off %}{% block email_content %}
-Hello {{ receiver.display_name }},
+Hello {{ receiver.first_name }},
 
 You have {{ new_messages }} new message{{ new_messages | pluralize }} from {% if channel.type == 1 %}your conversation with{% else %}the conversation:{% endif %} {{ channel_name }}
 

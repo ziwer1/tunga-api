@@ -18,6 +18,10 @@ from tunga_utils.models import Upload
 from tunga_utils.serializers import SimpleUserSerializer, UploadSerializer
 
 
+class LastReadActivitySerializer(serializers.Serializer):
+    last_read = serializers.IntegerField(required=True)
+
+
 class SimpleActivitySerializer(serializers.ModelSerializer):
     action = serializers.CharField(source='verb')
     activity_type = serializers.SerializerMethodField()

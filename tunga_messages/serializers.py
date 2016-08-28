@@ -3,12 +3,10 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from tunga_messages.filterbackends import new_messages_filter
-from tunga_messages.models import Message, Attachment, Channel, ChannelUser
+from tunga_messages.models import Message, Channel, ChannelUser
 from tunga_messages.tasks import get_or_create_direct_channel
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
-from tunga_utils.models import Upload
-from tunga_utils.serializers import CreateOnlyCurrentUserDefault, SimpleUploadSerializer, \
-    SimpleUserSerializer, DetailAnnotatedModelSerializer, ContentTypeAnnotatedModelSerializer, UploadSerializer
+from tunga_utils.serializers import CreateOnlyCurrentUserDefault, SimpleUserSerializer, DetailAnnotatedModelSerializer, ContentTypeAnnotatedModelSerializer, UploadSerializer
 
 
 class SimpleChannelSerializer(serializers.ModelSerializer):
@@ -21,10 +19,6 @@ class SimpleChannelSerializer(serializers.ModelSerializer):
 
 class DirectChannelSerializer(serializers.Serializer):
     user = serializers.PrimaryKeyRelatedField(required=True, queryset=get_user_model().objects.all())
-
-
-class ChannelLastReadSerializer(serializers.Serializer):
-    last_read = serializers.IntegerField(required=True)
 
 
 class ChannelDetailsSerializer(serializers.ModelSerializer):

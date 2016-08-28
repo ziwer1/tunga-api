@@ -20,11 +20,13 @@ class ActionFilter(GenericDateFilterSet):
         )
 
     def filter_user(self, queryset, value):
-        user_content_type = ContentType.objects.get_for_model(get_user_model())
-        return queryset.filter(actor_content_type=user_content_type.id, actor_object_id=value)
+        return queryset.filter(
+            actor_content_type=ContentType.objects.get_for_model(get_user_model()), actor_object_id=value
+        )
 
     def filter_task(self, queryset, value):
-        task_content_type = ContentType.objects.get_for_model(Task)
-        return queryset.filter(target_content_type=task_content_type.id, target_object_id=value)
+        return queryset.filter(
+            target_content_type=ContentType.objects.get_for_model(Task), target_object_id=value
+        )
 
 

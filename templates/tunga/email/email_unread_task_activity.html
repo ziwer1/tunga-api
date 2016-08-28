@@ -1,0 +1,13 @@
+{% extends "tunga/email/base.html" %}
+{% block email_content %}
+    <p>Hello {{ receiver.first_name }},</p>
+
+    <p>You missed {{ new_activity }} new activit{{ new_activity | pluralize:"y,ies" }} for the task:</p>
+
+    <p>{{ task.summary }}</p>
+
+    <p>
+        Click the link below to go to the workflow page:<br/>
+        {{ task_url }}
+    </p>
+{% endblock %}

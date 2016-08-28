@@ -9,12 +9,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from tunga_activity.filters import ActionFilter
-from tunga_activity.serializers import SimpleActivitySerializer
+from tunga_activity.serializers import SimpleActivitySerializer, LastReadActivitySerializer
 from tunga_messages.filterbackends import MessageFilterBackend, ChannelFilterBackend
 from tunga_messages.filters import MessageFilter, ChannelFilter
 from tunga_messages.models import Message, Channel, ChannelUser
-from tunga_messages.serializers import MessageSerializer, ChannelSerializer, DirectChannelSerializer, \
-    ChannelLastReadSerializer
+from tunga_messages.serializers import MessageSerializer, ChannelSerializer, DirectChannelSerializer
 from tunga_messages.tasks import get_or_create_direct_channel
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.mixins import SaveUploadsMixin
@@ -74,13 +73,13 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
     @detail_route(
         methods=['post'], url_path='read',
-        permission_classes=[IsAuthenticated], serializer_class=ChannelLastReadSerializer
+        permission_classes=[IsAuthenticated], serializer_class=LastReadActivitySerializer
     )
     def update_read(self, request, pk=None):
         """
         Updates user's read_at for channel
         ---
-        request_serializer: ChannelLastReadSerializer
+        request_serializer: LastReadActivitySerializer
         response_serializer: ChannelSerializer
         """
         serializer = self.get_serializer(data=request.data)

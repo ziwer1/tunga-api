@@ -1,0 +1,11 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello {{ receiver.first_name }},
+
+You missed {{ new_activity }} new activit{{ new_activity | pluralize:"y,ies" }} for the task:
+
+{{ task.summary }}
+
+Click the link below to go to the workflow page:<br/>
+{{ task_url }}
+
+{% endblock %}{% endautoescape %}
