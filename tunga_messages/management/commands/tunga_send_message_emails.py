@@ -37,7 +37,7 @@ class Command(BaseCommand):
                     ~Q(channel__action_targets__actor_object_id=F('user_id')) &
                     Q(channel__action_targets__gt=F('last_read')) &
                     Q(channel__action_targets__timestamp__lte=min_date) &
-                    Q(tasks__activity_objects__timestamp__gte=commission_date) &
+                    Q(channel__action_targets__timestamp__gte=commission_date) &
                     (Q(last_email_at__isnull=True) | Q(channel__action_targets__timestamp__gt=F('last_email_at'))) &
                     Q(channel__action_targets__verb__in=[verbs.SEND, verbs.UPLOAD]),
                     then=1
