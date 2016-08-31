@@ -20,6 +20,8 @@ from tunga_utils.emails import send_mail
 @job
 def send_new_task_email(instance):
     instance = clean_instance(instance, Task)
+
+    developers = None
     if instance.visibility in [VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM]:
         queryset = get_user_model().objects.filter(
             type=USER_TYPE_DEVELOPER
@@ -65,20 +67,18 @@ def send_new_task_email(instance):
             )
         )
         queryset = queryset.order_by(*ordering)
-
-        developers = None
         if queryset:
             developers = queryset[:15]
 
-        subject = "%s New task created by %s" % (EMAIL_SUBJECT_PREFIX, instance.user.first_name)
-        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
-        bcc = [dev.email for dev in developers] if developers else None
-        ctx = {
-            'owner': instance.user,
-            'task': instance,
-            'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
-        }
-        send_mail(subject, 'tunga/email/email_new_task', to, ctx, bcc=bcc)
+    subject = "%s New task created by %s" % (EMAIL_SUBJECT_PREFIX, instance.user.first_name)
+    to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+    bcc = [dev.email for dev in developers] if developers else None
+    ctx = {
+        'owner': instance.user,
+        'task': instance,
+        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
+    }
+    send_mail(subject, 'tunga/email/email_new_task', to, ctx, bcc=bcc)
 
 
 @job
