@@ -1,7 +1,7 @@
 import datetime
+from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
-from decimal import Decimal
 from django.db.models.aggregates import Min, Max
 from django_rq.decorators import job
 
@@ -9,7 +9,7 @@ from tunga_profiles.models import PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_BTC
     BTC_WALLET_PROVIDER_COINBASE, ClientNumber
 from tunga_tasks.models import ProgressEvent, PROGRESS_EVENT_TYPE_SUBMIT, PROGRESS_EVENT_TYPE_PERIODIC, \
     UPDATE_SCHEDULE_ANNUALLY, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, UPDATE_SCHEDULE_WEEKLY, \
-    UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, Task, Participation, ParticipantPayment, \
+    UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, Task, ParticipantPayment, \
     PAYMENT_STATUS_PROCESSING, TaskInvoice, PAYMENT_STATUS_PENDING
 from tunga_utils import bitcoin_utils, coinbase_utils
 from tunga_utils.decorators import clean_instance
@@ -131,13 +131,15 @@ def distribute_task_payment(task):
         task.save()
 
 
-def get_btc_payment_destination_address(user):
-    user_profile = None
-    try:
-        user_profile = user.userprofile
-    except:
-        pass
+def get_user_payment_method(user):
+    user_profile = user.profile
+    if not user_profile:
+        return None
+    return user_profile.payment_method
 
+
+def get_btc_payment_destination_address(user):
+    user_profile = user.profile
     if not user_profile:
         return None
 

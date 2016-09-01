@@ -366,6 +366,12 @@ BITONIC_PAYMENT_COST_PERCENTAGE = 3
 
 BANK_TRANSFER_PAYMENT_COST_PERCENTAGE = 5.5
 
+BITPESA_API_KEY = ''
+
+BITPESA_API_SECRET = ''
+
+BITPESA_API_URL = 'https://api.bitpesa.co/v1/'
+
 try:
     from .env.dev import *
 except ImportError:
