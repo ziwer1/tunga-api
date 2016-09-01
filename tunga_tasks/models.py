@@ -122,7 +122,9 @@ class Task(models.Model):
     description = models.TextField(blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
     url = models.URLField(blank=True, null=True)
-    fee = models.DecimalField(max_digits=19, decimal_places=4)
+    fee = models.DecimalField(
+        max_digits=19, decimal_places=4, validators=[MinValueValidator(15, message='Minimum pledge amount is EUR 15')]
+    )
     currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
     deadline = models.DateTimeField(blank=True, null=True)
     skills = tagulous.models.TagField(Skill, blank=True)
