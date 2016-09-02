@@ -9,7 +9,7 @@ body {
 }
 
 #header {
-    background-color: #f41152;
+    background-color: #ee1f54;
 }
 
 #header a#logo {
@@ -23,7 +23,7 @@ body {
 }
 
 #header .header-actions > a {
-    color: #f41152;
+    color: #ee1f54;
     background-color: #fff;
     text-decoration: none;
     padding: 8px 10px;
