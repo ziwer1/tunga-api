@@ -144,7 +144,9 @@ class TungaRegisterSerializer(RegisterSerializer):
         user.type = user_type
         user.first_name = self.initial_data['first_name']
         user.last_name = self.initial_data['last_name']
+        user.pending = False
         user.save()
+
         if application:
             application.used = True
             application.used_at = datetime.datetime.utcnow()
