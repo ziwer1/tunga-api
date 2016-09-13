@@ -70,15 +70,15 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'user_id'
     lookup_field = 'id'
+    lookup_value_regex = '[^/]+'
     filter_class = UserFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (UserFilterBackend,)
     search_fields = ('^username', '^first_name', '^last_name', '=email', 'userprofile__skills__name')
 
     def get_object(self):
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
-        id = self.kwargs[lookup_url_kwarg]
-        if re.match(r'[^\d]', id):
-
+        user_id = self.kwargs[lookup_url_kwarg]
+        if re.match(r'[^\d]', user_id):
             self.lookup_field = 'username'
         return super(UserViewSet, self).get_object()
 
