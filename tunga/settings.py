@@ -203,6 +203,10 @@ EMAIL_HOST = 'localhost'
 EMAIL_USE_TLS = False
 
 PASSWORD_HASHERS = [
+    # Argon as recommended by https://docs.djangoproject.com/en/1.10/topics/auth/passwords/#using-argon2-with-django
+    # Enable after upgrading to 1.10
+    # 'django.contrib.auth.hashers.Argon2PasswordHasher',
+
     # Default
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
