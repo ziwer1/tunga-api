@@ -1,5 +1,5 @@
 import datetime
-from urllib import urlencode
+from urllib import urlencode, quote_plus
 
 from dateutil.parser import parse
 from decimal import Decimal
@@ -265,7 +265,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
     @detail_route(
         methods=['get'], url_path='download/invoice',
         renderer_classes=[PDFRenderer, StaticHTMLRenderer],
-        permission_classes=[IsAuthenticated]
+        permission_classes=[AllowAny]
     )
     def download_invoice(self, request, pk=None):
         """
@@ -275,13 +275,20 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         omit_parameters:
             - query
         """
+        current_url = '%s?%s' % (
+            reverse(request.resolver_match.url_name, kwargs={'pk': pk}),
+            urlencode(request.query_params)
+        )
+        login_url = '/signin?next=%s' % quote_plus(current_url)
+        if not request.user.is_authenticated():
+            return redirect(login_url)
         task = get_object_or_404(self.get_queryset(), pk=pk)
         try:
             self.check_object_permissions(request, task)
         except NotAuthenticated:
-            return redirect('/?next=%s' % reverse(request.resolver_match.url_name, kwargs={'pk': pk}))
+            return redirect(login_url)
         except PermissionDenied:
-            return HttpResponse("You do not have permission to access this item")
+            return HttpResponse("You do not have permission to access this invoice")
 
         invoice = task.invoice
         if invoice:
