@@ -144,9 +144,18 @@ class TaskInvoiceSerializer(serializers.ModelSerializer, GetCurrentUserAnnotated
     client = InvoiceUserSerializer(required=False, read_only=True)
     developer = InvoiceUserSerializer(required=False, read_only=True)
     amount = serializers.JSONField(required=False, read_only=True)
+    developer_amount = serializers.SerializerMethodField(required=False, read_only=True)
 
     class Meta:
         model = TaskInvoice
+
+    def get_developer_amount(self, obj):
+        current_user = self.get_current_user()
+        if current_user and current_user.is_developer:
+            participation = obj.task.participation_set.get(user=current_user)
+            share = obj.task.get_user_participation_share(participation.id)
+            return obj.get_amount_details(share=share)
+        return obj.get_amount_details(share=0)
 
 
 class ParticipantShareSerializer(serializers.Serializer):
@@ -199,6 +208,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     ratings = SimpleRatingSerializer(required=False, read_only=False, many=True)
     uploads = UploadSerializer(required=False, read_only=True, many=True)
     all_uploads = UploadSerializer(required=False, read_only=True, many=True)
+    invoice = TaskInvoiceSerializer()
 
     class Meta:
         model = Task
@@ -466,8 +476,7 @@ class ParticipationDetailsSerializer(SimpleParticipationSerializer):
 
 
 class ParticipationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
-    created_by = SimpleUserSerializer(required=False, read_only=True,
-                                                    default=CreateOnlyCurrentUserDefault())
+    created_by = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = Participation

@@ -258,9 +258,9 @@ class DeveloperApplication(models.Model):
     country_name.fget.short_description = 'country'
 
 
-class ClientNumber(models.Model):
+class UserNumber(models.Model):
     """
-    Helper table for generating client numbers in a sequence
+    Helper table for generating user numbers in a sequence
     """
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -268,6 +268,23 @@ class ClientNumber(models.Model):
     def __unicode__(self):
         return self.number
 
+    class Meta:
+        abstract = True
+
     @property
     def number(self):
         return 'A{:04d}'.format(self.id)
+
+
+class ClientNumber(UserNumber):
+    """
+    Helper table for generating client numbers in a sequence
+    """
+    pass
+
+
+class DeveloperNumber(UserNumber):
+    """
+    Helper table for generating developer numbers in a sequence
+    """
+    pass

@@ -23,10 +23,7 @@
         .container {
             max-width: 800px;
             margin: 50px auto 0;
-        }
-
-        .text-left {
-            text-align: left;
+            page-break-after: always;
         }
 
         .text-right {
@@ -37,7 +34,7 @@
             font-weight: bold;
         }
 
-        .footer {
+        footer {
             position: fixed;
             bottom: 20px;
             width: 100%;
@@ -60,8 +57,8 @@
     </script>
 </head>
 <body>
+{% for developer_info in invoice.developers %}
 <div class="container">
-
     <div style="margin: 20px 0 10px;text-align: left;">
         {% if context.is_developer %}
         {% else %}
@@ -77,10 +74,10 @@
         {% endif %}
 
         <div {% if context.is_developer %}class="bold"{% endif %}>
-            {{ invoice.developer.display_name }}<br/>
-            {{ invoice.developer.profile.street }} {{ invoice.developer.profile.plot_number }}<br/>
-            {{ invoice.developer.profile.postal_code }}<br/>
-            {{ invoice.developer.profile.country_name }}
+            {{ developer_info.developer.display_name }}<br/>
+            {{ developer_info.developer.profile.street }} {{ invoice.developer.profile.plot_number }}<br/>
+            {{ developer_info.developer.profile.postal_code }}<br/>
+            {{ developer_info.developer.profile.country_name }}
         </div>
 
         {% if context.is_developer %}
@@ -94,8 +91,8 @@
         {% endif %}
 
         <div style="margin-top: 20px;">
-            Invoice number: {{ invoice.number | default:'' }}<br/>
-            Invoicing date: {{ invoice_date }}
+            Invoice number: {{ developer_info.number | default:'' }}<br/>
+            Invoicing date: {{ invoice.date }}
         </div>
 
         <table>
@@ -106,47 +103,49 @@
             {% if context.is_developer %}
                 <tr>
                     <td>Tunga fee for {{ invoice.title }}</td>
-                    <td class="text-right">{{ invoice.amount.currency | safe }} {{ invoice.amount.tunga | floatformat:2 }}</td>
+                    <td class="text-right">{{ developer_info.amount.currency | safe }} {{ developer_info.amount.tunga | floatformat:2 }}</td>
                 </tr>
             {% else %}
                 <tr>
                     <td>{{ invoice.title }}</td>
-                    <td class="text-right">{{ invoice.amount.currency | safe }} {{ invoice.amount.pledge | floatformat:2 }}</td>
+                    <td class="text-right">{{ developer_info.amount.currency | safe }} {{ developer_info.amount.pledge | floatformat:2 }}</td>
                 </tr>
             {% endif %}
 
             <tr>
                 <td>Payment costs</td>
-                <td class="text-right">{{ invoice.amount.currency | safe }} {{ invoice.amount.processing | floatformat:2 }}</td>
+                <td class="text-right">{{ developer_info.amount.currency | safe }} {{ developer_info.amount.processing | floatformat:2 }}</td>
             </tr>
 
             <tr style="border-top: 1px solid #000; ">
                 <td class="text-right">Subtotal</td>
                 <td class="text-right">{{ invoice.amount.currency | safe }}
-                    {% if context.is_developer %}{{ invoice.amount.total_dev | floatformat:2 }}{% else %}
-                        {{ invoice.amount.total | floatformat:2 }}{% endif %}</td>
+                    {% if context.is_developer %}{{ developer_info.amount.total_dev | floatformat:2 }}{% else %}
+                        {{ developer_info.amount.total | floatformat:2 }}{% endif %}</td>
             </tr>
 
             <tr>
                 <td class="text-right">VAT 0%</td>
-                <td class="text-right">{{ invoice.amount.currency | safe }} 0.00</td>
+                <td class="text-right">{{ developer_info.amount.currency | safe }} 0.00</td>
             </tr>
 
             <tr style="border-top: 1px solid #000; ">
                 <td class="text-right">Total</td>
-                <td class="text-right">{{ invoice.amount.currency | safe }}
-                    {% if context.is_developer %}{{ invoice.amount.total_dev | floatformat:2 }}{% else %}
-                        {{ invoice.amount.total | floatformat:2 }}{% endif %}</td>
+                <td class="text-right">{{ developer_info.amount.currency | safe }}
+                    {% if context.is_developer %}{{ developer_info.amount.total_dev | floatformat:2 }}{% else %}
+                        {{ developer_info.amount.total | floatformat:2 }}{% endif %}</td>
             </tr>
         </table>
 
     </div>
 
-    <div class="footer">
+    <footer class="footer">
         {% if context.is_developer %}{% else %}
-            <div>Generated on behalf of {{ invoice.developer.display_name }} by:</div>{% endif %}
+            <div>Generated on behalf of {{ developer_info.developer.display_name }} by:</div>
+        {% endif %}
         Stichting Butterfly Works | Ms. van Riemsdijkweg 57, 1033RC Amsterdam | VAT: NL.8138.72.327.B.01
-    </div>
+    </footer>
 </div>
+{% endfor %}
 </body>
 </html>

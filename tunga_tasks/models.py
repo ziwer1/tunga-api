@@ -223,7 +223,10 @@ class Task(models.Model):
             return True
         # Participants can edit participation info directly on task object
         if request.method in ['PUT', 'PATCH']:
-            allowed_keys = ['assignee', 'participation', 'participants', 'confirmed_participants', 'rejected_participants']
+            allowed_keys = [
+                'assignee', 'participation', 'participants',
+                'confirmed_participants', 'rejected_participants'
+            ]
             if not [x for x in request.data.keys() if not x in allowed_keys]:
                 return self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
         return False
@@ -238,6 +241,7 @@ class Task(models.Model):
         if self.currency in CURRENCY_SYMBOLS:
             return '%s%s' % (CURRENCY_SYMBOLS[self.currency], floatformat(amount, arg=-2))
         return amount
+    display_fee.short_description = 'Fee'
 
     @property
     def amount(self):
@@ -326,11 +330,12 @@ class Task(models.Model):
     def activity_stream(self):
         return Action.objects.filter(Q(tasks=self) | Q(progress_events__task=self))
 
-    def get_participation_shares(self):
+    def get_participation_shares(self, return_hash=False):
         participants = self.participation_set.filter(accepted=True).order_by('-share')
         num_participants = participants.count()
 
         participation_shares = []
+        participation_shares_hash = {}
 
         if participants:
             all_shares = [participant.share or 0 for participant in participants]
@@ -341,26 +346,39 @@ class Task(models.Model):
                     share = 1/Decimal(num_participants)
                 else:
                     share = Decimal(participant.share or 0)/Decimal(total_shares)
-                participation_shares.append({
+                share_info = {
                     'participant': participant,
                     'share': share
-                })
-        return participation_shares
+                }
+                participation_shares.append(share_info)
+                participation_shares_hash[participant.id] = share_info
+        return return_hash and participation_shares_hash or participation_shares
 
     def get_payment_shares(self):
         participation_shares = self.get_participation_shares()
-        total_shares = 100 - TUNGA_SHARE_PERCENTAGE
-        share_fraction = Decimal(total_shares)/Decimal(100)
-
         payment_shares = []
 
         if participation_shares:
             for data in participation_shares:
                 payment_shares.append({
                     'participant': data['participant'],
-                    'share': Decimal(data['share'])*share_fraction
+                    'share': Decimal(data['share'])*Decimal((100 - TUNGA_SHARE_PERCENTAGE)*0.01)
                 })
         return payment_shares
+
+    def get_user_participation_share(self, participation_id):
+        participation_shares = self.get_participation_shares(return_hash=True)
+        if participation_id and isinstance(participation_shares, dict):
+            share_info = participation_shares.get(participation_id, None)
+            if share_info:
+                return share_info.get('share', 0)
+        return 0
+
+    def get_user_payment_share(self, participation_id):
+        share = self.get_user_participation_share(participation_id=participation_id)
+        if share:
+            return share*(Decimal(100 - TUNGA_SHARE_PERCENTAGE) / Decimal(100))
+        return 0
 
 
 class Application(models.Model):
@@ -442,6 +460,10 @@ class Participation(models.Model):
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
         return request.user == self.user or request.user == self.task.user
+
+    @property
+    def payment_share(self):
+        return self.task.get_user_payment_share(participation_id=self.id) or 0
 
 
 TASK_REQUEST_CLOSE = 1
@@ -844,11 +866,16 @@ class TaskInvoice(models.Model):
         if self.currency in CURRENCY_SYMBOLS:
             return '%s%s' % (CURRENCY_SYMBOLS[self.currency], floatformat(amount, arg=-2))
         return amount
+    display_fee.short_description = 'Fee'
 
     @property
     def amount(self):
+        return self.get_amount_details(share=1)
+
+    def get_amount_details(self, share=1):
         tunga_share = TUNGA_SHARE_PERCENTAGE * 0.01
         dev_share = 1 - tunga_share
+        fee_portion = self.fee * share
         processing_share = 0
         if self.payment_method == TASK_PAYMENT_METHOD_BITONIC:
             processing_share = BITONIC_PAYMENT_COST_PERCENTAGE * 0.01
@@ -856,10 +883,11 @@ class TaskInvoice(models.Model):
             processing_share = BANK_TRANSFER_PAYMENT_COST_PERCENTAGE * 0.01
         amount_details = {
             'currency': CURRENCY_SYMBOLS.get(self.currency, ''),
+            'share': share,
             'pledge': self.fee,
-            'developer': Decimal(dev_share) * self.fee,
-            'tunga': Decimal(tunga_share) * self.fee,
-            'processing': Decimal(processing_share) * self.fee
+            'developer': Decimal(dev_share) * fee_portion,
+            'tunga': Decimal(tunga_share) * fee_portion,
+            'processing': Decimal(processing_share) * fee_portion
         }
 
         amount_details['total'] = amount_details['pledge'] + amount_details['processing']

@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, ProgressEvent, ProgressReport, \
-    Project, TaskPayment, ParticipantPayment
+    Project, TaskPayment, ParticipantPayment, TaskInvoice
 from tunga_utils.admin import ReadOnlyModelAdmin
 
 
@@ -23,7 +23,7 @@ class ParticipationInline(admin.TabularInline):
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ('summary', 'user', 'apply' ,'closed', 'archived', 'skills_list', 'created_at')
+    list_display = ('summary', 'user', 'apply', 'closed', 'archived', 'skills_list', 'created_at')
     list_filter = ('closed', 'apply', 'archived')
     inlines = (ParticipationInline,)
 
@@ -82,3 +82,10 @@ class ParticipantPaymentAdmin(ReadOnlyModelAdmin):
         'destination', 'ref', 'status', 'created_at', 'received_at'
     )
     list_filter = ('status', 'created_at', 'received_at')
+
+
+@admin.register(TaskInvoice)
+class TaskInvoiceAdmin(ReadOnlyModelAdmin):
+    list_display = ('number', 'task', 'display_fee', 'payment_method', 'created_at')
+    list_filter = ('payment_method', 'created_at')
+    search_fields = ('number',)

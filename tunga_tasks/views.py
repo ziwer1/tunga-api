@@ -1,5 +1,4 @@
 import datetime
-import json
 from urllib import urlencode
 
 from dateutil.parser import parse
@@ -29,6 +28,7 @@ from tunga.settings import BITONIC_CONSUMER_KEY, BITONIC_CONSUMER_SECRET, BITONI
 from tunga_activity.filters import ActionFilter
 from tunga_activity.models import ActivityReadLog
 from tunga_activity.serializers import SimpleActivitySerializer, LastReadActivitySerializer
+from tunga_profiles.models import DeveloperNumber
 from tunga_tasks import slugs
 from tunga_tasks.emails import send_task_invoice_request_email
 from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBackend, ParticipationFilterBackend, \
@@ -42,11 +42,12 @@ from tunga_tasks.models import Task, Application, Participation, TaskRequest, Sa
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TaskRequestSerializer, SavedTaskSerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
-    IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer
+    IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer, SimpleTaskSerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number
 from tunga_utils import github, coinbase_utils, bitcoin_utils
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.mixins import SaveUploadsMixin
+from tunga_utils.serializers import InvoiceUserSerializer
 from tunga_utils.views import get_social_token
 
 
@@ -298,17 +299,24 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                     invoice_type = request.query_params.get('type', None)
                     if invoice_type:
                         context["is_developer"] = invoice_type != 'client'
+                invoice_data['date'] = task.invoice.created_at.strftime('%d %B %Y')
 
-                if context["is_developer"]:
-                    invoice_data['number'] += 'D'
-                else:
-                    invoice_data['number'] += 'C'
+                task_developers = []
+                for share_info in task.get_participation_shares():
+                    participant = share_info['participant']
+                    developer, created = DeveloperNumber.objects.get_or_create(user=participant.user)
+                    task_developers.append({
+                        'developer': InvoiceUserSerializer(participant.user).data,
+                        'amount': invoice.get_amount_details(share=share_info['share']),
+                        'number': invoice_data['number'] + developer.number + (context["is_developer"] and 'D' or 'C')
+                    })
+
+                invoice_data['developers'] = task_developers
 
                 ctx = {
                     'user': request.user,
                     'context': context,
-                    'invoice': invoice_data,
-                    'invoice_date': task.invoice.created_at.strftime('%d %B %Y')
+                    'invoice': invoice_data
                 }
 
                 rendered_html = render_to_string("tunga/pdf/invoice.html", context=ctx).encode(encoding="UTF-8")
