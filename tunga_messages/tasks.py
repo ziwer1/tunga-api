@@ -1,7 +1,8 @@
 from django_rq.decorators import job
 
-from tunga_messages.models import Channel, ChannelUser, Message, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_DIRECT
-from tunga_utils.decorators import convert_first_arg_to_instance, clean_instance
+from tunga_messages.models import Channel, ChannelUser, Message
+from tunga_utils.constants import CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC
+from tunga_utils.helpers import clean_instance
 
 
 def create_channel(

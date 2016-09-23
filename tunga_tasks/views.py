@@ -1,9 +1,9 @@
 import datetime
+import json
+from decimal import Decimal
 from urllib import urlencode, quote_plus
 
 from dateutil.parser import parse
-from decimal import Decimal
-
 from django.contrib.contenttypes.models import ContentType
 from django.http.response import HttpResponse
 from django.shortcuts import redirect
@@ -37,14 +37,15 @@ from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBacke
 from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TaskRequestFilter, SavedTaskFilter, \
     ProjectFilter, ProgressReportFilter, ProgressEventFilter
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, Project, ProgressReport, ProgressEvent, \
-    Integration, IntegrationMeta, IntegrationActivity, TASK_PAYMENT_METHOD_BITONIC, TaskPayment, \
-    TASK_PAYMENT_METHOD_BANK, TaskInvoice
+    Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice, ParticipantPayment
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TaskRequestSerializer, SavedTaskSerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
-    IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer, SimpleTaskSerializer
-from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number
-from tunga_utils import github, coinbase_utils, bitcoin_utils
+    IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer
+from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, send_payment_share
+from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa
+from tunga_utils.constants import TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BANK, PAYMENT_STATUS_PROCESSING, \
+    PAYMENT_STATUS_INITIATED
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.mixins import SaveUploadsMixin
 from tunga_utils.serializers import InvoiceUserSerializer
@@ -642,15 +643,78 @@ def coinbase_notification_url(request):
         amount = payload[coinbase_utils.PAYLOAD_ADDITIONAL_DATA][coinbase_utils.PAYLOAD_AMOUNT][coinbase_utils.PAYLOAD_AMOUNT]
 
         try:
-            task = Task.objects.filter(btc_address=address).latest('created_at')
+            task = Task.objects.get(btc_address=address)
         except:
             task = None
 
         if task:
             TaskPayment.objects.get_or_create(
-                task=task, ref=id, btc_address=task.btc_address, defaults={'btc_received': amount, 'btc_price': task.btc_price, 'received_at':paid_at}
+                task=task, ref=id, btc_address=task.btc_address, defaults={
+                    'btc_received': amount, 'btc_price': task.btc_price, 'received_at':paid_at
+                }
             )
-            Task.objects.filter(id=task.id).update(paid=True, paid_at=paid_at)
+            task.paid = True
+            task.paid_at = paid_at
+            task.save()
 
             distribute_task_payment.delay(task.id)
+    return Response('Received')
+
+
+@csrf_exempt
+@api_view(http_method_names=['POST'])
+@permission_classes([AllowAny])
+def bitpesa_notification_url(request):
+    # Verify that the request came from bitpesa
+    bp_signature = request.META.get(bitpesa.HEADER_AUTH_SIGNATURE, None)
+    bp_nonce = request.META.get(bitpesa.HEADER_AUTH_NONCE, None)
+    if not bitpesa.verify_signature(bp_signature, request.build_absolute_uri(), request.method, request.data, bp_nonce):
+        return Response('Unauthorized Request', status=status.HTTP_401_UNAUTHORIZED)
+
+    payload = request.data
+    if payload:
+        bp_transaction = payload.get(bitpesa.KEY_OBJECT, None)
+        if bp_transaction and bp_transaction.get(bitpesa.KEY_EVENT, None) == bitpesa.EVENT_TRANSACTION_APPROVED:
+            bp_transaction_id = bp_transaction.get(bitpesa.KEY_ID, None)
+            metadata = bp_transaction.get(bitpesa.KEY_METADATA, None)
+            reference = metadata.get(bitpesa.KEY_REFERENCE, None)
+            idem_key = metadata.get(bitpesa.KEY_IDEM_KEY, None)
+
+            input_amount = bp_transaction.get(bitpesa.KEY_INPUT_AMOUNT, 0)
+            payin_methods = bp_transaction.get(bitpesa.KEY_PAYIN_METHODS, None)
+
+            address = payin_methods[bitpesa.KEY_IN_DETAILS][bitpesa.KEY_ADDRESS]
+
+            try:
+                payment = ParticipantPayment.objects.get(
+                    id=reference, ref=bp_transaction_id, idem_key=idem_key, status=PAYMENT_STATUS_INITIATED
+                )
+            except:
+                payment = None
+
+            if payment:
+                share_amount = payment.source.btc_received*Decimal(payment.participant.payment_share)
+                if input_amount <= share_amount:
+                    cb_transaction = send_payment_share(
+                        destination=address,
+                        amount=input_amount,
+                        idem=str(payment.idem_key),
+                        description='%s - %s' % (
+                            payment.participant.task.summary, payment.participant.user.display_name
+                        )
+                    )
+                    if cb_transaction.status not in [
+                        coinbase_utils.TRANSACTION_STATUS_FAILED, coinbase_utils.TRANSACTION_STATUS_EXPIRED,
+                        coinbase_utils.TRANSACTION_STATUS_CANCELED
+                    ]:
+                        payment.btc_sent = input_amount
+                        payment.destination = address
+                        payment.ref = bp_transaction.id
+                        payment.status = PAYMENT_STATUS_PROCESSING
+                        payment.extra = json.dumps(dict(bitpesa=bp_transaction_id))
+                        payment.save()
+
+                        # Attempt to distribute any remaining funds
+                        distribute_task_payment.delay(payment.participant.task_id)
+
     return Response('Received')

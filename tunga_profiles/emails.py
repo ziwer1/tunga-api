@@ -4,7 +4,7 @@ from django_rq.decorators import job
 
 from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, TUNGA_URL
 from tunga_profiles.models import DeveloperApplication
-from tunga_utils.decorators import clean_instance
+from tunga_utils.helpers import clean_instance
 from tunga_utils.emails import send_mail
 
 

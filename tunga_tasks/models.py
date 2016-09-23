@@ -21,16 +21,20 @@ from tunga import settings
 from tunga.settings import TUNGA_SHARE_PERCENTAGE, BITONIC_PAYMENT_COST_PERCENTAGE, \
     BANK_TRANSFER_PAYMENT_COST_PERCENTAGE
 from tunga_activity.models import ActivityReadLog
-from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_comments.models import Comment
 from tunga_messages.models import Channel
 from tunga_profiles.models import Skill, Connection
-from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM, VISIBILITY_CHOICES
+from tunga_settings.models import VISIBILITY_CHOICES
+from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER, \
+    VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, \
+    UPDATE_SCHEDULE_WEEKLY, UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, UPDATE_SCHEDULE_ANNUALLY, \
+    TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BITCOIN, TASK_PAYMENT_METHOD_BANK, TASK_REQUEST_CLOSE, \
+    TASK_REQUEST_PAY, PROGRESS_EVENT_TYPE_DEFAULT, PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_MILESTONE, \
+    PROGRESS_EVENT_TYPE_SUBMIT, PROGRESS_REPORT_STATUS_ON_SCHEDULE, PROGRESS_REPORT_STATUS_BEHIND, \
+    PROGRESS_REPORT_STATUS_STUCK, INTEGRATION_TYPE_REPO, INTEGRATION_TYPE_ISSUE, PAYMENT_STATUS_PENDING, \
+    PAYMENT_STATUS_PROCESSING, PAYMENT_STATUS_COMPLETED, PAYMENT_STATUS_FAILED, PAYMENT_STATUS_INITIATED
 from tunga_utils.models import Upload, Rating
 from tunga_utils.validators import validate_btc_address
-
-CURRENCY_EUR = 'EUR'
-CURRENCY_USD = 'USD'
 
 CURRENCY_CHOICES = (
     (CURRENCY_EUR, 'EUR'),
@@ -41,13 +45,6 @@ CURRENCY_SYMBOLS = {
     'EUR': '€',
     'USD': '$'
 }
-
-UPDATE_SCHEDULE_HOURLY = 1
-UPDATE_SCHEDULE_DAILY = 2
-UPDATE_SCHEDULE_WEEKLY = 3
-UPDATE_SCHEDULE_MONTHLY = 4
-UPDATE_SCHEDULE_QUATERLY = 5
-UPDATE_SCHEDULE_ANNUALLY = 6
 
 UPDATE_SCHEDULE_CHOICES = (
     (UPDATE_SCHEDULE_HOURLY, 'Hour'),
@@ -103,10 +100,6 @@ class Project(models.Model):
         except:
             return None
 
-
-TASK_PAYMENT_METHOD_BITONIC = 'bitonic'
-TASK_PAYMENT_METHOD_BITCOIN = 'bitcoin'
-TASK_PAYMENT_METHOD_BANK = 'bank'
 
 TASK_PAYMENT_METHOD_CHOICES = (
     (TASK_PAYMENT_METHOD_BITONIC, 'Pay with ideal / mister cash'),
@@ -466,9 +459,6 @@ class Participation(models.Model):
         return self.task.get_user_payment_share(participation_id=self.id) or 0
 
 
-TASK_REQUEST_CLOSE = 1
-TASK_REQUEST_PAY = 2
-
 TASK_REQUEST_CHOICES = (
     (TASK_REQUEST_CLOSE, 'Close Request'),
     (TASK_REQUEST_PAY, 'Payment Request')
@@ -533,11 +523,6 @@ class SavedTask(models.Model):
         return request.user == self.user
 
 
-PROGRESS_EVENT_TYPE_DEFAULT = 1
-PROGRESS_EVENT_TYPE_PERIODIC = 2
-PROGRESS_EVENT_TYPE_MILESTONE = 3
-PROGRESS_EVENT_TYPE_SUBMIT = 4
-
 PROGRESS_EVENT_TYPE_CHOICES = (
     (PROGRESS_EVENT_TYPE_DEFAULT, 'Update'),
     (PROGRESS_EVENT_TYPE_PERIODIC, 'Periodic Update'),
@@ -591,10 +576,6 @@ class ProgressEvent(models.Model):
     def has_object_write_permission(self, request):
         return request.user == self.task.user
 
-
-PROGRESS_REPORT_STATUS_ON_SCHEDULE = 1
-PROGRESS_REPORT_STATUS_BEHIND = 2
-PROGRESS_REPORT_STATUS_STUCK = 3
 
 PROGRESS_REPORT_STATUS_CHOICES = (
     (PROGRESS_REPORT_STATUS_ON_SCHEDULE, 'On schedule'),
@@ -656,9 +637,6 @@ class IntegrationEvent(models.Model):
     class Meta:
         ordering = ['id', 'name']
 
-
-INTEGRATION_TYPE_REPO = 1
-INTEGRATION_TYPE_ISSUE = 2
 
 INTEGRATION_TYPE_CHOICES = (
     (INTEGRATION_TYPE_REPO, 'Repo'),
@@ -799,13 +777,9 @@ class TaskPayment(models.Model):
         ordering = ['created_at']
 
 
-PAYMENT_STATUS_PENDING = 'pending'
-PAYMENT_STATUS_PROCESSING = 'processing'
-PAYMENT_STATUS_COMPLETED = 'completed'
-PAYMENT_STATUS_FAILED = 'failed'
-
 PAYMENT_STATUS_CHOICES = (
     (PAYMENT_STATUS_PENDING, 'Pending'),
+    (PAYMENT_STATUS_INITIATED, 'Initiated'),
     (PAYMENT_STATUS_PROCESSING, 'Processing'),
     (PAYMENT_STATUS_COMPLETED, 'Completed'),
     (PAYMENT_STATUS_FAILED, 'Failed'),
@@ -815,9 +789,9 @@ PAYMENT_STATUS_CHOICES = (
 class ParticipantPayment(models.Model):
     participant = models.ForeignKey(Participation)
     source = models.ForeignKey(TaskPayment)
-    destination = models.CharField(max_length=40, validators=[validate_btc_address])
+    destination = models.CharField(max_length=40, validators=[validate_btc_address], blank=True, null=True)
     idem_key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    ref = models.CharField(max_length=255)
+    ref = models.CharField(max_length=255, blank=True, null=True)
     btc_sent = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
     btc_received = models.DecimalField(max_digits=18, decimal_places=8, default=0)
     status = models.CharField(
@@ -828,6 +802,7 @@ class ParticipantPayment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     received_at = models.DateTimeField(blank=True, null=True)
     description = models.CharField(max_length=200, blank=True, null=True)
+    extra = models.TextField(blank=True, null=True)  # JSON formatted extra details
 
     def __unicode__(self):
         return 'bitcoin:%s - %s | %s' % (self.destination, self.participant.user, self.description)

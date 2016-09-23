@@ -75,3 +75,7 @@ def get_btc_address_version(address):
 
 def is_valid_btc_address(address):
     return get_btc_address_version(address) is not None
+
+
+def get_valid_btc_amount(amount):
+    return '{0:.6f}'.format(amount)

@@ -11,10 +11,11 @@ from rest_framework.response import Response
 from tunga.settings import GITHUB_SCOPES, COINBASE_CLIENT_ID, COINBASE_CLIENT_SECRET
 from tunga_auth.filterbackends import UserFilterBackend
 from tunga_auth.filters import UserFilter
-from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_auth.serializers import UserSerializer, AccountInfoSerializer
-from tunga_profiles.models import BTC_WALLET_PROVIDER_COINBASE, BTCWallet, UserProfile, PAYMENT_METHOD_BTC_WALLET
+from tunga_profiles.models import BTCWallet, UserProfile
 from tunga_utils import coinbase_utils
+from tunga_utils.constants import BTC_WALLET_PROVIDER_COINBASE, PAYMENT_METHOD_BTC_WALLET, USER_TYPE_DEVELOPER, \
+    USER_TYPE_PROJECT_OWNER
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.serializers import SimpleUserSerializer
 

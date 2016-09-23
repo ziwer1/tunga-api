@@ -8,7 +8,8 @@ from rest_auth.serializers import TokenSerializer, PasswordResetSerializer
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from tunga_auth.models import USER_TYPE_CHOICES, USER_TYPE_DEVELOPER
+from tunga_auth.models import USER_TYPE_CHOICES
+from tunga_utils.constants import USER_TYPE_DEVELOPER
 from tunga_profiles.models import Connection, DeveloperApplication, UserProfile
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.models import Rating

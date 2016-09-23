@@ -2,7 +2,8 @@ from coinbase.wallet.client import Client, OAuthClient
 
 from tunga.settings import COINBASE_BASE_URL, COINBASE_CLIENT_ID, COINBASE_SCOPES, \
     COINBASE_BASE_API_URL, COINBASE_API_KEY, COINBASE_API_SECRET
-from tunga_profiles.models import BTCWallet, BTC_WALLET_PROVIDER_COINBASE
+from tunga_profiles.models import BTCWallet
+from tunga_utils.constants import BTC_WALLET_PROVIDER_COINBASE
 
 PAYLOAD_ID = 'id'
 

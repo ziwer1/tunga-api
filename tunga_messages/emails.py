@@ -3,7 +3,7 @@ from django_rq.decorators import job
 from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL
 from tunga_messages.models import Message
 from tunga_settings.slugs import DIRECT_MESSAGES_EMAIL
-from tunga_utils.decorators import clean_instance
+from tunga_utils.helpers import clean_instance
 from tunga_utils.emails import send_mail
 
 

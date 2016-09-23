@@ -14,9 +14,9 @@ from tunga_profiles.utils import profile_check
 from tunga_tasks import slugs
 from tunga_tasks.emails import send_new_task_email
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, ProgressEvent, ProgressReport, \
-    PROGRESS_EVENT_TYPE_MILESTONE, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
     TaskInvoice
+from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.models import Rating

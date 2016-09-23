@@ -2,13 +2,9 @@ from __future__ import unicode_literals
 
 from django.db import models
 
-# Create your models here.
 from tunga import settings
+from tunga_utils.constants import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM, VISIBILITY_ONLY_ME
 
-VISIBILITY_DEVELOPER = 1
-VISIBILITY_MY_TEAM = 2
-VISIBILITY_CUSTOM = 3
-VISIBILITY_ONLY_ME = 4
 VISIBILITY_CHOICES = (
     (VISIBILITY_DEVELOPER, 'Developers'),
     (VISIBILITY_MY_TEAM, 'My Team'),

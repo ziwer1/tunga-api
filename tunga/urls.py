@@ -31,7 +31,7 @@ from tunga_settings.views import UserSettingsView
 from tunga_support.views import SupportPageViewSet, SupportSectionViewSet
 from tunga_tasks.views import TaskViewSet, ApplicationViewSet, ParticipationViewSet, TaskRequestViewSet, \
     SavedTaskViewSet, ProjectViewSet, ProgressReportViewSet, ProgressEventViewSet, \
-    coinbase_notification_url
+    coinbase_notification_url, bitpesa_notification_url
 from tunga_utils.views import SkillViewSet, ContactRequestView
 
 router = DefaultRouter()
@@ -80,6 +80,7 @@ urlpatterns = [
     url(r'^api/me/code/(?P<provider>\w+)/repos/$', RepoListView.as_view(), name="repo-list"),
     url(r'^api/me/code/(?P<provider>\w+)/issues/$', IssueListView.as_view(), name="issue-list"),
     url(r'^api/hook/coinbase/$', coinbase_notification_url, name="coinbase-notification"),
+    url(r'^api/hook/bitpesa/$', bitpesa_notification_url, name="bitpesa-notification"),
     url(r'^api/auth/', include('rest_auth.urls')),
     url(r'api/', include('rest_framework.urls', namespace='rest_framework')),
     url(r'^api/countries/', CountryListView.as_view(), name='countries'),

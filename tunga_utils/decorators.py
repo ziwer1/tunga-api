@@ -37,16 +37,3 @@ def convert_first_arg_to_instance(model):
                 func(*args, **kwargs)
         return func_wrapper
     return real_decorator
-
-
-def clean_instance(instance, model):
-    if instance and model:
-        if isinstance(instance, model):
-            return instance
-        else:
-            try:
-                return model.objects.get(id=instance)
-            except:
-                return None
-    else:
-        return None

@@ -6,7 +6,7 @@ from django.template.loader import render_to_string
 from django_rq.decorators import job
 
 from tunga.settings import DEFAULT_FROM_EMAIL, CONTACT_REQUEST_EMAIL_RECIPIENT, EMAIL_SUBJECT_PREFIX
-from tunga_utils.decorators import clean_instance
+from tunga_utils.helpers import clean_instance
 from tunga_utils.models import ContactRequest
 
 

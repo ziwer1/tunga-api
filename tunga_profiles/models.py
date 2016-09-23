@@ -9,7 +9,9 @@ from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
 from tunga_profiles.validators import validate_email
-from tunga_utils.constants import REQUEST_STATUS_INITIAL, REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED
+from tunga_utils.constants import REQUEST_STATUS_INITIAL, REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED, \
+    BTC_WALLET_PROVIDER_COINBASE, PAYMENT_METHOD_BTC_WALLET, PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, \
+    COUNTRY_CODE_UGANDA, COUNTRY_CODE_TANZANIA, COUNTRY_CODE_NIGERIA
 from tunga_utils.models import AbstractExperience
 from tunga_utils.validators import validate_btc_address
 
@@ -34,8 +36,6 @@ class City(tagulous.models.TagModel):
     class TagMeta:
         initial = "Kampala, Entebbe, Jinja, Nairobi, Mombosa, Dar es Salaam, Kigali, Amsterdam"
 
-
-BTC_WALLET_PROVIDER_COINBASE = 'coinbase'
 
 BTC_WALLET_PROVIDER_CHOICES = (
     (BTC_WALLET_PROVIDER_COINBASE, 'Coinbase'),
@@ -63,14 +63,17 @@ class BTCWallet(models.Model):
     def __unicode__(self):
         return '%s - %s' % (self.user.get_short_name(), self.get_provider_display())
 
-PAYMENT_METHOD_BTC_WALLET = 'btc_wallet'
-PAYMENT_METHOD_BTC_ADDRESS = 'btc_address'
-PAYMENT_METHOD_MOBILE_MONEY = 'mobile_money'
 
 PAYMENT_METHOD_CHOICES = (
     (PAYMENT_METHOD_BTC_WALLET, 'Bitcoin Wallet'),
     (PAYMENT_METHOD_BTC_ADDRESS, 'Bitcoin Address'),
     (PAYMENT_METHOD_MOBILE_MONEY, 'Mobile Money')
+)
+
+MOBILE_MONEY_CC_CHOICES = (
+    (COUNTRY_CODE_NIGERIA, 'Nigeria (+234)'),
+    (COUNTRY_CODE_TANZANIA, 'Tanzania (+255)'),
+    (COUNTRY_CODE_UGANDA, 'Uganda (+256)'),
 )
 
 
@@ -103,6 +106,10 @@ class UserProfile(models.Model):
     )
     btc_wallet = models.ForeignKey(BTCWallet, blank=True, null=True, on_delete=models.SET_NULL)
     btc_address = models.CharField(max_length=40, blank=True, null=True, validators=[validate_btc_address])
+    mobile_money_cc = models.CharField(
+        max_length=5, choices=MOBILE_MONEY_CC_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in MOBILE_MONEY_CC_CHOICES]),
+        blank=True, null=True)
     mobile_money_number = models.CharField(max_length=15, blank=True, null=True)
 
     def __unicode__(self):

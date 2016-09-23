@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 
-from tunga_auth.models import USER_TYPE_PROJECT_OWNER, USER_TYPE_DEVELOPER
+from tunga_utils.constants import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_tasks.models import Task
 
 

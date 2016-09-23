@@ -376,6 +376,8 @@ BITPESA_API_SECRET = ''
 
 BITPESA_API_URL = 'https://api.bitpesa.co/v1/'
 
+BITPESA_SENDER = None
+
 try:
     from .env.dev import *
 except ImportError:

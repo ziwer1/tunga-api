@@ -10,7 +10,8 @@ from django.db.models.query_utils import Q
 
 from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL
 from tunga_activity import verbs
-from tunga_messages.models import ChannelUser, CHANNEL_TYPE_DIRECT
+from tunga_messages.models import ChannelUser
+from tunga_utils.constants import CHANNEL_TYPE_DIRECT
 from tunga_settings.slugs import DIRECT_MESSAGES_EMAIL
 from tunga_utils.emails import send_mail
 

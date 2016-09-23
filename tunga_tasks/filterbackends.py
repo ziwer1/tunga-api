@@ -1,12 +1,13 @@
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models.aggregates import Count, Sum
+from django.db.models.aggregates import Sum
 from django.db.models.expressions import Case, When
 from django.db.models.fields import IntegerField
 from django.db.models.query_utils import Q
 from dry_rest_permissions.generics import DRYPermissionFiltersBase
-from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
+
 from tunga_profiles.models import UserProfile
-from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM
+from tunga_utils.constants import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER, VISIBILITY_DEVELOPER, \
+    VISIBILITY_MY_TEAM
 from tunga_utils.filterbackends import dont_filter_staff_or_superuser
 
 

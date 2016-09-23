@@ -12,23 +12,9 @@ from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
-from tunga_auth.models import USER_TYPE_DEVELOPER
+from tunga_utils.constants import USER_TYPE_DEVELOPER, RATING_CRITERIA_CODING, RATING_CRITERIA_COMMUNICATION, \
+    RATING_CRITERIA_SPEED, MONTHS
 from tunga_utils.validators import validate_year
-
-MONTHS = (
-    (1, 'Jan'),
-    (2, 'Feb'),
-    (3, 'Mar'),
-    (4, 'Apr'),
-    (5, 'May'),
-    (6, 'Jun'),
-    (7, 'Jul'),
-    (8, 'Aug'),
-    (9, 'Sep'),
-    (10, 'Oct'),
-    (11, 'Nov'),
-    (12, 'Dec')
-)
 
 
 class AbstractExperience(models.Model):
@@ -103,10 +89,6 @@ class ContactRequest(models.Model):
     def __unicode__(self):
         return '%s on %s' % (self.email, self.created_at)
 
-
-RATING_CRITERIA_CODING = 1
-RATING_CRITERIA_COMMUNICATION = 2
-RATING_CRITERIA_SPEED = 3
 
 RATING_CRITERIA_CHOICES = (
     (RATING_CRITERIA_CODING, 'Coding skills'),

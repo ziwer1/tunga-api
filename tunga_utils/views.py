@@ -3,8 +3,8 @@ from django.http.response import HttpResponseRedirect
 from rest_framework import viewsets, generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
-from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_profiles.models import Skill
+from tunga_utils.constants import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_utils.models import ContactRequest
 from tunga_utils.serializers import SkillSerializer, ContactRequestSerializer
 

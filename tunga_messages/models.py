@@ -11,6 +11,7 @@ from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
 from tunga_profiles.models import Connection
+from tunga_utils.constants import CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC
 from tunga_utils.models import Upload
 
 
@@ -27,9 +28,6 @@ class Attachment(models.Model):
     class Meta:
         ordering = ['-created_at']
 
-
-CHANNEL_TYPE_DIRECT = 1
-CHANNEL_TYPE_TOPIC = 2
 
 CHANNEL_TYPE_CHOICES = (
     (CHANNEL_TYPE_DIRECT, 'Direct Channel'),

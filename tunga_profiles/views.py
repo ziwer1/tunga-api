@@ -9,7 +9,6 @@ from rest_framework.decorators import list_route
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
-from tunga_auth.models import USER_TYPE_PROJECT_OWNER
 from tunga_messages.filterbackends import new_messages_filter
 from tunga_messages.models import Channel
 from tunga_profiles.filterbackends import ConnectionFilterBackend
@@ -20,8 +19,8 @@ from tunga_profiles.permissions import IsAdminOrCreateOnly
 from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, WorkSerializer, ConnectionSerializer, \
     SocialLinkSerializer, DeveloperApplicationSerializer
 from tunga_utils import github
+from tunga_utils.constants import USER_TYPE_PROJECT_OWNER
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
-from tunga_utils.github import ISSUE_FIELDS, extract_repo_info
 from tunga_utils.views import get_social_token
 
 
@@ -222,7 +221,7 @@ class RepoListView(views.APIView):
         if provider == 'github':
             r = github.api(endpoint='/user/repos', method='get', access_token=social_token.token)
             if r.status_code == 200:
-                repos = [extract_repo_info(repo) for repo in r.json()]
+                repos = [github.extract_repo_info(repo) for repo in r.json()]
                 return Response(repos)
             return Response(r.json(), r.status_code)
         return Response({'status': 'Not implemented'}, status.HTTP_501_NOT_IMPLEMENTED)
@@ -247,9 +246,9 @@ class IssueListView(views.APIView):
                     if 'pull_request' in issue:
                         continue  # Github returns both issues and pull requests from this endpoint
                     issue_info = {}
-                    for key in ISSUE_FIELDS:
+                    for key in github.ISSUE_FIELDS:
                         if key == 'repository':
-                            issue_info[key] = extract_repo_info(issue[key])
+                            issue_info[key] = github.extract_repo_info(issue[key])
                         else:
                             issue_info[key] = issue[key]
                     issues.append(issue_info)

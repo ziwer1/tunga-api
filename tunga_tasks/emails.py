@@ -8,12 +8,11 @@ from django_rq.decorators import job
 
 from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
 from tunga_auth.filterbackends import my_connections_q_filter
-from tunga_auth.models import USER_TYPE_DEVELOPER
+from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM
 from tunga_settings import slugs as settings_slugs
-from tunga_settings.models import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM
 from tunga_settings.utils import check_switch_setting
 from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport
-from tunga_utils.decorators import clean_instance
+from tunga_utils.helpers import clean_instance
 from tunga_utils.emails import send_mail
 
 

@@ -5,14 +5,17 @@ from dateutil.relativedelta import relativedelta
 from django.db.models.aggregates import Min, Max
 from django_rq.decorators import job
 
-from tunga_profiles.models import PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_BTC_WALLET, \
-    BTC_WALLET_PROVIDER_COINBASE, ClientNumber
-from tunga_tasks.models import ProgressEvent, PROGRESS_EVENT_TYPE_SUBMIT, PROGRESS_EVENT_TYPE_PERIODIC, \
-    UPDATE_SCHEDULE_ANNUALLY, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, UPDATE_SCHEDULE_WEEKLY, \
-    UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, Task, ParticipantPayment, \
-    PAYMENT_STATUS_PROCESSING, TaskInvoice, PAYMENT_STATUS_PENDING
-from tunga_utils import bitcoin_utils, coinbase_utils
-from tunga_utils.decorators import clean_instance
+from tunga.settings import BITPESA_SENDER
+from tunga_profiles.models import ClientNumber
+from tunga_tasks.models import ProgressEvent, Task, ParticipantPayment, \
+    TaskInvoice
+from tunga_utils import bitcoin_utils, coinbase_utils, bitpesa
+from tunga_utils.constants import CURRENCY_BTC, PAYMENT_METHOD_BTC_WALLET, \
+    PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, \
+    UPDATE_SCHEDULE_WEEKLY, UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, UPDATE_SCHEDULE_ANNUALLY, \
+    PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_SUBMIT, PAYMENT_STATUS_PENDING, PAYMENT_STATUS_PROCESSING, \
+    PAYMENT_STATUS_INITIATED
+from tunga_utils.helpers import clean_instance
 
 
 @job
@@ -62,7 +65,7 @@ def update_task_periodic_updates(task):
             if period_info:
                 unit = isinstance(period_info, dict) and period_info.keys()[0] or period_info
                 multiplier = isinstance(period_info, dict) and period_info.values()[0] or 1
-                delta = {unit: multiplier*task.update_interval_units}
+                delta = {unit: multiplier * task.update_interval_units}
                 last_update_at = periodic_start_date
                 while True:
                     next_update_at = last_update_at + relativedelta(**delta)
@@ -96,29 +99,60 @@ def distribute_task_payment(task):
             participant = item['participant']
             share = item['share']
             portion_sent = False
-            destination_address = get_btc_payment_destination_address(participant.user)
-            if not destination_address:
+
+            if not participant.user:
                 continue
 
             participant_pay, created = ParticipantPayment.objects.get_or_create(
-                source=payment, participant=participant, defaults={'destination': destination_address}
+                source=payment, participant=participant
             )
             if created or (participant_pay and participant_pay.status == PAYMENT_STATUS_PENDING):
-                transaction = send_payment_share(
-                    destination=destination_address,
-                    amount=get_share_amount(share, payment.btc_received),
-                    idem=str(participant_pay.idem_key),
-                    description='%s - %s' % (pay_description, participant.user.display_name)
-                )
-                if transaction.status not in [
-                    coinbase_utils.TRANSACTION_STATUS_FAILED, coinbase_utils.TRANSACTION_STATUS_EXPIRED,
-                    coinbase_utils.TRANSACTION_STATUS_CANCELED
-                ]:
-                    participant_pay.ref = transaction.id
-                    participant_pay.btc_sent = abs(Decimal(transaction.amount.amount))
-                    participant_pay.status = PAYMENT_STATUS_PROCESSING
-                    participant_pay.save()
-                    portion_sent = True
+                payment_method = participant.user.payment_method
+                if payment_method in [PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_BTC_WALLET]:
+                    if not bitcoin_utils.is_valid_btc_address(participant_pay.destination):
+                        participant_pay.destination = participant.user.btc_address
+                    transaction = send_payment_share(
+                        destination=participant_pay.destination,
+                        amount=Decimal(share)*payment.btc_received,
+                        idem=str(participant_pay.idem_key),
+                        description='%s - %s' % (pay_description, participant.user.display_name)
+                    )
+                    if transaction.status not in [
+                        coinbase_utils.TRANSACTION_STATUS_FAILED, coinbase_utils.TRANSACTION_STATUS_EXPIRED,
+                        coinbase_utils.TRANSACTION_STATUS_CANCELED
+                    ]:
+                        participant_pay.ref = transaction.id
+                        participant_pay.btc_sent = abs(Decimal(transaction.amount.amount))
+                        participant_pay.status = PAYMENT_STATUS_PROCESSING
+                        participant_pay.save()
+                        portion_sent = True
+                elif payment_method == PAYMENT_METHOD_MOBILE_MONEY:
+                    share_amount = Decimal(share)*payment.btc_received
+                    recipients = [
+                        {
+                            bitpesa.KEY_REQUESTED_AMOUNT: bitpesa.get_pay_out_amount(
+                                share_amount, participant.user.mobile_money_cc
+                            ),
+                            bitpesa.KEY_REQUESTED_CURRENCY: CURRENCY_BTC,
+                            bitpesa.KEY_PAYOUT_METHOD: {
+                                bitpesa.KEY_TYPE: bitpesa.get_pay_out_method(participant.user.mobile_money_cc),
+                                bitpesa.KEY_DETAILS: {
+                                    bitpesa.KEY_FIRST_NAME: participant.user.first_name,
+                                    bitpesa.KEY_LAST_NAME: participant.user.last_name,
+                                    bitpesa.KEY_PHONE_NUMBER: participant.user.mobile_money_number
+                                }
+                            }
+                        }
+                    ]
+                    transaction = bitpesa.create_transaction(
+                        BITPESA_SENDER, recipients, input_currency=CURRENCY_BTC,
+                        transaction_id=participant_pay.id, nonce=participant_pay.idem_key
+                    )
+                    if transaction:
+                        participant_pay.ref = transaction.get(bitpesa.KEY_ID, None)
+                        participant_pay.status = PAYMENT_STATUS_INITIATED
+                        participant_pay.save()
+
             portion_distribution.append(portion_sent)
         if portion_distribution and False not in portion_distribution:
             payment.processed = True
@@ -131,44 +165,13 @@ def distribute_task_payment(task):
         task.save()
 
 
-def get_user_payment_method(user):
-    user_profile = user.profile
-    if not user_profile:
-        return None
-    return user_profile.payment_method
-
-
-def get_btc_payment_destination_address(user):
-    user_profile = user.profile
-    if not user_profile:
-        return None
-
-    if user_profile.payment_method == PAYMENT_METHOD_BTC_ADDRESS:
-        if bitcoin_utils.is_valid_btc_address(user_profile.btc_address):
-            return user_profile.btc_address
-    elif user_profile.payment_method == PAYMENT_METHOD_BTC_WALLET:
-        wallet = user_profile.btc_wallet
-        if wallet.provider == BTC_WALLET_PROVIDER_COINBASE:
-            client = coinbase_utils.get_oauth_client(wallet.token, wallet.token_secret, user)
-            return coinbase_utils.get_new_address(client)
-    return None
-
-
-def get_share_amount(share, total):
-    return Decimal(share)*total
-
-
-def get_btc_amount(amount):
-    return '{0:.6f}'.format(amount)
-
-
 def send_payment_share(destination, amount, idem, description=None):
     client = coinbase_utils.get_api_client()
     account = client.get_primary_account()
     transaction = account.send_money(
         to=destination,
-        amount=get_btc_amount(amount),
-        currency="BTC",
+        amount=bitcoin_utils.get_valid_btc_amount(amount),
+        currency=CURRENCY_BTC,
         idem=idem,
         description=description
     )

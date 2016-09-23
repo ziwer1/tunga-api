@@ -3,7 +3,7 @@ from allauth.exceptions import ImmediateHttpResponse
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.shortcuts import redirect
 
-from tunga_auth.models import USER_TYPE_DEVELOPER
+from tunga_utils.constants import USER_TYPE_DEVELOPER
 from tunga_utils.views import get_session_user_type
 
 

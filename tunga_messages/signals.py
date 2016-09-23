@@ -3,7 +3,8 @@ from django.db.models.signals import post_save
 from django.dispatch.dispatcher import receiver
 
 from tunga_activity import verbs
-from tunga_messages.models import Message, Channel, CHANNEL_TYPE_DIRECT, ChannelUser
+from tunga_messages.models import Message, Channel, ChannelUser
+from tunga_utils.constants import CHANNEL_TYPE_DIRECT
 from tunga_messages.tasks import clean_direct_channel
 
 

@@ -4,10 +4,7 @@ import tagulous
 from django.db import models
 
 from tunga import settings
-
-VISIBILITY_ALL = 'all'
-VISIBILITY_DEVELOPERS = 'developers'
-VISIBILITY_PROJECT_OWNERS = 'project-owners'
+from tunga_utils.constants import VISIBILITY_ALL, VISIBILITY_DEVELOPERS, VISIBILITY_PROJECT_OWNERS
 
 VISIBILITY_CHOICES = (
     (VISIBILITY_ALL, 'Everyone'),

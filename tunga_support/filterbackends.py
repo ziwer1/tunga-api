@@ -1,6 +1,6 @@
 from dry_rest_permissions.generics import DRYPermissionFiltersBase
 
-from tunga_support.models import VISIBILITY_DEVELOPERS, VISIBILITY_PROJECT_OWNERS, VISIBILITY_ALL
+from tunga_utils.constants import VISIBILITY_ALL, VISIBILITY_DEVELOPERS, VISIBILITY_PROJECT_OWNERS
 from tunga_utils.filterbackends import dont_filter_staff_or_superuser
 
 
