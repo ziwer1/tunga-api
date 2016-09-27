@@ -365,8 +365,9 @@ SLACK_ACCESS_TOKEN_URL = 'https://slack.com/api/oauth.access'
 SLACK_AUTHORIZE_URL = 'https://slack.com/oauth/authorize'
 SLACK_SCOPES = ['incoming-webhook']
 
-SLACK_ATTACHMENT_COLOR_TUNGA = '#ee1f54'
+SLACK_ATTACHMENT_COLOR_TUNGA = '#EE1F54'
 SLACK_ATTACHMENT_COLOR_GREEN = '#4CAF50'
+SLACK_ATTACHMENT_COLOR_RED = '#FF0000'
 
 TUNGA_ICON_URL_150 = 'https://tunga.io/icons/Tunga_iconx150.png'
 

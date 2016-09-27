@@ -43,15 +43,16 @@ def notify_new_message_slack(instance):
     instance = clean_instance(instance, Message)
     if instance.channel.type == CHANNEL_TYPE_SUPPORT and instance.source != APP_INTEGRATION_PROVIDER_SLACK:
         channel_url = '%s/channel/%s/' % (TUNGA_URL, instance.channel_id)
+        summary = "New message from %s" % instance.sender.short_name
         message_details = {
-            slack_utils.KEY_PRETEXT: "New message from %s" % instance.sender.short_name,
+            slack_utils.KEY_PRETEXT: summary,
             slack_utils.KEY_AUTHOR_NAME: instance.sender.display_name,
             slack_utils.KEY_TEXT: '%s\n\n<%s|View on Tunga>' % (instance.text_body, channel_url),
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT, slack_utils.KEY_FOOTER],
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN,
             slack_utils.KEY_FOOTER: 'Tunga | Type C%s <your reply here>' % instance.channel_id,
             slack_utils.KEY_FOOTER_ICON: TUNGA_ICON_URL_150,
-            slack_utils.KEY_FALLBACK: "New message from %s: %s" % (instance.sender.short_name, instance.text_body),
+            slack_utils.KEY_FALLBACK: summary,
         }
         if instance.channel.subject:
             message_details[slack_utils.KEY_TITLE] = instance.channel.subject

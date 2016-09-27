@@ -15,7 +15,7 @@ from dry_rest_permissions.generics import allow_staff_or_superuser
 from tunga import settings
 from tunga_profiles.models import Connection, Inquirer
 from tunga_utils.constants import CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_SUPPORT
-from tunga_utils.helpers import GenericObject
+from tunga_utils.helpers import GenericObject, convert_to_text, convert_to_html
 from tunga_utils.models import Upload
 
 
@@ -213,11 +213,11 @@ class Message(models.Model):
 
     @property
     def text_body(self):
-        return strip_tags(re.sub(r'<br\s*/>', '\n', self.body, flags=re.IGNORECASE))
+        return convert_to_text(self.body)
 
     @property
     def html_body(self):
-        return re.sub(r'(<br\s*/>)?\n', '<br/>', self.body, flags=re.IGNORECASE)
+        return convert_to_html(self.body)
 
     def get_alt_user(self):
         if not self.alt_user:

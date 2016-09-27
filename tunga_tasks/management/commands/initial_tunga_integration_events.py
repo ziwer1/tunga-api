@@ -24,13 +24,10 @@ class Command(BaseCommand):
             {'id': slugs.EVENT_ISSUE_COMMENT, 'name': 'Issue comments'},
             {'id': slugs.EVENT_WIKI, 'name': 'Wiki updates'},
 
-            # Chat Events
-            {'id': slugs.EVENT_COMMENT, 'name': 'Comments'},
-            {'id': slugs.EVENT_UPLOAD, 'name': 'Uploads'},
-
             # Task Activity
-            {'id': slugs.EVENT_TASK_TASK_APPLY_OR_ACCEPT, 'name': 'Developer applies or accepts task'},
-            {'id': slugs.EVENT_PROGRESS_REPORT, 'name': 'Progress reports'}
+            {'id': slugs.EVENT_COMMUNICATION, 'name': 'Comments and files uploads'},
+            {'id': slugs.EVENT_APPLICATION, 'name': 'Developer applications and invitations'},
+            {'id': slugs.EVENT_PROGRESS, 'name': 'Progress reports and milestone updates'}
         ]
 
         for event in events:

@@ -16,7 +16,7 @@ def notify_new_comment_slack(instance):
         return
 
     task = instance.content_object
-    if not slack_utils.is_task_notification_enabled(task, slugs.EVENT_COMMENT):
+    if not slack_utils.is_task_notification_enabled(task, slugs.EVENT_COMMUNICATION):
         return
 
     webhook_url = slack_utils.get_webhook_url(task.user)

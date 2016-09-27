@@ -12,7 +12,7 @@ from tunga.settings import TUNGA_SHARE_PERCENTAGE
 from tunga_auth.serializers import UserSerializer
 from tunga_profiles.utils import profile_check
 from tunga_tasks import slugs
-from tunga_tasks.emails import send_new_task_email
+from tunga_tasks.notifications import send_new_task_email
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, ProgressEvent, ProgressReport, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
     TaskInvoice

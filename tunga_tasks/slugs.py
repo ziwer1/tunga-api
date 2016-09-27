@@ -9,10 +9,9 @@ EVENT_ISSUE_COMMENT = 'issue_comment'
 EVENT_WIKI = 'wiki'
 EVENT_RELEASE = 'release'
 
-EVENT_COMMENT = 'comment'
-EVENT_UPLOAD = 'upload'
-EVENT_PROGRESS_REPORT = 'progress_report'
-EVENT_TASK_TASK_APPLY_OR_ACCEPT = 'task_apply_or_accept'
+EVENT_COMMUNICATION = 'communication'
+EVENT_PROGRESS = 'progress'
+EVENT_APPLICATION = 'application'
 
 ACTION_CREATED = 'created'
 ACTION_DELETED = 'deleted'

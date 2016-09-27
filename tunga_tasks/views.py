@@ -31,7 +31,7 @@ from tunga_activity.models import ActivityReadLog
 from tunga_activity.serializers import SimpleActivitySerializer, LastReadActivitySerializer
 from tunga_profiles.models import DeveloperNumber
 from tunga_tasks import slugs
-from tunga_tasks.emails import send_task_invoice_request_email
+from tunga_tasks.notifications import send_task_invoice_request_email
 from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBackend, ParticipationFilterBackend, \
     TaskRequestFilterBackend, SavedTaskFilterBackend, ProjectFilterBackend, ProgressReportFilterBackend, \
     ProgressEventFilterBackend

@@ -11,6 +11,7 @@ from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
+from tunga_utils.helpers import convert_to_text, convert_to_html
 from tunga_utils.models import Upload
 
 
@@ -51,8 +52,8 @@ class Comment(models.Model):
 
     @property
     def text_body(self):
-        return strip_tags(re.sub(r'<br\s*/>', '\n', self.body, flags=re.IGNORECASE))
+        return convert_to_text(self.body)
 
     @property
     def html_body(self):
-        return re.sub(r'(<br\s*/>)?\n', '<br/>', self.body, flags=re.IGNORECASE)
+        return convert_to_html(self.body)

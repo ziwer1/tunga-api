@@ -4,8 +4,8 @@ from django.dispatch.dispatcher import receiver, Signal
 
 from tunga_activity import verbs
 from tunga_messages.tasks import create_channel
-from tunga_tasks.emails import send_new_task_application_email, send_new_task_application_applicant_email, \
-    send_new_task_invitation_email, send_new_task_application_response_email, send_new_task_invitation_response_email, \
+from tunga_tasks.notifications import notify_new_task_application, send_new_task_application_applicant_email, \
+    send_new_task_invitation_email, send_new_task_application_response_email, notify_task_invitation_response, \
     send_task_application_not_selected_email, notify_new_progress_report
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, ProgressEvent, ProgressReport, \
     IntegrationActivity, Integration
@@ -57,7 +57,7 @@ def activity_handler_new_application(sender, instance, created, **kwargs):
             )
 
         # Send email notification to project owner
-        send_new_task_application_email.delay(instance.id)
+        notify_new_task_application.delay(instance.id)
 
         # Send email confirmation to applicant
         send_new_task_application_applicant_email.delay(instance.id)
@@ -92,7 +92,7 @@ def activity_handler_participation_response(sender, participation, **kwargs):
         action.send(
             participation.task.user, verb=status_verb, action_object=participation, target=participation.task
         )
-        send_new_task_invitation_response_email.delay(participation.id)
+        notify_task_invitation_response.delay(participation.id)
 
         if participation.accepted:
             update_task_periodic_updates.delay(participation.task.id)

@@ -1,5 +1,8 @@
+import re
+
 from allauth.socialaccount.models import SocialToken
 from django.http import HttpResponseRedirect
+from django.utils.html import strip_tags
 
 from tunga.settings import SOCIAL_CONNECT_USER_TYPE, SOCIAL_CONNECT_TASK
 from tunga_profiles.models import AppIntegration
@@ -71,3 +74,12 @@ def get_app_integration(user, provider):
         return AppIntegration.objects.filter(user=user, provider=provider).latest('updated_at')
     except AppIntegration.DoesNotExist:
         return None
+
+
+def convert_to_text(body):
+    return strip_tags(re.sub(r'<br\s*/>', '\n', body, flags=re.IGNORECASE))
+
+
+def convert_to_html(body):
+    return re.sub(r'(<br\s*/>)?\n', '<br/>', body, flags=re.IGNORECASE)
+

@@ -4,10 +4,11 @@ from django.contrib.auth import get_user_model
 from django.db.models import When, Case, IntegerField
 from django.db.models.aggregates import Sum
 from django.db.models.expressions import F
+from django.template.defaultfilters import truncatewords
 from django_rq.decorators import job
 
 from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, SLACK_ATTACHMENT_COLOR_TUNGA, \
-    TUNGA_ICON_URL_150, TUNGA_NAME
+    TUNGA_ICON_URL_150, TUNGA_NAME, SLACK_ATTACHMENT_COLOR_RED, SLACK_ATTACHMENT_COLOR_GREEN
 from tunga_auth.filterbackends import my_connections_q_filter
 from tunga_tasks import slugs
 from tunga_utils import slack_utils
@@ -15,7 +16,7 @@ from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VIS
 from tunga_settings import slugs as settings_slugs
 from tunga_settings.utils import check_switch_setting
 from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport
-from tunga_utils.helpers import clean_instance
+from tunga_utils.helpers import clean_instance, convert_to_text
 from tunga_utils.emails import send_mail
 
 
@@ -100,7 +101,13 @@ def send_new_task_invitation_email(instance):
 
 
 @job
-def send_new_task_invitation_response_email(instance):
+def notify_task_invitation_response(instance):
+    notify_task_invitation_response_email(instance)
+    notify_task_invitation_response_slack(instance)
+
+
+@job
+def notify_task_invitation_response_email(instance):
     instance = clean_instance(instance, Participation)
     if not check_switch_setting(instance.task.user, settings_slugs.TASK_INVITATION_RESPONSE_EMAIL):
         return
@@ -118,19 +125,92 @@ def send_new_task_invitation_response_email(instance):
 
 
 @job
-def send_new_task_application_email(instance):
+def notify_task_invitation_response_slack(instance):
+    instance = clean_instance(instance, Participation)
+
+    if not slack_utils.is_task_notification_enabled(instance.task, slugs.EVENT_APPLY):
+        return
+
+    webhook_url = slack_utils.get_webhook_url(instance.task.user)
+    if webhook_url:
+        task_url = '%s/task/%s/' % (TUNGA_URL, instance.task_id)
+        summary = "Task invitation %s by %s %s" % (
+            instance.accepted and 'accepted' or 'rejected', instance.user.short_name,
+            instance.accepted and ':smiley: :fireworks: :+1:' or ':unamused:'
+        )
+        task_description = ''
+        if instance.task.description:
+            task_description = '%s\n\n<%s|View details on Tunga>' % \
+                          (truncatewords(convert_to_text(instance.task.description), 20), task_url)
+        slack_msg = {
+            slack_utils.KEY_ATTACHMENTS: [
+                {
+                    slack_utils.KEY_PRETEXT: summary,
+                    slack_utils.KEY_TITLE: instance.task.summary,
+                    slack_utils.KEY_TITLE_LINK: task_url,
+                    slack_utils.KEY_TEXT: task_description,
+                    slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT, slack_utils.KEY_FOOTER],
+                    slack_utils.KEY_COLOR: instance.accepted and SLACK_ATTACHMENT_COLOR_GREEN or SLACK_ATTACHMENT_COLOR_RED,
+                    slack_utils.KEY_FOOTER: TUNGA_NAME,
+                    slack_utils.KEY_FOOTER_ICON: TUNGA_ICON_URL_150,
+                    slack_utils.KEY_FALLBACK: summary
+                }
+            ]
+        }
+        slack_utils.send_incoming_webhook(webhook_url, slack_msg)
+
+
+@job
+def notify_new_task_application(instance):
+    notify_new_task_application_email(instance)
+    notify_new_task_application_slack(instance)
+
+
+@job
+def notify_new_task_application_email(instance):
     instance = clean_instance(instance, Application)
     if not check_switch_setting(instance.task.user, settings_slugs.NEW_TASK_APPLICATION_EMAIL):
         return
-    subject = "%s New application from %s" % (EMAIL_SUBJECT_PREFIX, instance.user.first_name)
+    subject = "%s New application from %s" % (EMAIL_SUBJECT_PREFIX, instance.user.short_name)
     to = [instance.task.user.email]
     ctx = {
         'owner': instance.task.user,
         'applicant': instance.user,
         'task': instance.task,
-        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.task.id)
+        'task_url': '%s/task/%s/applications/' % (TUNGA_URL, instance.task_id)
     }
     send_mail(subject, 'tunga/email/email_new_task_application', to, ctx)
+
+
+@job
+def notify_new_task_application_slack(instance):
+    instance = clean_instance(instance, Application)
+
+    if not slack_utils.is_task_notification_enabled(instance.task, slugs.EVENT_APPLY):
+        return
+
+    webhook_url = slack_utils.get_webhook_url(instance.task.user)
+    if webhook_url:
+        application_url = '%s/task/%s/applications/' % (TUNGA_URL, instance.task_id)
+        summary = "New application from %s" % instance.user.short_name
+        slack_msg = {
+            slack_utils.KEY_ATTACHMENTS: [
+                {
+                    slack_utils.KEY_PRETEXT: summary,
+                    slack_utils.KEY_AUTHOR_NAME: instance.user.display_name,
+                    slack_utils.KEY_TITLE: instance.task.summary,
+                    slack_utils.KEY_TITLE_LINK: application_url,
+                    slack_utils.KEY_TEXT: '%s\n\n<%s|View details on Tunga>' %
+                                          (truncatewords(convert_to_text(instance.pitch), 20), application_url),
+                    slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT, slack_utils.KEY_FOOTER],
+                    slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_TUNGA,
+                    slack_utils.KEY_FOOTER: TUNGA_NAME,
+                    slack_utils.KEY_FOOTER_ICON: TUNGA_ICON_URL_150,
+                    slack_utils.KEY_FALLBACK: summary
+                }
+            ]
+        }
+        slack_utils.send_incoming_webhook(webhook_url, slack_msg)
 
 
 @job
@@ -234,16 +314,17 @@ def notify_new_progress_report_email(instance):
 def notify_new_progress_report_slack(instance):
     instance = clean_instance(instance, ProgressReport)
 
-    if not slack_utils.is_task_notification_enabled(instance.event.task, slugs.EVENT_PROGRESS_REPORT):
+    if not slack_utils.is_task_notification_enabled(instance.event.task, slugs.EVENT_PROGRESS):
         return
 
     webhook_url = slack_utils.get_webhook_url(instance.event.task.user)
     if webhook_url:
         report_url = '%s/task/%s/event/%s/' % (TUNGA_URL, instance.event.task_id, instance.event_id)
+        summary = "%s submitted a Progress Report" % instance.user.display_name
         slack_msg = {
             slack_utils.KEY_ATTACHMENTS: [
                 {
-                    slack_utils.KEY_PRETEXT: "%s submitted a Progress Report" % instance.user.display_name,
+                    slack_utils.KEY_PRETEXT: summary,
                     slack_utils.KEY_AUTHOR_NAME: instance.user.display_name,
                     slack_utils.KEY_TITLE: instance.event.task.summary,
                     slack_utils.KEY_TITLE_LINK: report_url,
@@ -254,7 +335,8 @@ def notify_new_progress_report_slack(instance):
                     slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT, slack_utils.KEY_FOOTER],
                     slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_TUNGA,
                     slack_utils.KEY_FOOTER: TUNGA_NAME,
-                    slack_utils.KEY_FOOTER_ICON: TUNGA_ICON_URL_150
+                    slack_utils.KEY_FOOTER_ICON: TUNGA_ICON_URL_150,
+                    slack_utils.KEY_FALLBACK: summary
                 }
             ]
         }
