@@ -1,5 +1,8 @@
 from __future__ import unicode_literals
 
+import json
+import re
+
 from actstream.models import Action
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
@@ -10,28 +13,16 @@ from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
-from tunga_profiles.models import Connection
-from tunga_utils.constants import CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC
+from tunga_profiles.models import Connection, Inquirer
+from tunga_utils.constants import CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_SUPPORT
+from tunga_utils.helpers import GenericObject
 from tunga_utils.models import Upload
-
-
-class Attachment(models.Model):
-    file = models.FileField(verbose_name='Attachment', upload_to='attachments/%Y/%m/%d')
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name=_('content type'))
-    object_id = models.PositiveIntegerField()
-    content_object = GenericForeignKey('content_type', 'object_id')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __unicode__(self):
-        return self.file.name
-
-    class Meta:
-        ordering = ['-created_at']
 
 
 CHANNEL_TYPE_CHOICES = (
     (CHANNEL_TYPE_DIRECT, 'Direct Channel'),
-    (CHANNEL_TYPE_TOPIC, 'Topic Channel')
+    (CHANNEL_TYPE_TOPIC, 'Topic Channel'),
+    (CHANNEL_TYPE_SUPPORT, 'Support Channel')
 )
 
 
@@ -44,8 +35,12 @@ class Channel(models.Model):
         choices=CHANNEL_TYPE_CHOICES, default=CHANNEL_TYPE_TOPIC,
         help_text=','.join(['%s - %s' % (item[0], item[1]) for item in CHANNEL_TYPE_CHOICES])
     )
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='channels_created', on_delete=models.DO_NOTHING)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='channels_created', on_delete=models.DO_NOTHING,
+        blank=True, null=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+
     # The object of the channel, nullable for pure messages
     content_type = models.ForeignKey(
         ContentType, on_delete=models.CASCADE, verbose_name=_('content type'), blank=True, null=True
@@ -62,13 +57,32 @@ class Channel(models.Model):
     )
 
     def __unicode__(self):
-        return '{0} - {1}'.format(self.get_type_display(), self.subject or self.created_by)
+        return '{0} - {1}'.format(self.get_type_display(), self.subject or self.created_by or self.id)
 
     class Meta:
         ordering = ['-created_at']
 
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return True
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_list_permission(request):
+        return request.user.is_authenticated()
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.is_authenticated()
+
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):
+        if self.type == CHANNEL_TYPE_SUPPORT:
+            return True
+        elif not request.user.is_authenticated():
+            return False
         if self.has_object_write_permission(request):
             return True
         return self.channeluser_set.filter(user=request.user).count()
@@ -95,7 +109,26 @@ class Channel(models.Model):
                 return user.display_name
         elif self.subject:
             return self.subject
-        return self
+        elif self.type == CHANNEL_TYPE_SUPPORT:
+            try:
+                return 'Help: %s' % self.content_object.name
+            except:
+                pass
+        return str(self)
+
+    def get_inquirer(self):
+        if self.type == CHANNEL_TYPE_SUPPORT:
+            return self.content_object
+        return None
+
+    def get_alt_subject(self):
+        if self.subject:
+            return self.subject
+        if self.type == CHANNEL_TYPE_SUPPORT:
+            inquirer = self.get_inquirer()
+            if inquirer:
+                return 'Help: %s' % inquirer.name
+        return None
 
 
 class ChannelUser(models.Model):
@@ -113,10 +146,16 @@ class ChannelUser(models.Model):
 
 
 class Message(models.Model):
-    channel = models.ForeignKey(Channel, on_delete=models.CASCADE, blank=True, null=True, related_name='messages')
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='messages')
+    channel = models.ForeignKey(Channel, on_delete=models.CASCADE, related_name='messages')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='messages',
+        blank=True, null=True
+    )
     body = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    alt_user = models.TextField(blank=True, null=True)
+    source = models.CharField(max_length=50, blank=True, null=True)
+    extra = models.TextField(blank=True, null=True)
 
     attachments = GenericRelation(Upload, related_query_name='messages')
     activity_objects = GenericRelation(
@@ -127,21 +166,89 @@ class Message(models.Model):
     )
 
     def __unicode__(self):
-        return '%s - %s' % (self.user.get_short_name() or self.user.username, self.body)
+        return '%s - %s' % (self.user and self.user.get_short_name() or 'Anonymous', self.body)
 
     class Meta:
         ordering = ['-created_at']
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return True
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_list_permission(request):
+        return request.user.is_authenticated()
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.is_authenticated()
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_create_permission(request):
+        return True
 
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):
         if self.has_object_write_permission(request):
             return True
+        elif not request.user.is_authenticated():
+            return False
         return self.channel.channeluser_set.filter(user=request.user).count()
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
+        if self.channel and self.channel.type == CHANNEL_TYPE_SUPPORT:
+            return True
+        elif not request.user.is_authenticated():
+            return False
         return request.user == self.user
 
     @property
     def excerpt(self):
         return strip_tags(self.body)
+
+    @property
+    def text_body(self):
+        return strip_tags(re.sub(r'<br\s*/>', '\n', self.body, flags=re.IGNORECASE))
+
+    @property
+    def html_body(self):
+        return re.sub(r'(<br\s*/>)?\n', '<br/>', self.body, flags=re.IGNORECASE)
+
+    def get_alt_user(self):
+        if not self.alt_user:
+            return None
+        try:
+            user = GenericObject(**json.loads(self.alt_user))
+            user.display_name = user.name.title()
+            user.short_name = user.name.title()
+            return user
+        except:
+            return None
+
+    @property
+    def inquirer(self):
+        return self.channel.content_object
+
+    @property
+    def sender(self):
+        if self.user:
+            return self.user
+        alt_user = self.get_alt_user()
+        if alt_user:
+            return alt_user
+        inquirer = self.inquirer
+        if inquirer:
+            return GenericObject(**dict(
+                id='inquirer#%s' % inquirer.id,
+                name=inquirer.name,
+                display_name=inquirer.name.title(),
+                short_name=inquirer.name.title(),
+                email=inquirer.email,
+                inquirer=True
+            ))
+        return GenericObject()

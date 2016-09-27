@@ -649,7 +649,8 @@ class Integration(models.Model):
     provider = models.CharField(max_length=30, choices=providers.registry.as_choices())
     type = models.PositiveSmallIntegerField(
         choices=INTEGRATION_TYPE_CHOICES,
-        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in INTEGRATION_TYPE_CHOICES])
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in INTEGRATION_TYPE_CHOICES]),
+        blank=True, null=True
     )
     events = models.ManyToManyField(IntegrationEvent, related_name='integrations')
     secret = models.CharField(max_length=30, default=get_random_string)

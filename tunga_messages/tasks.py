@@ -6,7 +6,7 @@ from tunga_utils.helpers import clean_instance
 
 
 def create_channel(
-        initiator, participants, subject=None, messages=None, content_object=None,
+        initiator, participants=None, subject=None, messages=None, content_object=None,
         channel_type=CHANNEL_TYPE_TOPIC):
     channel = Channel.objects.create(
         subject=subject, created_by=initiator, type=channel_type, content_object=content_object

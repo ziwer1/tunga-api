@@ -11,7 +11,7 @@ from tunga import settings
 from tunga_profiles.validators import validate_email
 from tunga_utils.constants import REQUEST_STATUS_INITIAL, REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED, \
     BTC_WALLET_PROVIDER_COINBASE, PAYMENT_METHOD_BTC_WALLET, PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, \
-    COUNTRY_CODE_UGANDA, COUNTRY_CODE_TANZANIA, COUNTRY_CODE_NIGERIA
+    COUNTRY_CODE_UGANDA, COUNTRY_CODE_TANZANIA, COUNTRY_CODE_NIGERIA, APP_INTEGRATION_PROVIDER_SLACK
 from tunga_utils.models import AbstractExperience
 from tunga_utils.validators import validate_btc_address
 
@@ -59,6 +59,35 @@ class BTCWallet(models.Model):
     class Meta:
         unique_together = ('user', 'provider')
         verbose_name = 'bitcoin wallet'
+
+    def __unicode__(self):
+        return '%s - %s' % (self.user.get_short_name(), self.get_provider_display())
+
+
+APP_INTEGRATION_PROVIDER_CHOICES = (
+    (APP_INTEGRATION_PROVIDER_SLACK, 'Slack'),
+)
+
+
+class AppIntegration(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    provider = models.CharField(
+        max_length=30, choices=APP_INTEGRATION_PROVIDER_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in APP_INTEGRATION_PROVIDER_CHOICES])
+    )
+    token = models.TextField(verbose_name='token', help_text='"oauth_token" (OAuth1) or access token (OAuth2)')
+    token_secret = models.TextField(
+        blank=True, verbose_name='token secret',
+        help_text='"oauth_token_secret" (OAuth1) or refresh token (OAuth2)'
+    )
+    extra = models.TextField(blank=True, null=True)  # JSON formatted extra details
+    expires_at = models.DateTimeField(blank=True, null=True, verbose_name='expires at')
+    updated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'provider')
+        verbose_name = 'app integration'
+        verbose_name_plural = 'app integrations'
 
     def __unicode__(self):
         return '%s - %s' % (self.user.get_short_name(), self.get_provider_display())
@@ -122,53 +151,6 @@ class UserProfile(models.Model):
     @property
     def country_name(self):
         return self.country.name
-
-    @allow_staff_or_superuser
-    def has_object_read_permission(self, request):
-        return True
-
-    @allow_staff_or_superuser
-    def has_object_write_permission(self, request):
-        return request.user == self.user
-
-
-class SocialPlatform(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    url_prefix = models.CharField(max_length=200, blank=True, null=True)
-    placeholder = models.CharField(max_length=100, blank=True, null=True)
-    icon = models.URLField(blank=True, null=True)
-    fa_icon = models.CharField(max_length=20, blank=True, null=True)
-    glyphicon = models.CharField(max_length=20, blank=True, null=True)
-    created_by = models.ForeignKey(
-            settings.AUTH_USER_MODEL, related_name='social_platforms_created', on_delete=models.DO_NOTHING)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __unicode__(self):
-        return self.name
-
-    @staticmethod
-    @allow_staff_or_superuser
-    def has_read_permission(request):
-        return False
-
-    @staticmethod
-    @allow_staff_or_superuser
-    def has_write_permission(request):
-        return False
-
-
-class SocialLink(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    platform = models.ForeignKey(SocialPlatform)
-    link = models.URLField(blank=True, null=True)
-    username = models.CharField(max_length=100, blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __unicode__(self):
-        return '%s -  %s' % (self.user.get_short_name(), self.platform)
-
-    class Meta:
-        unique_together = ('user', 'platform')
 
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):
@@ -295,3 +277,15 @@ class DeveloperNumber(UserNumber):
     Helper table for generating developer numbers in a sequence
     """
     pass
+
+
+class Inquirer(models.Model):
+    name = models.CharField(max_length=50)
+    email = models.EmailField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __unicode__(self):
+        return '%s (%s)' % (self.name, self.email or self.id)
+
+    class Meta:
+        ordering = ['-created_at']

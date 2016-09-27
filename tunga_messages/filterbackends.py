@@ -42,10 +42,14 @@ def new_messages_filter(queryset, user):
 class ChannelFilterBackend(DRYPermissionFiltersBase):
 
     def filter_list_queryset(self, request, queryset, view):
-        return queryset.filter(channeluser__user=request.user)
+        if request.user.is_authenticated():
+            return queryset.filter(channeluser__user=request.user)
+        return queryset.none()
 
 
 class MessageFilterBackend(DRYPermissionFiltersBase):
 
     def filter_list_queryset(self, request, queryset, view):
-        return queryset.filter(all_messages_q_filter(request.user)).distinct()
+        if request.user.is_authenticated():
+            return queryset.filter(all_messages_q_filter(request.user)).distinct()
+        return queryset.none()

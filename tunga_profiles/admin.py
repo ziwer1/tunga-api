@@ -1,9 +1,8 @@
 from django.contrib import admin
 
 from tunga_profiles.emails import send_developer_accepted_email
-from tunga_profiles.models import SocialPlatform, SocialLink, Education, Work, Connection, \
-    DeveloperApplication, BTCWallet, UserProfile
-from tunga_utils.admin import AdminAutoCreatedBy
+from tunga_profiles.models import Education, Work, Connection, \
+    DeveloperApplication, BTCWallet, UserProfile, AppIntegration
 from tunga_utils.constants import REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED
 
 
@@ -18,14 +17,10 @@ class BTCWalletAdmin(admin.ModelAdmin):
     list_filter = ('provider',)
 
 
-@admin.register(SocialPlatform)
-class SocialPlatformAdmin(AdminAutoCreatedBy):
-    pass
-
-
-@admin.register(SocialLink)
-class SocialLinkAdmin(admin.ModelAdmin):
-    pass
+@admin.register(AppIntegration)
+class AppIntegrationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'provider', 'token', 'token_secret', 'expires_at')
+    list_filter = ('provider',)
 
 
 @admin.register(Education)

@@ -9,7 +9,7 @@ class ChannelFilter(GenericDateFilterSet):
 
     class Meta:
         model = Channel
-        fields = ('user',)
+        fields = ('user', 'type')
 
 
 class MessageFilter(GenericDateFilterSet):

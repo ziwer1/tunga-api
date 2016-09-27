@@ -1,7 +1,9 @@
 from django_countries.serializer_fields import CountryField
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
-from tunga_profiles.models import UserProfile, Education, Work, Connection, SocialPlatform, SocialLink, DeveloperApplication
+from tunga_profiles.models import UserProfile, Education, Work, Connection, DeveloperApplication
+from tunga_utils.constants import PAYMENT_METHOD_MOBILE_MONEY, PAYMENT_METHOD_BTC_ADDRESS
 from tunga_utils.serializers import SimpleProfileSerializer, CreateOnlyCurrentUserDefault, SimpleUserSerializer, AbstractExperienceSerializer, \
     DetailAnnotatedModelSerializer, SimpleBTCWalletSerializer
 
@@ -26,6 +28,20 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
     class Meta:
         model = UserProfile
         details_serializer = ProfileDetailsSerializer
+
+    def validate(self, attrs):
+        payment_method = attrs.get('payment_method', None)
+        if payment_method == PAYMENT_METHOD_MOBILE_MONEY:
+            mobile_money_cc = attrs.get('mobile_money_cc', None)
+            mobile_money_number = attrs.get('mobile_money_number', None)
+            if not mobile_money_cc:
+                raise ValidationError({'mobile_money_cc': 'Enter the country code for your mobile number'})
+            if not mobile_money_number:
+                raise ValidationError({'mobile_money_number': 'Enter your mobile money number'})
+        elif payment_method == PAYMENT_METHOD_BTC_ADDRESS:
+            if not attrs.get('btc_address', None):
+                raise ValidationError({'btc_address': 'Enter a bitcoin address'})
+        return attrs
 
     def create(self, validated_data):
         user_data = self.get_user_data(validated_data)
@@ -81,32 +97,6 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
         if city:
             profile.city = city
             profile.save()
-
-
-class SocialPlatformSerializer(serializers.ModelSerializer):
-    created_by = serializers.HiddenField(required=False, default=CreateOnlyCurrentUserDefault())
-
-    class Meta:
-        model = SocialPlatform
-        exclude = ('created_at',)
-
-
-class SocialLinkDetailsSerializer(DetailAnnotatedModelSerializer):
-    user = SimpleUserSerializer()
-    platform = SocialPlatformSerializer()
-
-    class Meta:
-        model = SocialLink
-        fields = ('user', 'platform')
-
-
-class SocialLinkSerializer(DetailAnnotatedModelSerializer):
-    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
-
-    class Meta:
-        model = SocialLink
-        exclude = ('created_at',)
-        details_serializer = SocialLinkDetailsSerializer
 
 
 class EducationSerializer(AbstractExperienceSerializer):

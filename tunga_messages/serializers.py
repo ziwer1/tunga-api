@@ -21,6 +21,26 @@ class DirectChannelSerializer(serializers.Serializer):
     user = serializers.PrimaryKeyRelatedField(required=True, queryset=get_user_model().objects.all())
 
 
+class SupportChannelSerializer(serializers.Serializer, GetCurrentUserAnnotatedSerializerMixin):
+    name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+    subject = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def validate_name(self, value):
+        current_user = self.get_current_user()
+        if current_user and current_user.is_authenticated():
+            return value
+        if not value:
+            raise ValidationError('Please enter your name')
+        return value
+
+    def validate_subject(self, value):
+        current_user = self.get_current_user()
+        if current_user and current_user.is_authenticated() and not value:
+            raise ValidationError('Please enter a subject for this support request')
+        return value
+
+
 class ChannelDetailsSerializer(serializers.ModelSerializer):
     participants = SimpleUserSerializer(many=True)
 
@@ -39,6 +59,7 @@ class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedS
     user = serializers.SerializerMethodField(read_only=True, required=False)
     new = serializers.SerializerMethodField(read_only=True, required=False)
     last_read = serializers.SerializerMethodField(read_only=True, required=False)
+    alt_subject = serializers.CharField(required=False, read_only=True, source='get_alt_subject')
 
     class Meta:
         model = Channel
@@ -126,13 +147,26 @@ class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedS
         return 0
 
 
+class SenderSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    name = serializers.CharField(required=False)
+    display_name = serializers.CharField()
+    short_name = serializers.CharField()
+    email = serializers.EmailField(required=False)
+    avatar_url = serializers.URLField(required=False)
+    inquirer = serializers.BooleanField(required=False)
+
+
 class MessageSerializer(serializers.ModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
     user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     excerpt = serializers.CharField(required=False, read_only=True)
     attachments = UploadSerializer(read_only=True, required=False, many=True)
+    sender = SenderSerializer(read_only=True, required=False)
+    html_body = serializers.CharField(required=False, read_only=True)
 
     class Meta:
         model = Message
+        exclude = ('alt_user', 'source', 'extra')
         read_only_fields = ('created_at',)
 
 

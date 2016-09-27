@@ -6,8 +6,11 @@ from django.db.models.aggregates import Sum
 from django.db.models.expressions import F
 from django_rq.decorators import job
 
-from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, SLACK_ATTACHMENT_COLOR_TUNGA, \
+    TUNGA_ICON_URL_150, TUNGA_NAME
 from tunga_auth.filterbackends import my_connections_q_filter
+from tunga_tasks import slugs
+from tunga_utils import slack_utils
 from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM
 from tunga_settings import slugs as settings_slugs
 from tunga_settings.utils import check_switch_setting
@@ -207,7 +210,12 @@ def send_progress_event_reminder_email(instance):
 
 
 @job
-def send_new_progress_report_email(instance):
+def notify_new_progress_report(instance):
+    notify_new_progress_report_email(instance)
+    notify_new_progress_report_slack(instance)
+
+@job
+def notify_new_progress_report_email(instance):
     instance = clean_instance(instance, ProgressReport)
     subject = "%s %s submitted a Progress Report" % (EMAIL_SUBJECT_PREFIX, instance.user.display_name)
     if not check_switch_setting(instance.event.task.user, settings_slugs.TASK_ACTIVITY_UPDATE_EMAIL):
@@ -221,6 +229,36 @@ def send_new_progress_report_email(instance):
         'update_url': '%s/task/%s/event/%s/' % (TUNGA_URL, instance.event.task.id, instance.event.id)
     }
     send_mail(subject, 'tunga/email/email_new_progress_report', to, ctx)
+
+@job
+def notify_new_progress_report_slack(instance):
+    instance = clean_instance(instance, ProgressReport)
+
+    if not slack_utils.is_task_notification_enabled(instance.event.task, slugs.EVENT_PROGRESS_REPORT):
+        return
+
+    webhook_url = slack_utils.get_webhook_url(instance.event.task.user)
+    if webhook_url:
+        report_url = '%s/task/%s/event/%s/' % (TUNGA_URL, instance.event.task_id, instance.event_id)
+        slack_msg = {
+            slack_utils.KEY_ATTACHMENTS: [
+                {
+                    slack_utils.KEY_PRETEXT: "%s submitted a Progress Report" % instance.user.display_name,
+                    slack_utils.KEY_AUTHOR_NAME: instance.user.display_name,
+                    slack_utils.KEY_TITLE: instance.event.task.summary,
+                    slack_utils.KEY_TITLE_LINK: report_url,
+                    slack_utils.KEY_TEXT: 'Status: %s'
+                                          '\nPercentage completed: %s%s'
+                                          '\n\n<%s|View details on Tunga>' %
+                                          (instance.get_status_display(), instance.percentage, '%', report_url),
+                    slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT, slack_utils.KEY_FOOTER],
+                    slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_TUNGA,
+                    slack_utils.KEY_FOOTER: TUNGA_NAME,
+                    slack_utils.KEY_FOOTER_ICON: TUNGA_ICON_URL_150
+                }
+            ]
+        }
+        slack_utils.send_incoming_webhook(webhook_url, slack_msg)
 
 
 @job

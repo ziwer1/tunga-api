@@ -33,6 +33,14 @@ class TungaUser(AbstractUser):
         return (self.get_full_name() or self.username).title()
 
     @property
+    def short_name(self):
+        return (self.get_short_name() or self.username).title()
+
+    @property
+    def name(self):
+        return (self.get_full_name() or self.username).title()
+
+    @property
     def display_type(self):
         return self.get_type_display()
 
@@ -43,6 +51,15 @@ class TungaUser(AbstractUser):
     @property
     def is_project_owner(self):
         return self.type == USER_TYPE_PROJECT_OWNER
+
+    @property
+    def avatar_url(self):
+        if self.image:
+            return self.image.url
+        social_accounts = self.socialaccount_set.all()
+        if social_accounts:
+            return social_accounts[0].get_avatar_url()
+        return None
 
     @property
     def profile(self):

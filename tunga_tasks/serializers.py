@@ -710,23 +710,23 @@ class SimpleIntegrationActivitySerializer(ContentTypeAnnotatedModelSerializer):
 
     def get_summary(self, obj):
         event_name = obj.event.id
-        if event_name == slugs.PUSH:
+        if event_name == slugs.EVENT_PUSH:
             return 'pushed new code'
-        elif event_name in [slugs.BRANCH, slugs.TAG, slugs.PULL_REQUEST, slugs.ISSUE, slugs.RELEASE, slugs.WIKI]:
+        elif event_name in [slugs.EVENT_BRANCH, slugs.EVENT_TAG, slugs.EVENT_PULL_REQUEST, slugs.EVENT_ISSUE, slugs.EVENT_RELEASE, slugs.EVENT_WIKI]:
             msg_map = {
-                slugs.BRANCH: 'a branch',
-                slugs.TAG: 'a tag',
-                slugs.PULL_REQUEST: 'a pull request',
-                slugs.ISSUE: 'an issue',
-                slugs.RELEASE: 'a release',
-                slugs.WIKI: 'a wiki'
+                slugs.EVENT_BRANCH: 'a branch',
+                slugs.EVENT_TAG: 'a tag',
+                slugs.EVENT_PULL_REQUEST: 'a pull request',
+                slugs.EVENT_ISSUE: 'an issue',
+                slugs.EVENT_RELEASE: 'a release',
+                slugs.EVENT_WIKI: 'a wiki'
             }
             return '%s %s' % (obj.action, msg_map[event_name])
-        elif event_name in [slugs.COMMIT_COMMENT, slugs.ISSUE_COMMENT, slugs.PULL_REQUEST_COMMENT]:
+        elif event_name in [slugs.EVENT_COMMIT_COMMENT, slugs.EVENT_ISSUE_COMMENT, slugs.EVENT_PULL_REQUEST_COMMENT]:
             msg_map = {
-                slugs.COMMIT_COMMENT: 'a commit',
-                slugs.ISSUE_COMMENT: 'an issue',
-                slugs.PULL_REQUEST_COMMENT: 'a pull request'
+                slugs.EVENT_COMMIT_COMMENT: 'a commit',
+                slugs.EVENT_ISSUE_COMMENT: 'an issue',
+                slugs.EVENT_PULL_REQUEST_COMMENT: 'a pull request'
             }
             return 'commented on %s' % msg_map[event_name]
         return None

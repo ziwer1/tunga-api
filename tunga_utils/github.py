@@ -76,10 +76,10 @@ def transform_to_github_events(events):
     """
     github_events = []
     event_map = {
-        slugs.BRANCH: [EVENT_CREATE, EVENT_DELETE],
-        slugs.TAG: [EVENT_CREATE, EVENT_DELETE],
-        slugs.PULL_REQUEST_COMMENT: EVENT_PULL_REQUEST_REVIEW_COMMENT,
-        slugs.WIKI: EVENT_GOLLUM,
+        slugs.EVENT_BRANCH: [EVENT_CREATE, EVENT_DELETE],
+        slugs.EVENT_TAG: [EVENT_CREATE, EVENT_DELETE],
+        slugs.EVENT_PULL_REQUEST_COMMENT: EVENT_PULL_REQUEST_REVIEW_COMMENT,
+        slugs.EVENT_WIKI: EVENT_GOLLUM,
     }
     if events:
         for tunga_event in events:
@@ -96,10 +96,10 @@ def transform_to_github_events(events):
 
 def transform_to_tunga_event(event):
     event_map = {
-        EVENT_CREATE: slugs.BRANCH,
-        EVENT_DELETE: slugs.BRANCH,
-        EVENT_PULL_REQUEST_REVIEW_COMMENT: slugs.PULL_REQUEST_COMMENT,
-        EVENT_GOLLUM: slugs.WIKI,
+        EVENT_CREATE: slugs.EVENT_BRANCH,
+        EVENT_DELETE: slugs.EVENT_BRANCH,
+        EVENT_PULL_REQUEST_REVIEW_COMMENT: slugs.EVENT_PULL_REQUEST_COMMENT,
+        EVENT_GOLLUM: slugs.EVENT_WIKI,
     }
     return event_map.get(event, event)
 

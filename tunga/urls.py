@@ -22,16 +22,17 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_jwt.views import obtain_jwt_token, refresh_jwt_token, verify_jwt_token
 
 from tunga_activity.views import ActionViewSet
-from tunga_auth.views import VerifyUserView, AccountInfoView, UserViewSet, social_login_view, coinbase_connect_callback
+from tunga_auth.views import VerifyUserView, AccountInfoView, UserViewSet, social_login_view, coinbase_connect_callback, \
+    slack_connect_callback
 from tunga_comments.views import CommentViewSet
-from tunga_messages.views import MessageViewSet, ChannelViewSet
-from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, ConnectionViewSet, SocialLinkViewSet, \
-    NotificationView, CountryListView, DeveloperApplicationViewSet, RepoListView, IssueListView
+from tunga_messages.views import MessageViewSet, ChannelViewSet, slack_customer_notification
+from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, ConnectionViewSet, \
+    NotificationView, CountryListView, DeveloperApplicationViewSet, RepoListView, IssueListView, SlackIntegrationView
 from tunga_settings.views import UserSettingsView
 from tunga_support.views import SupportPageViewSet, SupportSectionViewSet
 from tunga_tasks.views import TaskViewSet, ApplicationViewSet, ParticipationViewSet, TaskRequestViewSet, \
     SavedTaskViewSet, ProjectViewSet, ProgressReportViewSet, ProgressEventViewSet, \
-    coinbase_notification_url, bitpesa_notification_url
+    coinbase_notification, bitpesa_notification
 from tunga_utils.views import SkillViewSet, ContactRequestView
 
 router = DefaultRouter()
@@ -45,7 +46,6 @@ router.register(r'task-request', TaskRequestViewSet)
 router.register(r'saved-task', SavedTaskViewSet)
 router.register(r'progress-event', ProgressEventViewSet)
 router.register(r'progress-report', ProgressReportViewSet)
-router.register(r'me/social-link', SocialLinkViewSet)
 router.register(r'me/education', EducationViewSet)
 router.register(r'me/work', WorkViewSet)
 router.register(r'connection', ConnectionViewSet)
@@ -62,6 +62,7 @@ urlpatterns = [
     url(r'^admin/django-rq/', include('django_rq.urls')),
     url(r'^accounts/social/(?P<provider>\w+)/$', social_login_view, name="social-login-redirect"),
     url(r'^accounts/coinbase/login/callback/$', coinbase_connect_callback, name="coinbase-connect-callback"),
+    url(r'^accounts/slack/connect/callback/$', slack_connect_callback, name="slack-connect-callback"),
     url(r'^accounts/', include('allauth.urls')),
     url(r'api/', include(router.urls)),
     url(r'^api/auth/register/account-confirm-email/(?P<key>\w+)/$', ConfirmEmailView.as_view(),
@@ -77,10 +78,12 @@ urlpatterns = [
     url(r'^api/me/profile/', ProfileView.as_view(), name='profile-info'),
     url(r'^api/me/settings/', UserSettingsView.as_view(), name='user-settings'),
     url(r'^api/me/notification/', NotificationView.as_view(), name='user-notifications'),
-    url(r'^api/me/code/(?P<provider>\w+)/repos/$', RepoListView.as_view(), name="repo-list"),
-    url(r'^api/me/code/(?P<provider>\w+)/issues/$', IssueListView.as_view(), name="issue-list"),
-    url(r'^api/hook/coinbase/$', coinbase_notification_url, name="coinbase-notification"),
-    url(r'^api/hook/bitpesa/$', bitpesa_notification_url, name="bitpesa-notification"),
+    url(r'^api/me/app/(?P<provider>\w+)/repos/$', RepoListView.as_view(), name="repo-list"),
+    url(r'^api/me/app/(?P<provider>\w+)/issues/$', IssueListView.as_view(), name="issue-list"),
+    url(r'^api/me/app/slack/$', SlackIntegrationView.as_view(), name="slack-app"),
+    url(r'^api/hook/coinbase/$', coinbase_notification, name="coinbase-notification"),
+    url(r'^api/hook/bitpesa/$', bitpesa_notification, name="bitpesa-notification"),
+    url(r'^api/hook/slack/customer/$', slack_customer_notification, name="slack-customer-notification"),
     url(r'^api/auth/', include('rest_auth.urls')),
     url(r'api/', include('rest_framework.urls', namespace='rest_framework')),
     url(r'^api/countries/', CountryListView.as_view(), name='countries'),

@@ -1,4 +1,7 @@
+import json
+
 from actstream.models import Action
+from allauth.socialaccount.providers.github.provider import GitHubProvider
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.query_utils import Q
 from django.shortcuts import get_object_or_404
@@ -12,16 +15,15 @@ from rest_framework.response import Response
 from tunga_messages.filterbackends import new_messages_filter
 from tunga_messages.models import Channel
 from tunga_profiles.filterbackends import ConnectionFilterBackend
-from tunga_profiles.filters import EducationFilter, WorkFilter, ConnectionFilter, SocialLinkFilter, \
-    DeveloperApplicationFilter
-from tunga_profiles.models import UserProfile, Education, Work, Connection, SocialLink, DeveloperApplication
+from tunga_profiles.filters import EducationFilter, WorkFilter, ConnectionFilter, DeveloperApplicationFilter
+from tunga_profiles.models import UserProfile, Education, Work, Connection, DeveloperApplication
 from tunga_profiles.permissions import IsAdminOrCreateOnly
 from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, WorkSerializer, ConnectionSerializer, \
-    SocialLinkSerializer, DeveloperApplicationSerializer
+    DeveloperApplicationSerializer
 from tunga_utils import github
-from tunga_utils.constants import USER_TYPE_PROJECT_OWNER
+from tunga_utils.constants import USER_TYPE_PROJECT_OWNER, APP_INTEGRATION_PROVIDER_SLACK
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
-from tunga_utils.views import get_social_token
+from tunga_utils.helpers import get_social_token, get_app_integration
 
 
 class ProfileView(generics.CreateAPIView, generics.RetrieveUpdateDestroyAPIView):
@@ -40,16 +42,6 @@ class ProfileView(generics.CreateAPIView, generics.RetrieveUpdateDestroyAPIView)
             except:
                 pass
         return None
-
-
-class SocialLinkViewSet(viewsets.ModelViewSet):
-    """
-    Social Link Resource
-    """
-    queryset = SocialLink.objects.all()
-    serializer_class = SocialLinkSerializer
-    permission_classes = [IsAuthenticated, DRYObjectPermissions]
-    filter_class = SocialLinkFilter
 
 
 class EducationViewSet(viewsets.ModelViewSet):
@@ -218,7 +210,7 @@ class RepoListView(views.APIView):
         if not social_token:
             return Response({'status': 'Unauthorized'}, status.HTTP_401_UNAUTHORIZED)
 
-        if provider == 'github':
+        if provider == GitHubProvider.id:
             r = github.api(endpoint='/user/repos', method='get', access_token=social_token.token)
             if r.status_code == 200:
                 repos = [github.extract_repo_info(repo) for repo in r.json()]
@@ -238,7 +230,7 @@ class IssueListView(views.APIView):
         if not social_token:
             return Response({'status': 'Unauthorized'}, status.HTTP_401_UNAUTHORIZED)
 
-        if provider == 'github':
+        if provider == GitHubProvider.id:
             r = github.api(endpoint='/user/issues', method='get', params={'filter': 'all'}, access_token=social_token.token)
             if r.status_code == 200:
                 issues = []
@@ -254,4 +246,23 @@ class IssueListView(views.APIView):
                     issues.append(issue_info)
                 return Response(issues)
             return Response(r.json(), r.status_code)
+        return Response({'status': 'Not implemented'}, status.HTTP_501_NOT_IMPLEMENTED)
+
+
+class SlackIntegrationView(views.APIView):
+    """
+    Slack App Integration Info Resource
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        app_integration = get_app_integration(user=request.user, provider=APP_INTEGRATION_PROVIDER_SLACK)
+        if app_integration and app_integration.extra:
+            extra = json.loads(app_integration.extra)
+            details = {
+                'team': {'name': extra.get('team_name')},
+                'incoming_webhook': {'channel': extra.get('incoming_webhook').get('channel')}
+            }
+            return Response(details, status.HTTP_200_OK)
+
         return Response({'status': 'Not implemented'}, status.HTTP_501_NOT_IMPLEMENTED)

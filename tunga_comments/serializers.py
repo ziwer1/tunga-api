@@ -7,8 +7,8 @@ from tunga_utils.serializers import CreateOnlyCurrentUserDefault, UploadSerializ
 class CommentSerializer(serializers.ModelSerializer):
     user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     uploads = UploadSerializer(read_only=True, required=False, many=True)
+    html_body = serializers.CharField(required=False, read_only=True)
 
     class Meta:
         model = Comment
         read_only_fields = ('created_at',)
-

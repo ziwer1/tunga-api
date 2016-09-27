@@ -1,9 +1,12 @@
 from __future__ import unicode_literals
 
+import re
+
 from actstream.models import Action
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.utils.html import strip_tags
 from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
@@ -41,3 +44,15 @@ class Comment(models.Model):
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
         return request.user == self.user
+
+    @property
+    def excerpt(self):
+        return strip_tags(self.body)
+
+    @property
+    def text_body(self):
+        return strip_tags(re.sub(r'<br\s*/>', '\n', self.body, flags=re.IGNORECASE))
+
+    @property
+    def html_body(self):
+        return re.sub(r'(<br\s*/>)?\n', '<br/>', self.body, flags=re.IGNORECASE)

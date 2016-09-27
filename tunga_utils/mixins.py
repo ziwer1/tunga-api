@@ -11,7 +11,9 @@ class GetCurrentUserAnnotatedSerializerMixin(object):
     def get_current_user(self):
         request = self.context.get("request", None)
         if request:
-            return getattr(request, "user", None)
+            user = getattr(request, "user", None)
+            if user and user.is_authenticated():
+                return user
         return None
 
 

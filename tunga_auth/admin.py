@@ -9,7 +9,7 @@ from django.utils.translation import ugettext_lazy as _
 from tunga_auth.forms import TungaUserChangeForm, TungaUserCreationForm
 from tunga_utils.constants import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_profiles.admin import UserProfileInline
-from tunga_utils.views import Echo
+from tunga_utils.helpers import Echo
 
 
 @admin.register(get_user_model())

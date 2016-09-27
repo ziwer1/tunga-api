@@ -1,11 +1,5 @@
-from tunga_profiles.models import Education, Work, Connection, SocialLink, DeveloperApplication
+from tunga_profiles.models import Education, Work, Connection, DeveloperApplication
 from tunga_utils.filters import GenericDateFilterSet
-
-
-class SocialLinkFilter(GenericDateFilterSet):
-    class Meta:
-        model = SocialLink
-        fields = ('user', 'platform')
 
 
 class EducationFilter(GenericDateFilterSet):

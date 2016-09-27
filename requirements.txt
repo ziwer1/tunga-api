@@ -12,7 +12,7 @@ click==6.6                # via rq
 coinbase==2.0.6
 cssselect==0.9.2          # via weasyprint
 django-activity-stream==0.6.2
-django-allauth==0.25.2
+django-allauth==0.27.0
 django-braces==1.9.0      # via django-oauth-toolkit
 django-cors-headers==1.1.0
 django-countries==3.4.1

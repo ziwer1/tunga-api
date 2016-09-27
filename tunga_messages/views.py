@@ -1,11 +1,16 @@
+import json
+import re
+
+import datetime
 from django.db.models.aggregates import Max
 from django.db.models.expressions import Case, When, F
 from django.db.models.fields import DateTimeField
-from dry_rest_permissions.generics import DRYObjectPermissions
+from django.views.decorators.csrf import csrf_exempt
+from dry_rest_permissions.generics import DRYObjectPermissions, DRYPermissions
 from rest_framework import viewsets, status
-from rest_framework.decorators import detail_route, list_route
+from rest_framework.decorators import detail_route, list_route, api_view, permission_classes
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
 from tunga_activity.filters import ActionFilter
@@ -13,8 +18,12 @@ from tunga_activity.serializers import SimpleActivitySerializer, LastReadActivit
 from tunga_messages.filterbackends import MessageFilterBackend, ChannelFilterBackend
 from tunga_messages.filters import MessageFilter, ChannelFilter
 from tunga_messages.models import Message, Channel, ChannelUser
-from tunga_messages.serializers import MessageSerializer, ChannelSerializer, DirectChannelSerializer
-from tunga_messages.tasks import get_or_create_direct_channel
+from tunga_messages.serializers import MessageSerializer, ChannelSerializer, DirectChannelSerializer, \
+    SupportChannelSerializer
+from tunga_messages.tasks import get_or_create_direct_channel, create_channel
+from tunga_profiles.models import Inquirer
+from tunga_utils import slack_utils
+from tunga_utils.constants import CHANNEL_TYPE_SUPPORT, APP_INTEGRATION_PROVIDER_SLACK
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.mixins import SaveUploadsMixin
 from tunga_utils.pagination import LargeResultsSetPagination
@@ -39,7 +48,7 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         output_field=DateTimeField()
     )).order_by('-latest_activity_at')
     serializer_class = ChannelSerializer
-    permission_classes = [IsAuthenticated, DRYObjectPermissions]
+    permission_classes = [DRYPermissions, DRYObjectPermissions]
     filter_class = ChannelFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (ChannelFilterBackend,)
     pagination_class = LargeResultsSetPagination
@@ -71,6 +80,37 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         response_serializer = ChannelSerializer(channel)
         return Response(response_serializer.data)
 
+    @list_route(
+        methods=['post'], url_path='support',
+        permission_classes=[AllowAny], serializer_class=SupportChannelSerializer
+    )
+    def support_channel(self, request):
+        """
+        Gets or creates a direct channel for the current user or customer
+        ---
+        request_serializer: SupportChannelSerializer
+        response_serializer: ChannelSerializer
+        """
+
+        serializer = self.get_serializer(data=request.data)
+        channel = None
+        if serializer.is_valid(raise_exception=True):
+            if request.user.is_authenticated():
+                # Create support channel for logged in user
+                subject = serializer.validated_data['subject']
+                channel = create_channel(request.user, subject=subject, channel_type=CHANNEL_TYPE_SUPPORT)
+            else:
+                name = serializer.validated_data['name']
+                email = serializer.validated_data['email']
+                customer = Inquirer.objects.create(name=name, email=email)
+                channel = Channel.objects.create(type=CHANNEL_TYPE_SUPPORT, content_object=customer)
+        if not channel:
+            return Response(
+                {'status': "Couldn't get or create a support channel"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        response_serializer = ChannelSerializer(channel)
+        return Response(response_serializer.data)
+
     @detail_route(
         methods=['post'], url_path='read',
         permission_classes=[IsAuthenticated], serializer_class=LastReadActivitySerializer
@@ -97,7 +137,7 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
     @detail_route(
         methods=['get'], url_path='activity',
-        permission_classes=[IsAuthenticated],
+        permission_classes=[AllowAny],
         serializer_class=SimpleActivitySerializer,
         filter_class=None,
         filter_backends=DEFAULT_FILTER_BACKENDS,
@@ -113,6 +153,11 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         """
         channel = get_object_or_404(self.get_queryset(), pk=pk)
         self.check_object_permissions(request, channel)
+        if not channel.has_object_read_permission(request):
+            return Response(
+                {'status': 'Unauthorized', 'message': 'No access to this channel'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
 
         queryset = ActionFilter(request.GET, self.filter_queryset(channel.target_actions.all().order_by('-id')))
         page = self.paginate_queryset(queryset)
@@ -130,7 +175,7 @@ class MessageViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
     """
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated, DRYObjectPermissions]
+    permission_classes = [DRYPermissions, DRYObjectPermissions]
     filter_class = MessageFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (MessageFilterBackend,)
     search_fields = ('user__username', 'body',)
@@ -158,3 +203,56 @@ class MessageViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
+
+@csrf_exempt
+@api_view(http_method_names=['POST'])
+@permission_classes([AllowAny])
+def slack_customer_notification(request):
+    payload = request.data
+
+    # Verify that the request came from Slack
+    if not slack_utils.verify_webhook_token(payload.get(slack_utils.KEY_TOKEN, None)):
+        return Response('Unauthorized Request', status=status.HTTP_401_UNAUTHORIZED)
+
+    response = None
+    if payload and not payload.get(slack_utils.KEY_BOT_ID, None):
+        text = payload.get(slack_utils.KEY_TEXT, None)
+        m = re.match(r'^[\*`_~]{0,3}C(?P<id>\d+)[\*`_~]{0,3}(?P<message>.*)', text, re.DOTALL)
+        if m:
+            matches = m.groupdict()
+            message = matches.get('message', '').strip()
+            channel_id = matches.get('id', '')
+            try:
+                slack_user = dict(
+                    id=payload.get(slack_utils.KEY_USER_ID, None),
+                    name=payload.get(slack_utils.KEY_USER_NAME, None),
+                    provider=APP_INTEGRATION_PROVIDER_SLACK
+                )
+                msg_extras = dict(
+                    channel=dict(
+                        id=payload.get(slack_utils.KEY_CHANNEL_ID),
+                        name=payload.get(slack_utils.KEY_CHANNEL_NAME)
+                    ),
+                    team=dict(
+                        id=payload.get(slack_utils.KEY_TEAM_ID),
+                        domain=payload.get(slack_utils.KEY_TEAM_DOMAIN)
+                    ),
+                    timestamp=payload.get(slack_utils.KEY_TS, None)
+                )
+                Message.objects.create(
+                    channel_id=channel_id,
+                    body=message,
+                    alt_user=json.dumps(slack_user),
+                    created_at=datetime.datetime.fromtimestamp(payload.get(slack_utils.KEY_TS, 0)),
+                    source=APP_INTEGRATION_PROVIDER_SLACK,
+                    extra=json.dumps(msg_extras)
+                )
+            except:
+                response = 'Failed to send message\n' \
+                           '> %s\n' \
+                           'Please try again' % message
+        else:
+            response = 'Failed to send message\n' \
+                       '> %s\n' \
+                       'Please add a target and re-send the message' % text
+    return Response({slack_utils.KEY_TEXT: response, slack_utils.KEY_MRKDWN: True})

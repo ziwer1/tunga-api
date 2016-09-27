@@ -19,7 +19,10 @@ class CreateOnlyCurrentUserDefault(serializers.CurrentUserDefault):
         if hasattr(self, 'is_update') and self.is_update:
             # TODO: Make sure this check is sufficient for all update scenarios
             raise SkipField()
-        return super(CreateOnlyCurrentUserDefault, self).__call__()
+        user = super(CreateOnlyCurrentUserDefault, self).__call__()
+        if user.is_authenticated():
+            return user
+        return None
 
 
 class ContentTypeAnnotatedModelSerializer(serializers.ModelSerializer):
@@ -63,13 +66,13 @@ class SimpleBTCWalletSerializer(serializers.ModelSerializer):
 
 class SimpleUserSerializer(serializers.ModelSerializer):
     company = serializers.CharField(read_only=True, required=False, source='userprofile.company')
-    avatar_url = serializers.SerializerMethodField(required=False, read_only=True)
+    #avatar_url = serializers.SerializerMethodField(required=False, read_only=True)
     can_contribute = serializers.SerializerMethodField(required=False, read_only=True)
 
     class Meta:
         model = get_user_model()
         fields = (
-            'id', 'username', 'email', 'first_name', 'last_name', 'display_name', 'type', 'image',
+            'id', 'username', 'email', 'first_name', 'last_name', 'display_name', 'short_name', 'type', 'image',
             'is_developer', 'is_project_owner', 'is_staff', 'verified', 'company', 'avatar_url', 'can_contribute'
         )
 

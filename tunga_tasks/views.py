@@ -3,6 +3,7 @@ import json
 from decimal import Decimal
 from urllib import urlencode, quote_plus
 
+from allauth.socialaccount.providers.github.provider import GitHubProvider
 from dateutil.parser import parse
 from django.contrib.contenttypes.models import ContentType
 from django.http.response import HttpResponse
@@ -47,9 +48,9 @@ from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa
 from tunga_utils.constants import TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BANK, PAYMENT_STATUS_PROCESSING, \
     PAYMENT_STATUS_INITIATED
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
+from tunga_utils.helpers import get_social_token
 from tunga_utils.mixins import SaveUploadsMixin
 from tunga_utils.serializers import InvoiceUserSerializer
-from tunga_utils.views import get_social_token
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -366,57 +367,63 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
             except Integration.DoesNotExist:
                 instance = None
 
-            secret = get_random_string()
             if instance:
                 self.check_object_permissions(request, instance)
-                secret = instance.secret or secret
             else:
                 self.check_permissions(request)
             serializer = self.get_serializer(instance, data=request_data, context={'request': request})
             serializer.is_valid(raise_exception=True)
 
-            data = {
-                'name': 'web',
-                'config': {
-                    'url': '%s://%s/task/%s/hook/%s/' % (request.scheme, request.get_host(), pk, provider),
-                    'content_type': 'json',
-                    'secret': secret
-                },
-                'events': github.transform_to_github_events(request_data['events']),
-                'active': True
-            }
+            if provider == GitHubProvider.id:
+                secret = get_random_string()
+                if instance:
+                    secret = instance.secret or secret
 
-            repo_full_name = None
-            repo = request_data.get('repo', None)
-            if repo:
-                repo_full_name = repo.get('full_name', None)
-            if not repo_full_name and instance:
-                repo_full_name = instance.repo_full_name
+                data = {
+                    'name': 'web',
+                    'config': {
+                        'url': '%s://%s/task/%s/hook/%s/' % (request.scheme, request.get_host(), pk, provider),
+                        'content_type': 'json',
+                        'secret': secret
+                    },
+                    'events': github.transform_to_github_events(request_data['events']),
+                    'active': True
+                }
 
-            if not repo_full_name:
-                return Response({'status': 'Bad Request'}, status.HTTP_400_BAD_REQUEST)
+                repo_full_name = None
+                repo = request_data.get('repo', None)
+                if repo:
+                    repo_full_name = repo.get('full_name', None)
+                if not repo_full_name and instance:
+                    repo_full_name = instance.repo_full_name
 
-            web_hook_endpoint = '/repos/%s/hooks' % repo_full_name
-            hook_method = 'post'
+                if not repo_full_name:
+                    return Response({'status': 'Bad Request'}, status.HTTP_400_BAD_REQUEST)
 
-            if instance and instance.hook_id:
-                web_hook_endpoint += '/%s' % instance.hook_id
-                hook_method = 'patch'
+                web_hook_endpoint = '/repos/%s/hooks' % repo_full_name
+                hook_method = 'post'
 
-            social_token = get_social_token(user=request.user, provider=provider)
-            if not social_token:
-                return Response({'status': 'Unauthorized'}, status.HTTP_401_UNAUTHORIZED)
+                if instance and instance.hook_id:
+                    web_hook_endpoint += '/%s' % instance.hook_id
+                    hook_method = 'patch'
 
-            r = github.api(endpoint=web_hook_endpoint, method=hook_method, data=data, access_token=social_token.token)
-            if r.status_code in [200, 201]:
-                hook = r.json()
-                integration = serializer.save(secret=secret)
-                if 'id' in hook:
-                    IntegrationMeta.objects.update_or_create(
-                            integration=integration, meta_key='hook_id', defaults={'meta_value': hook['id']}
-                    )
+                social_token = get_social_token(user=request.user, provider=provider)
+                if not social_token:
+                    return Response({'status': 'Unauthorized'}, status.HTTP_401_UNAUTHORIZED)
+
+                r = github.api(endpoint=web_hook_endpoint, method=hook_method, data=data, access_token=social_token.token)
+                if r.status_code in [200, 201]:
+                    hook = r.json()
+                    integration = serializer.save(secret=secret)
+                    if 'id' in hook:
+                        IntegrationMeta.objects.update_or_create(
+                                integration=integration, meta_key='hook_id', defaults={'meta_value': hook['id']}
+                        )
+                    return Response(serializer.data)
+                return Response(r.json(), r.status_code)
+            else:
+                serializer.save()
                 return Response(serializer.data)
-            return Response(r.json(), r.status_code)
         else:
             return Response({'status': 'Method not allowed'}, status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -494,7 +501,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                     # Branch and Tag creation and deletion
                     tracked_ref_types = [github.PAYLOAD_REF_TYPE_BRANCH, github.PAYLOAD_REF_TYPE_TAG]
                     if payload[github.PAYLOAD_REF_TYPE] in tracked_ref_types:
-                        activity[slugs.ACTIVITY_EVENT_ID] = payload[github.PAYLOAD_REF_TYPE] == github.PAYLOAD_REF_TYPE_BRANCH and slugs.BRANCH or slugs.TAG
+                        activity[slugs.ACTIVITY_EVENT_ID] = payload[github.PAYLOAD_REF_TYPE] == github.PAYLOAD_REF_TYPE_BRANCH and slugs.EVENT_BRANCH or slugs.EVENT_TAG
                         activity[slugs.ACTIVITY_ACTION] = github_event_name == github.EVENT_CREATE and slugs.ACTION_CREATED or slugs.ACTION_DELETED
                         activity[slugs.ACTIVITY_URL] = '%s/tree/%s' % (
                             payload[github.PAYLOAD_REPOSITORY][github.PAYLOAD_HTML_URL], payload[github.PAYLOAD_REF]
@@ -627,7 +634,7 @@ class ProgressReportViewSet(viewsets.ModelViewSet):
 @csrf_exempt
 @api_view(http_method_names=['POST'])
 @permission_classes([AllowAny])
-def coinbase_notification_url(request):
+def coinbase_notification(request):
     client = coinbase_utils.get_api_client()
 
     # Verify that the request came from coinbase
@@ -664,7 +671,7 @@ def coinbase_notification_url(request):
 @csrf_exempt
 @api_view(http_method_names=['POST'])
 @permission_classes([AllowAny])
-def bitpesa_notification_url(request):
+def bitpesa_notification(request):
     # Verify that the request came from bitpesa
     bp_signature = request.META.get(bitpesa.HEADER_AUTH_SIGNATURE, None)
     bp_nonce = request.META.get(bitpesa.HEADER_AUTH_NONCE, None)

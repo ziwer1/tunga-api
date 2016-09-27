@@ -5,7 +5,7 @@ from django.template.exceptions import TemplateDoesNotExist
 from django.template.loader import render_to_string
 from django_rq.decorators import job
 
-from tunga.settings import DEFAULT_FROM_EMAIL, CONTACT_REQUEST_EMAIL_RECIPIENT, EMAIL_SUBJECT_PREFIX
+from tunga.settings import DEFAULT_FROM_EMAIL, TUNGA_CONTACT_REQUEST_EMAIL_RECIPIENTS, EMAIL_SUBJECT_PREFIX
 from tunga_utils.helpers import clean_instance
 from tunga_utils.models import ContactRequest
 
@@ -42,7 +42,7 @@ def send_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, *
 def send_contact_request_email(instance):
     instance = clean_instance(instance, ContactRequest)
     subject = "%s New Contact Request" % EMAIL_SUBJECT_PREFIX
-    to = [CONTACT_REQUEST_EMAIL_RECIPIENT]
+    to = TUNGA_CONTACT_REQUEST_EMAIL_RECIPIENTS
     ctx = {'email': instance.email}
     if send_mail(subject, 'tunga/email/email_contact_request_message', to, ctx):
         instance.email_sent_at = datetime.datetime.utcnow()

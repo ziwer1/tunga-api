@@ -1,6 +1,11 @@
+import json
 import re
 
 import requests
+from allauth.socialaccount.providers.facebook.provider import FacebookProvider
+from allauth.socialaccount.providers.github.provider import GitHubProvider
+from allauth.socialaccount.providers.google.provider import GoogleProvider
+from allauth.socialaccount.providers.slack.provider import SlackProvider
 from django.contrib.auth import get_user_model
 from django.core.urlresolvers import reverse
 from django.shortcuts import redirect
@@ -8,15 +13,17 @@ from rest_framework import views, status, generics, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from tunga.settings import GITHUB_SCOPES, COINBASE_CLIENT_ID, COINBASE_CLIENT_SECRET
+from tunga.settings import GITHUB_SCOPES, COINBASE_CLIENT_ID, COINBASE_CLIENT_SECRET, SOCIAL_CONNECT_ACTION, SOCIAL_CONNECT_NEXT, SOCIAL_CONNECT_USER_TYPE, SOCIAL_CONNECT_ACTION_REGISTER, \
+    SOCIAL_CONNECT_ACTION_CONNECT, SLACK_CLIENT_ID, SLACK_CLIENT_SECRET, SOCIAL_CONNECT_TASK
 from tunga_auth.filterbackends import UserFilterBackend
 from tunga_auth.filters import UserFilter
 from tunga_auth.serializers import UserSerializer, AccountInfoSerializer
-from tunga_profiles.models import BTCWallet, UserProfile
-from tunga_utils import coinbase_utils
+from tunga_profiles.models import BTCWallet, UserProfile, AppIntegration
+from tunga_utils import coinbase_utils, slack_utils
 from tunga_utils.constants import BTC_WALLET_PROVIDER_COINBASE, PAYMENT_METHOD_BTC_WALLET, USER_TYPE_DEVELOPER, \
-    USER_TYPE_PROJECT_OWNER
+    USER_TYPE_PROJECT_OWNER, APP_INTEGRATION_PROVIDER_SLACK
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
+from tunga_utils.helpers import get_session_task
 from tunga_utils.serializers import SimpleUserSerializer
 
 
@@ -85,32 +92,48 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 def social_login_view(request, provider=None):
-    if provider == BTC_WALLET_PROVIDER_COINBASE:
-        redirect_uri = '%s://%s%s' % (request.scheme, request.get_host(), reverse('coinbase-connect-callback'))
-        return redirect(coinbase_utils.get_authorize_url(redirect_uri))
-    enabled_providers = ['facebook', 'google', 'github']
-    action = request.GET.get('action')
-    next = request.GET.get('next')
+    action = request.GET.get(SOCIAL_CONNECT_ACTION)
+
+    if action == SOCIAL_CONNECT_ACTION_CONNECT:
+        if provider == BTC_WALLET_PROVIDER_COINBASE:
+            redirect_uri = '%s://%s%s' % (request.scheme, request.get_host(), reverse('coinbase-connect-callback'))
+            return redirect(coinbase_utils.get_authorize_url(redirect_uri))
+
+        if provider == APP_INTEGRATION_PROVIDER_SLACK:
+            try:
+                task = int(request.GET.get(SOCIAL_CONNECT_TASK))
+            except:
+                task = None
+
+            if task:
+                request.session[SOCIAL_CONNECT_TASK] = task
+
+            redirect_uri = '%s://%s%s' % (request.scheme, request.get_host(), reverse('slack-connect-callback'))
+            return redirect(slack_utils.get_authorize_url(redirect_uri))
+
+    enabled_providers = [FacebookProvider.id, GoogleProvider.id, GitHubProvider.id, SlackProvider.id]
+    redirect_uri = request.GET.get(SOCIAL_CONNECT_NEXT)
     try:
-        user_type = int(request.GET.get('user_type'))
+        user_type = int(request.GET.get(SOCIAL_CONNECT_USER_TYPE))
     except:
         user_type = None
-    if action == 'register':
+
+    if action == SOCIAL_CONNECT_ACTION_REGISTER:
         if user_type in [USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER]:
-            request.session['user_type'] = user_type
+            request.session[SOCIAL_CONNECT_USER_TYPE] = user_type
         else:
             return redirect('/signup/')
 
     if provider in enabled_providers:
-        next_url = '/accounts/%s/login/' % provider
-        if provider == 'github' and action == 'connect':
+        authorize_url = '/accounts/%s/login/' % provider
+        if provider == GitHubProvider.id and action == SOCIAL_CONNECT_ACTION_CONNECT:
             scope = ','.join(GITHUB_SCOPES)
-            next_url += '?scope=%s&process=connect' % scope
-            if next:
-                next_url += '&next=%s' % next
+            authorize_url += '?scope=%s&process=connect' % scope
+            if redirect_uri:
+                authorize_url += '&next=%s' % redirect_uri
     else:
-        next_url = '/'
-    return redirect(next_url)
+        authorize_url = '/'
+    return redirect(authorize_url)
 
 
 def coinbase_connect_callback(request):
@@ -139,3 +162,25 @@ def coinbase_connect_callback(request):
         })
 
     return redirect('/profile/payment/coinbase/')
+
+
+def slack_connect_callback(request):
+    code = request.GET.get('code', None)
+    redirect_uri = '%s://%s%s' % (request.scheme, request.get_host(), reverse(request.resolver_match.url_name))
+    r = requests.post(url=slack_utils.get_token_url(), data={
+        'code': code,
+        'client_id': SLACK_CLIENT_ID,
+        'client_secret': SLACK_CLIENT_SECRET,
+        'redirect_uri': redirect_uri
+    })
+
+    if r.status_code == 200:
+        response = r.json()
+        defaults = {
+            'token': response['access_token'],
+            'extra': json.dumps(response)
+        }
+        AppIntegration.objects.update_or_create(
+            user=request.user, provider=APP_INTEGRATION_PROVIDER_SLACK, defaults=defaults
+        )
+    return redirect('/task/%s/integrations/slack' % get_session_task(request))

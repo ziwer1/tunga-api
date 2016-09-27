@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.linkedin_oauth2',
     'allauth.socialaccount.providers.twitter',
+    'allauth.socialaccount.providers.slack',
 
     # Local
     'tunga_auth',
@@ -193,13 +194,9 @@ LOGIN_URL = '/'
 LOGIN_REDIRECT_URL = '/'
 
 EMAIL_SUBJECT_PREFIX = '[Tunga] '
-
 DEFAULT_FROM_EMAIL = 'support@tunga.io'
-
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-
 EMAIL_HOST = 'localhost'
-
 EMAIL_USE_TLS = False
 
 PASSWORD_HASHERS = [
@@ -252,27 +249,16 @@ SERIALIZATION_MODULES = {
 }
 
 ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
-
 ACCOUNT_LOGOUT_REDIRECT_URL = '/'
-
 ACCOUNT_EMAIL_REQUIRED = True
-
 ACCOUNT_EMAIL_SUBJECT_PREFIX = EMAIL_SUBJECT_PREFIX
-
 ACCOUNT_SIGNUP_FORM_CLASS = 'tunga_auth.forms.SignupForm'
-
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-
 ACCOUNT_CONFIRM_EMAIL_ON_GET = True
-
 ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = '/'
-
 ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = '/'
-
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
-
 ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
-
 ACCOUNT_USERNAME_BLACKLIST = ['tunga', 'tunga.io', 'admin', 'administrator', 'moderator', 'user']
 
 SOCIALACCOUNT_PROVIDERS = {
@@ -281,11 +267,12 @@ SOCIALACCOUNT_PROVIDERS = {
     },
     'github' : {
         'SCOPE': ['user:email']
+    },
+    'slack': {
+        'SCOPE': ['identity.basic', 'identity.email', 'identity.avatar', 'identity.team']
     }
 }
-
 SOCIALACCOUNT_AUTO_SIGNUP = True
-
 SOCIALACCOUNT_ADAPTER = "tunga_auth.adapter.SocialAccountAdapter"
 
 OAUTH2_PROVIDER = {
@@ -330,53 +317,58 @@ SWAGGER_SETTINGS = {
 
 
 # Local
-CONTACT_REQUEST_EMAIL_RECIPIENT = 'bart@tunga.io'
-
+TUNGA_NAME = 'Tunga'
+TUNGA_CONTACT_REQUEST_EMAIL_RECIPIENTS = ['bart@tunga.io']
 TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS = ['bart@tunga.io']
-
 TUNGA_SHARE_EMAIL = 'admin@tunga.io'
-
 TUNGA_SHARE_PERCENTAGE = 13
-
 TUNGA_URL = 'https://tunga.io'
+
+SOCIAL_CONNECT_ACTION = 'action'
+SOCIAL_CONNECT_NEXT = 'next'
+SOCIAL_CONNECT_USER_TYPE = 'user_type'
+SOCIAL_CONNECT_TASK = 'task'
+
+SOCIAL_CONNECT_ACTION_REGISTER = 'register'
+SOCIAL_CONNECT_ACTION_CONNECT = 'connect'
 
 GITHUB_SCOPES = ['user:email', 'repo', 'admin:repo_hook', 'admin:org_hook']
 
 COINBASE_API_KEY = ''
-
 COINBASE_API_SECRET = ''
-
 COINBASE_CLIENT_ID = ''
-
 COINBASE_CLIENT_SECRET = ''
-
 COINBASE_SCOPES = ['wallet:accounts:read', 'wallet:addresses:create']
-
 COINBASE_BASE_URL = 'https://www.coinbase.com'
-
 COINBASE_BASE_API_URL = 'https://api.coinbase.com'
 
 BITONIC_CONSUMER_KEY = ''
-
 BITONIC_CONSUMER_SECRET = ''
-
 BITONIC_ACCESS_TOKEN = ''
-
 BITONIC_TOKEN_SECRET = ''
-
 BITONIC_URL = 'https://bitonic.nl/order'
-
 BITONIC_PAYMENT_COST_PERCENTAGE = 3
 
 BANK_TRANSFER_PAYMENT_COST_PERCENTAGE = 5.5
 
 BITPESA_API_KEY = ''
-
 BITPESA_API_SECRET = ''
-
 BITPESA_API_URL = 'https://api.bitpesa.co/v1/'
-
 BITPESA_SENDER = None
+
+SLACK_CUSTOMER_INCOMING_WEBHOOK = None
+SLACK_CUSTOMER_OUTGOING_WEBHOOK_TOKEN = None
+SLACK_CUSTOMER_BOT_NAME = 'customerbot'
+SLACK_CLIENT_ID = None
+SLACK_CLIENT_SECRET = None
+SLACK_ACCESS_TOKEN_URL = 'https://slack.com/api/oauth.access'
+SLACK_AUTHORIZE_URL = 'https://slack.com/oauth/authorize'
+SLACK_SCOPES = ['incoming-webhook']
+
+SLACK_ATTACHMENT_COLOR_TUNGA = '#ee1f54'
+SLACK_ATTACHMENT_COLOR_GREEN = '#4CAF50'
+
+TUNGA_ICON_URL_150 = 'https://tunga.io/icons/Tunga_iconx150.png'
 
 try:
     from .env.dev import *

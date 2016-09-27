@@ -2,7 +2,7 @@ argon2-cffi==16.2.0
 coinbase==2.0.6
 Django==1.9.7
 django-activity-stream==0.6.2
-django-allauth==0.25.2
+django-allauth==0.27.0
 django-cors-headers==1.1.0
 django-countries==3.4.1
 django-filter==0.13.0

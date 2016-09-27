@@ -160,14 +160,11 @@ class TungaRegisterSerializer(RegisterSerializer):
 
 
 class TungaTokenSerializer(TokenSerializer):
-    user = serializers.SerializerMethodField(read_only=True, required=False)
+    user = SimpleUserSerializer(read_only=True, required=False)
 
     class Meta:
         model = TokenSerializer.Meta.model
         fields = ('key', 'user')
-
-    def get_user(self, obj):
-        return SimpleUserSerializer(obj.user).data
 
 
 class TungaPasswordResetSerializer(PasswordResetSerializer):
