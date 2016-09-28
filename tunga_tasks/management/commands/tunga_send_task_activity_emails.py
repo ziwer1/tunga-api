@@ -63,11 +63,13 @@ class Command(BaseCommand):
             )
 
         # Send notifications
-        min_date = datetime.datetime.utcnow() - relativedelta(hours=1)
+        utc_now = datetime.datetime.utcnow()
+        min_date = utc_now - relativedelta(minutes=30)  # 30 minute window to read new messages
+        min_last_email_date = utc_now - relativedelta(hours=3)  # Limit to 1 email every 3 hours per channel
         commission_date = parse('2016-08-28 00:00:00')  # Don't notify about events before the commissioning date
         user_tasks = ActivityReadLog.objects.filter(
             Q(last_email_at__isnull=True) |
-            Q(last_email_at__lt=datetime.datetime.combine(datetime.datetime.utcnow(), datetime.time.min))
+            Q(last_email_at__lt=min_last_email_date)
         ).exclude(
             user__userswitchsetting__setting__slug=TASK_ACTIVITY_UPDATE_EMAIL,
             user__userswitchsetting__value=False
