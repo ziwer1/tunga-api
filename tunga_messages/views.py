@@ -100,6 +100,7 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                 subject = serializer.validated_data['subject']
                 channel = create_channel(request.user, subject=subject, channel_type=CHANNEL_TYPE_SUPPORT)
             else:
+                # Create support channel for anonymous user
                 name = serializer.validated_data['name']
                 email = serializer.validated_data['email']
                 customer = Inquirer.objects.create(name=name, email=email)
@@ -113,7 +114,7 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
     @detail_route(
         methods=['post'], url_path='read',
-        permission_classes=[IsAuthenticated], serializer_class=LastReadActivitySerializer
+        permission_classes=[AllowAny], serializer_class=LastReadActivitySerializer
     )
     def update_read(self, request, pk=None):
         """
@@ -127,7 +128,13 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         last_read = serializer.validated_data['last_read']
         channel = get_object_or_404(self.get_queryset(), pk=pk)
         if channel.has_object_read_permission(request):
-            ChannelUser.objects.update_or_create(user=request.user, channel=channel, defaults={'last_read': last_read})
+            if request.user.is_authenticated():
+                ChannelUser.objects.update_or_create(
+                    user=request.user, channel=channel, defaults={'last_read': last_read}
+                )
+            else:
+                channel.last_read = last_read
+                channel.save()
             response_serializer = ChannelSerializer(channel, context={'request': request})
             return Response(response_serializer.data)
         return Response(

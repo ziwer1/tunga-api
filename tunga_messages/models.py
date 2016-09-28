@@ -40,6 +40,7 @@ class Channel(models.Model):
         blank=True, null=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    last_read = models.IntegerField(default=0)
 
     # The object of the channel, nullable for pure messages
     content_type = models.ForeignKey(

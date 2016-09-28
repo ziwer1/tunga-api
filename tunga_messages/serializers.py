@@ -144,6 +144,8 @@ class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedS
                 return obj.channeluser_set.get(user=user).last_read
             except:
                 pass
+        else:
+            return obj.last_read
         return 0
 
 
