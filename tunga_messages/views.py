@@ -224,7 +224,7 @@ def slack_customer_notification(request):
     response = None
     if payload and not payload.get(slack_utils.KEY_BOT_ID, None):
         text = payload.get(slack_utils.KEY_TEXT, None)
-        m = re.match(r'^[\*`_~]{0,3}C(?P<id>\d+)[\*`_~]{0,3}(?P<message>.*)', text, re.DOTALL)
+        m = re.match(r'^[\*`_~]{0,3}C(?P<id>\d+)[\*`_~]{0,3}(?P<message>.*)', text, flags=re.DOTALL | re.IGNORECASE)
         if m:
             matches = m.groupdict()
             message = matches.get('message', '').strip()

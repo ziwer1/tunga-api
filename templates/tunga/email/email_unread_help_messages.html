@@ -1,0 +1,18 @@
+{% extends "tunga/email/base.html" %}
+{% block email_content %}
+    <p>Hello {{ customer.name }},</p>
+
+    <p>You have {{ count }} new message{{ count | pluralize }}</p>
+
+    {% for message in messages %}
+        <p>
+            {{ message.sender.name }}:<br/>
+            {{ message.html_body }}
+        </p>
+    {% endfor %}
+
+    <p>
+        Click the link below to go to the conversation:<br/>
+        {{ channel_url }}
+    </p>
+{% endblock %}
