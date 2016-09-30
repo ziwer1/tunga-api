@@ -20,10 +20,7 @@ def notify_new_message(instance):
 def notify_new_message_email(instance):
     instance = clean_instance(instance, Message)
     to = []
-    recipients = instance.channel.participants.exclude(id=instance.sender.id).exclude(
-        userswitchsetting__setting__slug=DIRECT_MESSAGES_EMAIL,
-        userswitchsetting__value=False
-    )
+    recipients = instance.channel.participants.all()
     if recipients:
         to = [recipient.email for recipient in recipients]
     if to and isinstance(to, (list, tuple)):

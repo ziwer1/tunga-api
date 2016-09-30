@@ -12,7 +12,6 @@ from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL
 from tunga_activity import verbs
 from tunga_messages.models import ChannelUser
 from tunga_utils.constants import CHANNEL_TYPE_DIRECT
-from tunga_settings.slugs import DIRECT_MESSAGES_EMAIL
 from tunga_utils.emails import send_mail
 
 
@@ -31,9 +30,6 @@ class Command(BaseCommand):
         user_channels = ChannelUser.objects.filter(
             Q(last_email_at__isnull=True) |
             Q(last_email_at__lt=min_last_email_date)
-        ).exclude(
-            user__userswitchsetting__setting__slug=DIRECT_MESSAGES_EMAIL,
-            user__userswitchsetting__value=False
         ).annotate(new_messages=Sum(
             Case(
                 When(

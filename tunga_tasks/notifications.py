@@ -26,12 +26,7 @@ def send_new_task_email(instance):
 
     developers = None
     if instance.visibility in [VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM]:
-        queryset = get_user_model().objects.filter(
-            type=USER_TYPE_DEVELOPER
-        ).exclude(
-            userswitchsetting__setting__slug=settings_slugs.NEW_TASK_EMAIL,
-            userswitchsetting__value=False
-        )
+        queryset = get_user_model().objects.filter(type=USER_TYPE_DEVELOPER)
         if instance.visibility == VISIBILITY_MY_TEAM:
             queryset = queryset.filter(
                 my_connections_q_filter(instance.user)
@@ -87,8 +82,6 @@ def send_new_task_email(instance):
 @job
 def send_new_task_invitation_email(instance):
     instance = clean_instance(instance, Participation)
-    if not check_switch_setting(instance.user, settings_slugs.NEW_TASK_INVITATION_EMAIL):
-        return
     subject = "%s Task invitation from %s" % (EMAIL_SUBJECT_PREFIX, instance.task.user.first_name)
     to = [instance.user.email]
     ctx = {
@@ -109,8 +102,6 @@ def notify_task_invitation_response(instance):
 @job
 def notify_task_invitation_response_email(instance):
     instance = clean_instance(instance, Participation)
-    if not check_switch_setting(instance.task.user, settings_slugs.TASK_INVITATION_RESPONSE_EMAIL):
-        return
     subject = "%s Task invitation %s by %s" % (
         EMAIL_SUBJECT_PREFIX, instance.accepted and 'accepted' or 'rejected', instance.user.first_name)
     to = [instance.task.user.email]
@@ -169,8 +160,6 @@ def notify_new_task_application(instance):
 @job
 def notify_new_task_application_email(instance):
     instance = clean_instance(instance, Application)
-    if not check_switch_setting(instance.task.user, settings_slugs.NEW_TASK_APPLICATION_EMAIL):
-        return
     subject = "%s New application from %s" % (EMAIL_SUBJECT_PREFIX, instance.user.short_name)
     to = [instance.task.user.email]
     ctx = {
@@ -216,8 +205,6 @@ def notify_new_task_application_slack(instance):
 @job
 def send_new_task_application_response_email(instance):
     instance = clean_instance(instance, Application)
-    if not check_switch_setting(instance.user, settings_slugs.TASK_APPLICATION_RESPONSE_EMAIL):
-        return
     subject = "%s Task application %s" % (EMAIL_SUBJECT_PREFIX, instance.accepted and 'accepted' or 'rejected')
     to = [instance.user.email]
     ctx = {
@@ -233,8 +220,6 @@ def send_new_task_application_response_email(instance):
 @job
 def send_new_task_application_applicant_email(instance):
     instance = clean_instance(instance, Application)
-    if not check_switch_setting(instance.user, settings_slugs.TASK_ACTIVITY_UPDATE_EMAIL):
-        return
     subject = "%s You applied for a task: %s" % (EMAIL_SUBJECT_PREFIX, instance.task.summary)
     to = [instance.user.email]
     ctx = {
@@ -251,9 +236,6 @@ def send_task_application_not_selected_email(instance):
     instance = clean_instance(instance, Task)
     rejected_applicants = instance.application_set.filter(
         responded=False
-    ).exclude(
-        user__userswitchsetting__setting__slug=settings_slugs.TASK_APPLICATION_RESPONSE_EMAIL,
-        user__userswitchsetting__value=False
     )
     if rejected_applicants:
         subject = "%s Your application was not accepted for: %s" % (EMAIL_SUBJECT_PREFIX, instance.summary)
@@ -270,12 +252,7 @@ def send_task_application_not_selected_email(instance):
 def send_progress_event_reminder_email(instance):
     instance = clean_instance(instance, ProgressEvent)
     subject = "%s Upcoming Task Update" % (EMAIL_SUBJECT_PREFIX,)
-    participants = instance.task.participation_set.filter(
-        accepted=True
-    ).exclude(
-        user__userswitchsetting__setting__slug=settings_slugs.TASK_PROGRESS_REPORT_REMINDER_EMAIL,
-        user__userswitchsetting__value=False
-    )
+    participants = instance.task.participation_set.filter(accepted=True)
     if participants:
         to = [participants[0].user.email]
         bcc = [participant.user.email for participant in participants[1:]] if participants.count() > 1 else None
@@ -298,8 +275,6 @@ def notify_new_progress_report(instance):
 def notify_new_progress_report_email(instance):
     instance = clean_instance(instance, ProgressReport)
     subject = "%s %s submitted a Progress Report" % (EMAIL_SUBJECT_PREFIX, instance.user.display_name)
-    if not check_switch_setting(instance.event.task.user, settings_slugs.TASK_ACTIVITY_UPDATE_EMAIL):
-        return
     to = [instance.event.task.user.email]
     ctx = {
         'owner': instance.event.task.user,
