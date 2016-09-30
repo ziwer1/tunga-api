@@ -41,9 +41,22 @@ def send_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, *
 @job
 def send_contact_request_email(instance):
     instance = clean_instance(instance, ContactRequest)
-    subject = "%s New Contact Request" % EMAIL_SUBJECT_PREFIX
+
+    subject = "%s New %s Request" % (EMAIL_SUBJECT_PREFIX, instance.item and 'Offer' or 'Contact')
+    msg_suffix = 'wants to know more about Tunga.'
+    if instance.item:
+        item_name = instance.get_item_display()
+        subject = '%s (%s)' % (subject, item_name)
+        msg_suffix = 'requested for "%s"' % item_name
     to = TUNGA_CONTACT_REQUEST_EMAIL_RECIPIENTS
-    ctx = {'email': instance.email}
+
+    ctx = {
+        'email': instance.email,
+        'message': '%s %s ' % (
+            instance.email,
+            msg_suffix
+        )
+    }
     if send_mail(subject, 'tunga/email/email_contact_request_message', to, ctx):
         instance.email_sent_at = datetime.datetime.utcnow()
         instance.save()

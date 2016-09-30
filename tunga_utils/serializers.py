@@ -183,7 +183,7 @@ class ContactRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ContactRequest
-        fields = ('email',)
+        fields = ('email', 'item')
 
 
 class SimpleRatingSerializer(ContentTypeAnnotatedModelSerializer):

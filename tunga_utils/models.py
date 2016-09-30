@@ -13,7 +13,8 @@ from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
 from tunga_utils.constants import USER_TYPE_DEVELOPER, RATING_CRITERIA_CODING, RATING_CRITERIA_COMMUNICATION, \
-    RATING_CRITERIA_SPEED, MONTHS
+    RATING_CRITERIA_SPEED, MONTHS, CONTACT_REQUEST_ITEM_ONBOARDING, CONTACT_REQUEST_ITEM_PROJECT, \
+    CONTACT_REQUEST_ITEM_ONBOARDING_SPECIAL
 from tunga_utils.validators import validate_year
 
 
@@ -80,9 +81,19 @@ class Upload(GenericUpload):
     def has_object_write_permission(self, request):
         return request.user == self.user
 
+CONTACT_REQUEST_ITEM_CHOICES = (
+    (CONTACT_REQUEST_ITEM_ONBOARDING, 'Tunga onboarding'),
+    (CONTACT_REQUEST_ITEM_ONBOARDING_SPECIAL, 'Onboarding special offer'),
+    (CONTACT_REQUEST_ITEM_PROJECT, 'Tunga project'),
+)
+
 
 class ContactRequest(models.Model):
     email = models.EmailField()
+    item = models.CharField(
+        max_length=50, choices=CONTACT_REQUEST_ITEM_CHOICES, blank=True, null=True,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in CONTACT_REQUEST_ITEM_CHOICES])
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     email_sent_at = models.DateTimeField(blank=True, null=True)
 
