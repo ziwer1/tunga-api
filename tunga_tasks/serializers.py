@@ -208,7 +208,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     ratings = SimpleRatingSerializer(required=False, read_only=False, many=True)
     uploads = UploadSerializer(required=False, read_only=True, many=True)
     all_uploads = UploadSerializer(required=False, read_only=True, many=True)
-    invoice = TaskInvoiceSerializer()
+    invoice = TaskInvoiceSerializer(required=False, read_only=True)
 
     class Meta:
         model = Task
