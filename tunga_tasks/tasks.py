@@ -1,5 +1,7 @@
 import datetime
+import json
 from decimal import Decimal
+from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.db.models.aggregates import Min, Max
@@ -109,7 +111,7 @@ def distribute_task_payment(task):
             if created or (participant_pay and participant_pay.status == PAYMENT_STATUS_PENDING):
                 payment_method = participant.user.payment_method
                 if payment_method in [PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_BTC_WALLET]:
-                    if not bitcoin_utils.is_valid_btc_address(participant_pay.destination):
+                    if not (participant_pay.destination and bitcoin_utils.is_valid_btc_address(participant_pay.destination)):
                         participant_pay.destination = participant.user.btc_address
                     transaction = send_payment_share(
                         destination=participant_pay.destination,
@@ -130,9 +132,9 @@ def distribute_task_payment(task):
                     share_amount = Decimal(share)*payment.btc_received
                     recipients = [
                         {
-                            bitpesa.KEY_REQUESTED_AMOUNT: bitpesa.get_pay_out_amount(
+                            bitpesa.KEY_REQUESTED_AMOUNT: float(bitpesa.get_pay_out_amount(
                                 share_amount, participant.user.mobile_money_cc
-                            ),
+                            )),
                             bitpesa.KEY_REQUESTED_CURRENCY: CURRENCY_BTC,
                             bitpesa.KEY_PAYOUT_METHOD: {
                                 bitpesa.KEY_TYPE: bitpesa.get_pay_out_method(participant.user.mobile_money_cc),
@@ -144,14 +146,19 @@ def distribute_task_payment(task):
                             }
                         }
                     ]
+                    bitpesa_nonce = str(uuid4())
                     transaction = bitpesa.create_transaction(
                         BITPESA_SENDER, recipients, input_currency=CURRENCY_BTC,
-                        transaction_id=participant_pay.id, nonce=participant_pay.idem_key
+                        transaction_id=participant_pay.id, nonce=bitpesa_nonce
                     )
                     if transaction:
                         participant_pay.ref = transaction.get(bitpesa.KEY_ID, None)
                         participant_pay.status = PAYMENT_STATUS_INITIATED
+                        participant_pay.extra = bitpesa_nonce
                         participant_pay.save()
+
+                        if complete_bitpesa_payment(transaction):
+                            portion_sent = True
 
             portion_distribution.append(portion_sent)
         if portion_distribution and False not in portion_distribution:
@@ -163,6 +170,54 @@ def distribute_task_payment(task):
     if task_distribution and False not in task_distribution:
         task.pay_distributed = True
         task.save()
+
+
+def complete_bitpesa_payment(transaction):
+    bp_transaction_id = transaction.get(bitpesa.KEY_ID, None)
+    metadata = transaction.get(bitpesa.KEY_METADATA, None)
+    reference = metadata.get(bitpesa.KEY_REFERENCE, None)
+    bp_idem_key = metadata.get(bitpesa.KEY_IDEM_KEY, None)
+
+    input_amount = transaction.get(bitpesa.KEY_INPUT_AMOUNT, 0)
+    payin_methods = transaction.get(bitpesa.KEY_PAYIN_METHODS, None)
+
+    destination_address = None
+    if payin_methods:
+        destination_address = payin_methods[0][bitpesa.KEY_OUT_DETAILS].get(bitpesa.KEY_BITCOIN_ADDRESS, None)
+        if not destination_address:
+            destination_address = payin_methods[0][bitpesa.KEY_IN_DETAILS].get(bitpesa.KEY_ADDRESS, None)
+
+    if destination_address:
+        try:
+            payment = ParticipantPayment.objects.get(
+                id=reference, ref=bp_transaction_id, extra=bp_idem_key, status=PAYMENT_STATUS_INITIATED
+            )
+        except:
+            payment = None
+
+        if payment:
+            share_amount = payment.source.btc_received * Decimal(payment.participant.payment_share)
+            if input_amount <= share_amount:
+                cb_transaction = send_payment_share(
+                    destination=destination_address,
+                    amount=input_amount,
+                    idem=str(payment.idem_key),
+                    description='%s - %s' % (
+                        payment.participant.task.summary, payment.participant.user.display_name
+                    )
+                )
+                if cb_transaction.status not in [
+                    coinbase_utils.TRANSACTION_STATUS_FAILED, coinbase_utils.TRANSACTION_STATUS_EXPIRED,
+                    coinbase_utils.TRANSACTION_STATUS_CANCELED
+                ]:
+                    payment.btc_sent = input_amount
+                    payment.destination = destination_address
+                    payment.ref = transaction.id
+                    payment.status = PAYMENT_STATUS_PROCESSING
+                    payment.extra = json.dumps(dict(bitpesa=bp_transaction_id))
+                    payment.save()
+                    return True
+    return False
 
 
 def send_payment_share(destination, amount, idem, description=None):

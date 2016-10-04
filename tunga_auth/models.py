@@ -75,6 +75,12 @@ class TungaUser(AbstractUser):
         return self.profile.payment_method
 
     @property
+    def mobile_money_cc(self):
+        if not self.profile:
+            return None
+        return self.profile.mobile_money_cc
+
+    @property
     def mobile_money_number(self):
         if not self.profile:
             return None
@@ -94,5 +100,3 @@ class TungaUser(AbstractUser):
                 client = coinbase_utils.get_oauth_client(wallet.token, wallet.token_secret, self)
                 return coinbase_utils.get_new_address(client)
         return None
-
-

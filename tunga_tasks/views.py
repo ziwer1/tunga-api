@@ -38,15 +38,14 @@ from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBacke
 from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TaskRequestFilter, SavedTaskFilter, \
     ProjectFilter, ProgressReportFilter, ProgressEventFilter
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, Project, ProgressReport, ProgressEvent, \
-    Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice, ParticipantPayment
+    Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TaskRequestSerializer, SavedTaskSerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
     IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer
-from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, send_payment_share
+from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment
 from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa
-from tunga_utils.constants import TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BANK, PAYMENT_STATUS_PROCESSING, \
-    PAYMENT_STATUS_INITIATED
+from tunga_utils.constants import TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BANK
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.helpers import get_social_token
 from tunga_utils.mixins import SaveUploadsMixin
@@ -680,48 +679,10 @@ def bitpesa_notification(request):
 
     payload = request.data
     if payload:
-        bp_transaction = payload.get(bitpesa.KEY_OBJECT, None)
-        if bp_transaction and bp_transaction.get(bitpesa.KEY_EVENT, None) == bitpesa.EVENT_TRANSACTION_APPROVED:
-            bp_transaction_id = bp_transaction.get(bitpesa.KEY_ID, None)
-            metadata = bp_transaction.get(bitpesa.KEY_METADATA, None)
-            reference = metadata.get(bitpesa.KEY_REFERENCE, None)
-            idem_key = metadata.get(bitpesa.KEY_IDEM_KEY, None)
-
-            input_amount = bp_transaction.get(bitpesa.KEY_INPUT_AMOUNT, 0)
-            payin_methods = bp_transaction.get(bitpesa.KEY_PAYIN_METHODS, None)
-
-            address = payin_methods[bitpesa.KEY_IN_DETAILS][bitpesa.KEY_ADDRESS]
-
-            try:
-                payment = ParticipantPayment.objects.get(
-                    id=reference, ref=bp_transaction_id, idem_key=idem_key, status=PAYMENT_STATUS_INITIATED
-                )
-            except:
-                payment = None
-
-            if payment:
-                share_amount = payment.source.btc_received*Decimal(payment.participant.payment_share)
-                if input_amount <= share_amount:
-                    cb_transaction = send_payment_share(
-                        destination=address,
-                        amount=input_amount,
-                        idem=str(payment.idem_key),
-                        description='%s - %s' % (
-                            payment.participant.task.summary, payment.participant.user.display_name
-                        )
-                    )
-                    if cb_transaction.status not in [
-                        coinbase_utils.TRANSACTION_STATUS_FAILED, coinbase_utils.TRANSACTION_STATUS_EXPIRED,
-                        coinbase_utils.TRANSACTION_STATUS_CANCELED
-                    ]:
-                        payment.btc_sent = input_amount
-                        payment.destination = address
-                        payment.ref = bp_transaction.id
-                        payment.status = PAYMENT_STATUS_PROCESSING
-                        payment.extra = json.dumps(dict(bitpesa=bp_transaction_id))
-                        payment.save()
-
-                        # Attempt to distribute any remaining funds
-                        distribute_task_payment.delay(payment.participant.task_id)
-
-    return Response('Received')
+        webhook = payload.get(bitpesa.KEY_OBJECT, None)
+        if webhook:
+            transaction = webhook.get(bitpesa.KEY_TRANSACTION, None)
+            if transaction and webhook.get(bitpesa.KEY_EVENT, None) == bitpesa.EVENT_TRANSACTION_APPROVED:
+                if complete_bitpesa_payment(transaction):
+                    return Response('Received')
+    return Response('Failed to process', status=status.HTTP_400_BAD_REQUEST)
