@@ -35,7 +35,9 @@
         }
 
         footer {
-            position: fixed;
+            position: absolute;
+            left: 0;
+            right: 0;
             bottom: 20px;
             width: 100%;
             text-align: center;
@@ -65,9 +67,9 @@
             <div class="bold">
                 {{ invoice.client.profile.company }}<br/>
                 {{ invoice.client.display_name }}<br/>
-                {{ invoice.client.profile.street }} {{ invoice.client.profile.plot_number }}<br/>
-                {{ invoice.client.profile.postal_code }}<br/>
-                {{ invoice.client.profile.country_name }}
+                {{ invoice.client.profile.street | default:'' }} {{ developer_info.client.profile.plot_number | default:'' }}<br/>
+                {{ invoice.client.profile.postal_code | default:'' }}<br/>
+                {{ invoice.client.profile.country_name | default:'' }}
             </div>
 
             <p style="margin: 20px 0;">Invoice generated on behalf of:</p>
@@ -75,14 +77,13 @@
 
         <div {% if context.is_developer %}class="bold"{% endif %}>
             {{ developer_info.developer.display_name }}<br/>
-            {{ developer_info.developer.profile.street }} {{ invoice.developer.profile.plot_number }}<br/>
-            {{ developer_info.developer.profile.postal_code }}<br/>
-            {{ developer_info.developer.profile.country_name }}
+            {{ developer_info.developer.profile.street | default:'' }} {{ developer_info.developer.profile.plot_number | default:'' }}<br/>
+            {{ developer_info.developer.profile.postal_code | default:'' }}<br/>
+            {{ developer_info.developer.profile.country_name | default:'' }}
         </div>
 
         {% if context.is_developer %}
             <div style="margin: 20px 0;">
-
                 Stichting Butterfly Works<br/>
                 Ms. van Riemsdijkweg 57<br/>
                 1033 RC, Amsterdam<br/>
@@ -108,7 +109,7 @@
             {% else %}
                 <tr>
                     <td>{{ invoice.title }}</td>
-                    <td class="text-right">{{ developer_info.amount.currency | safe }} {{ developer_info.amount.pledge | floatformat:2 }}</td>
+                    <td class="text-right">{{ developer_info.amount.currency | safe }} {{ developer_info.amount.developer | floatformat:2 }}</td>
                 </tr>
             {% endif %}
 

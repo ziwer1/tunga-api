@@ -33,6 +33,7 @@ from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPE
     PROGRESS_EVENT_TYPE_SUBMIT, PROGRESS_REPORT_STATUS_ON_SCHEDULE, PROGRESS_REPORT_STATUS_BEHIND, \
     PROGRESS_REPORT_STATUS_STUCK, INTEGRATION_TYPE_REPO, INTEGRATION_TYPE_ISSUE, PAYMENT_STATUS_PENDING, \
     PAYMENT_STATUS_PROCESSING, PAYMENT_STATUS_COMPLETED, PAYMENT_STATUS_FAILED, PAYMENT_STATUS_INITIATED
+from tunga_utils.helpers import round_decimal
 from tunga_utils.models import Upload, Rating
 from tunga_utils.validators import validate_btc_address
 
@@ -861,13 +862,13 @@ class TaskInvoice(models.Model):
             'currency': CURRENCY_SYMBOLS.get(self.currency, ''),
             'share': share,
             'pledge': self.fee,
-            'developer': Decimal(dev_share) * fee_portion,
-            'tunga': Decimal(tunga_share) * fee_portion,
-            'processing': Decimal(processing_share) * fee_portion
+            'developer': round_decimal(Decimal(dev_share) * fee_portion, 2),
+            'tunga': round_decimal(Decimal(tunga_share) * fee_portion, 2),
+            'processing': round_decimal(Decimal(processing_share) * fee_portion, 2)
         }
 
-        amount_details['total'] = amount_details['pledge'] + amount_details['processing']
-        amount_details['total_dev'] = amount_details['tunga'] + amount_details['processing']
+        amount_details['total'] = round_decimal(amount_details['developer'] + amount_details['processing'], 2)
+        amount_details['total_dev'] = round_decimal(amount_details['tunga'] + amount_details['processing'], 2)
         return amount_details
 
     @property

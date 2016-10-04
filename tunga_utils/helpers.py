@@ -1,6 +1,7 @@
 import re
 
 from allauth.socialaccount.models import SocialToken
+from decimal import Decimal, ROUND_UP
 from django.http import HttpResponseRedirect
 from django.utils.html import strip_tags
 
@@ -83,3 +84,7 @@ def convert_to_text(body):
 def convert_to_html(body):
     return re.sub(r'(<br\s*/>)?\n', '<br/>', body, flags=re.IGNORECASE)
 
+
+def round_decimal(number, ndigits):
+    formatter = '{0:.%sf}' % ndigits
+    return Decimal(formatter.format(Decimal(number)))
