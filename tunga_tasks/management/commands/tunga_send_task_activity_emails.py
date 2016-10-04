@@ -68,8 +68,13 @@ class Command(BaseCommand):
         min_last_email_date = utc_now - relativedelta(hours=3)  # Limit to 1 email every 3 hours per channel
         commission_date = parse('2016-08-28 00:00:00')  # Don't notify about events before the commissioning date
         user_tasks = ActivityReadLog.objects.filter(
-            Q(last_email_at__isnull=True) |
-            Q(last_email_at__lt=min_last_email_date)
+            (
+                Q(last_email_at__isnull=True) |
+                Q(last_email_at__lt=min_last_email_date)
+            ) &
+            (
+                Q(tasks__user=F('user')) | Q(tasks__participants=F('user'))
+            )
         ).exclude(
             user__userswitchsetting__setting__slug=TASK_ACTIVITY_UPDATE_EMAIL,
             user__userswitchsetting__value=False
