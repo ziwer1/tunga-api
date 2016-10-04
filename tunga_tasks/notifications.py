@@ -119,7 +119,7 @@ def notify_task_invitation_response_email(instance):
 def notify_task_invitation_response_slack(instance):
     instance = clean_instance(instance, Participation)
 
-    if not slack_utils.is_task_notification_enabled(instance.task, slugs.EVENT_APPLY):
+    if not slack_utils.is_task_notification_enabled(instance.task, slugs.EVENT_APPLICATION):
         return
 
     webhook_url = slack_utils.get_webhook_url(instance.task.user)
@@ -175,7 +175,7 @@ def notify_new_task_application_email(instance):
 def notify_new_task_application_slack(instance):
     instance = clean_instance(instance, Application)
 
-    if not slack_utils.is_task_notification_enabled(instance.task, slugs.EVENT_APPLY):
+    if not slack_utils.is_task_notification_enabled(instance.task, slugs.EVENT_APPLICATION):
         return
 
     webhook_url = slack_utils.get_webhook_url(instance.task.user)
