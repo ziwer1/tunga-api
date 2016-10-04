@@ -5,6 +5,7 @@ from rest_framework.exceptions import ValidationError
 from tunga_messages.filterbackends import new_messages_filter
 from tunga_messages.models import Message, Channel, ChannelUser
 from tunga_messages.tasks import get_or_create_direct_channel
+from tunga_utils.constants import CHANNEL_TYPE_SUPPORT
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.serializers import CreateOnlyCurrentUserDefault, SimpleUserSerializer, DetailAnnotatedModelSerializer, ContentTypeAnnotatedModelSerializer, UploadSerializer
 
@@ -125,9 +126,9 @@ class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedS
     def get_user(self, obj):
         user = self.get_current_user()
         if user:
-            if obj.participants.count() == 2:
+            if obj.participants.count() <= 2:
                 for participant in obj.participants.all():
-                    if participant.id != user.id:
+                    if participant.id != user.id and not (obj.type == CHANNEL_TYPE_SUPPORT and (participant.is_staff or participant.is_superuser)):
                         return SimpleUserSerializer(participant).data
         return None
 
@@ -151,6 +152,7 @@ class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedS
 
 class SenderSerializer(serializers.Serializer):
     id = serializers.CharField()
+    username = serializers.CharField(required=False)
     name = serializers.CharField(required=False)
     display_name = serializers.CharField()
     short_name = serializers.CharField()

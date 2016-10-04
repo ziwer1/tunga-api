@@ -43,7 +43,10 @@ class ChannelFilterBackend(DRYPermissionFiltersBase):
 
     def filter_list_queryset(self, request, queryset, view):
         if request.user.is_authenticated():
-            queryset = queryset.filter(channeluser__user=request.user)
+            if request.user.is_staff or request.user.is_superuser:
+                queryset = queryset.filter(Q(channeluser__user=request.user) | Q(type=CHANNEL_TYPE_SUPPORT))
+            else:
+                queryset = queryset.filter(channeluser__user=request.user)
             if (request.user.is_staff or request.user.is_superuser) and not request.query_params.get('type', None):
                 queryset = queryset.exclude(type=CHANNEL_TYPE_SUPPORT)
             return queryset
