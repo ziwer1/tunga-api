@@ -30,7 +30,7 @@ class APITaskTestCase(APITestCase):
         Only project owners and admins can create tasks
         """
         url = reverse('task-list')
-        data = {'title': 'Task 1', 'skills': 'Django, React.js', 'fee': 10}
+        data = {'title': 'Task 1', 'skills': 'Django, React.js', 'fee': 15}
 
         self.client.force_authenticate(user=None)
         response = self.client.post(url, data)
