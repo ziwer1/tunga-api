@@ -21,7 +21,8 @@ from tunga_profiles.permissions import IsAdminOrCreateOnly
 from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, WorkSerializer, ConnectionSerializer, \
     DeveloperApplicationSerializer
 from tunga_utils import github
-from tunga_utils.constants import USER_TYPE_PROJECT_OWNER, APP_INTEGRATION_PROVIDER_SLACK
+from tunga_utils.constants import USER_TYPE_PROJECT_OWNER, APP_INTEGRATION_PROVIDER_SLACK, CHANNEL_TYPE_SUPPORT, \
+    CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.helpers import get_social_token, get_app_integration
 
@@ -144,12 +145,16 @@ class NotificationView(views.APIView):
                 {'status': 'Unauthorized', 'message': 'You are not logged in'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-
+        channel_types = [CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC]
+        if not (user.is_staff and user.is_superuser):
+            channel_types.append(CHANNEL_TYPE_SUPPORT)
+        activity_queryset = Action.objects.filter(
+            target_content_type=ContentType.objects.get_for_model(Channel),
+            channels__channeluser__user=user,
+            channels__type__in=channel_types
+        )
         new_messages = new_messages_filter(
-            queryset=Action.objects.filter(
-                target_content_type=ContentType.objects.get_for_model(Channel),
-                channels__channeluser__user=user
-            ), user=user
+            queryset=activity_queryset, user=user
         ).count()
 
         requests = user.connection_requests.filter(responded=False, from_user__pending=False).count()

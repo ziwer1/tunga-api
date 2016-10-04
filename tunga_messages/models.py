@@ -14,7 +14,8 @@ from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
 from tunga_profiles.models import Connection, Inquirer
-from tunga_utils.constants import CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_SUPPORT
+from tunga_utils.constants import CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_SUPPORT, \
+    APP_INTEGRATION_PROVIDER_SLACK
 from tunga_utils.helpers import GenericObject, convert_to_text, convert_to_html
 from tunga_utils.models import Upload
 
@@ -225,8 +226,11 @@ class Message(models.Model):
             return None
         try:
             user = GenericObject(**json.loads(self.alt_user))
-            user.display_name = user.name.title()
-            user.short_name = user.name.title()
+            if self.source == APP_INTEGRATION_PROVIDER_SLACK:
+                user.name = '%s from Tunga' % user.name.title()
+                user.avatar_url = 'https://tunga.io/icons/Tunga_squarex150.png'
+            user.display_name = user.name
+            user.short_name = user.name
             return user
         except:
             return None
@@ -238,6 +242,17 @@ class Message(models.Model):
     @property
     def sender(self):
         if self.user:
+            if self.user.is_staff or self.user.is_superuser and self.channel.type == CHANNEL_TYPE_SUPPORT:
+                support_name = '%s from Tunga' % self.user.short_name
+                user = GenericObject(**dict(
+                    id=self.user_id,
+                    name=support_name,
+                    display_name=support_name,
+                    short_name=support_name,
+                    email=self.user.email,
+                    avatar_url=self.user.avatar_url or 'https://tunga.io/icons/Tunga_squarex150.png'
+                ))
+                return user
             return self.user
         alt_user = self.get_alt_user()
         if alt_user:

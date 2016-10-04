@@ -1,10 +1,10 @@
-from django.db.models.aggregates import Count
 from django.db.models.expressions import Case, When, F
 from django.db.models.fields import IntegerField
 from django.db.models.query_utils import Q
 from dry_rest_permissions.generics import DRYPermissionFiltersBase
 
 from tunga_activity import verbs
+from tunga_utils.constants import CHANNEL_TYPE_SUPPORT
 
 
 def received_messages_q_filter(user):
@@ -43,7 +43,10 @@ class ChannelFilterBackend(DRYPermissionFiltersBase):
 
     def filter_list_queryset(self, request, queryset, view):
         if request.user.is_authenticated():
-            return queryset.filter(channeluser__user=request.user)
+            queryset = queryset.filter(channeluser__user=request.user)
+            if (request.user.is_staff or request.user.is_superuser) and not request.query_params.get('type', None):
+                queryset = queryset.exclude(type=CHANNEL_TYPE_SUPPORT)
+            return queryset
         return queryset.none()
 
 

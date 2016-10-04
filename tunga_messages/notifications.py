@@ -39,7 +39,10 @@ def notify_new_message_email(instance):
 def notify_new_message_slack(instance):
     instance = clean_instance(instance, Message)
     if instance.channel.type == CHANNEL_TYPE_SUPPORT and instance.source != APP_INTEGRATION_PROVIDER_SLACK:
-        channel_url = '%s/channel/%s/' % (TUNGA_URL, instance.channel_id)
+        if instance.user and (instance.user.is_staff or instance.user.is_superuser):
+            # Ignore messages from admins
+            return
+        channel_url = '%s/help/%s/' % (TUNGA_URL, instance.channel_id)
         summary = "New message from %s" % instance.sender.short_name
         message_details = {
             slack_utils.KEY_PRETEXT: summary,

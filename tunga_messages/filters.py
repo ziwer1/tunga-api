@@ -18,4 +18,3 @@ class MessageFilter(GenericDateFilterSet):
     class Meta:
         model = Message
         fields = ('user', 'channel', 'since')
-
