@@ -862,12 +862,13 @@ class TaskInvoice(models.Model):
             'currency': CURRENCY_SYMBOLS.get(self.currency, ''),
             'share': share,
             'pledge': self.fee,
+            'portion': round_decimal(fee_portion, 2),
             'developer': round_decimal(Decimal(dev_share) * fee_portion, 2),
             'tunga': round_decimal(Decimal(tunga_share) * fee_portion, 2),
             'processing': round_decimal(Decimal(processing_share) * fee_portion, 2)
         }
 
-        amount_details['total'] = round_decimal(amount_details['developer'] + amount_details['processing'], 2)
+        amount_details['total'] = round_decimal(amount_details['portion'] + amount_details['processing'], 2)
         amount_details['total_dev'] = round_decimal(amount_details['tunga'] + amount_details['processing'], 2)
         return amount_details
 

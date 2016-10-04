@@ -109,7 +109,7 @@
             {% else %}
                 <tr>
                     <td>{{ invoice.title }}</td>
-                    <td class="text-right">{{ developer_info.amount.currency | safe }} {{ developer_info.amount.developer | floatformat:2 }}</td>
+                    <td class="text-right">{{ developer_info.amount.currency | safe }} {{ developer_info.amount.portion | floatformat:2 }}</td>
                 </tr>
             {% endif %}
 
