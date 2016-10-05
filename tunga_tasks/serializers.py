@@ -152,9 +152,12 @@ class TaskInvoiceSerializer(serializers.ModelSerializer, GetCurrentUserAnnotated
     def get_developer_amount(self, obj):
         current_user = self.get_current_user()
         if current_user and current_user.is_developer:
-            participation = obj.task.participation_set.get(user=current_user)
-            share = obj.task.get_user_participation_share(participation.id)
-            return obj.get_amount_details(share=share)
+            try:
+                participation = obj.task.participation_set.get(user=current_user)
+                share = obj.task.get_user_participation_share(participation.id)
+                return obj.get_amount_details(share=share)
+            except:
+                pass
         return obj.get_amount_details(share=0)
 
 

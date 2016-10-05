@@ -66,7 +66,6 @@ class SimpleBTCWalletSerializer(serializers.ModelSerializer):
 
 class SimpleUserSerializer(serializers.ModelSerializer):
     company = serializers.CharField(read_only=True, required=False, source='userprofile.company')
-    #avatar_url = serializers.SerializerMethodField(required=False, read_only=True)
     can_contribute = serializers.SerializerMethodField(required=False, read_only=True)
 
     class Meta:
@@ -75,14 +74,6 @@ class SimpleUserSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'first_name', 'last_name', 'display_name', 'short_name', 'type', 'image',
             'is_developer', 'is_project_owner', 'is_staff', 'verified', 'company', 'avatar_url', 'can_contribute'
         )
-
-    def get_avatar_url(self, obj):
-        if obj.image:
-            return obj.image.url
-        social_accounts = obj.socialaccount_set.all()
-        if social_accounts:
-            return social_accounts[0].get_avatar_url()
-        return None
 
     def get_can_contribute(self, obj):
         return profile_check(obj)

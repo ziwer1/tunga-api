@@ -32,6 +32,7 @@ class UserSerializer(SimpleUserSerializer, GetCurrentUserAnnotatedSerializerMixi
     tasks_completed = serializers.SerializerMethodField(read_only=True, required=False)
     satisfaction = serializers.SerializerMethodField(read_only=True, required=False)
     ratings = serializers.SerializerMethodField(read_only=True, required=False)
+    avatar_url = serializers.URLField(read_only=True, required=False)
 
     class Meta:
         model = get_user_model()
