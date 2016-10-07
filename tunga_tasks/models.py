@@ -1,6 +1,7 @@
 # encoding=utf8
 from __future__ import unicode_literals
 
+import re
 import uuid
 from decimal import Decimal
 
@@ -221,7 +222,7 @@ class Task(models.Model):
                 'assignee', 'participation', 'participants',
                 'confirmed_participants', 'rejected_participants'
             ]
-            if not [x for x in request.data.keys() if not x in allowed_keys]:
+            if not [x for x in request.data.keys() if not (x in allowed_keys or re.match(r'^file\d*$', x))]:
                 return self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
         return False
 
