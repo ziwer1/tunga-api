@@ -168,7 +168,7 @@ class NotificationView(views.APIView):
         except:
             profile_notifications['missing'] = ['skills', 'bio', 'country', 'city', 'street', 'plot_number', 'phone_number']
 
-        if not user.image:
+        if not user.avatar_url:
             profile_notifications['missing'].append('image')
 
         if profile:
