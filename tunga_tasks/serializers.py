@@ -16,7 +16,7 @@ from tunga_tasks.notifications import send_new_task_email
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, ProgressEvent, ProgressReport, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
     TaskInvoice
-from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE
+from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, VISIBILITY_CUSTOM
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.models import Rating
@@ -192,7 +192,9 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     display_fee = serializers.SerializerMethodField(required=False, read_only=True)
     amount = serializers.JSONField(required=False, read_only=True)
     excerpt = serializers.CharField(required=False, read_only=True)
-    skills = serializers.CharField(required=True, allow_blank=True, allow_null=True)
+    skills = serializers.CharField(
+        required=True, error_messages={'blank': 'Please specify the skills required for this task'}
+    )
     payment_status = serializers.CharField(required=False, read_only=True)
     deadline = serializers.DateTimeField(required=False, allow_null=True)
     can_apply = serializers.SerializerMethodField(read_only=True, required=False)
@@ -220,6 +222,12 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             'created_at', 'paid', 'paid_at', 'invoice_date', 'btc_address', 'btc_price', 'pay_distributed'
         )
         details_serializer = TaskDetailsSerializer
+
+    def validate(self, attrs):
+        visibility = attrs.get('visibility', None)
+        if visibility == VISIBILITY_CUSTOM and not (attrs.get('participation', None) or attrs.get('participants', None)):
+            raise ValidationError({'visibility': 'Please choose at least one developer for this task'})
+        return attrs
 
     def create(self, validated_data):
 
