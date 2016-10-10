@@ -1,0 +1,32 @@
+{% extends "tunga/email/base.html" %}
+{% load i18n %}
+{% block email_content %}
+    <p>Hello,</p>
+
+    <p>A new skill "{{ skill }}" was added to Tunga:</p>
+
+    {% if tasks %}
+    <p>
+        {% for task in tasks %}
+
+            {% if forloop.first %}Tasks:<br/>{% endif %}
+
+            {{ forloop.counter }}: {{ task.summary }}<br/>
+
+        {% endfor %}
+    </p>
+    {% endif %}
+
+    {% if users %}
+    <p>
+        {% for user in users %}
+
+            {% if forloop.first %}Users:<br/>{% endif %}
+
+            {{ forloop.counter }}: {{ user.display_name }} {% if user.type == 2 %}(Project owner){% elif user.type == 1 %}(Developer){% endif %}<br/>
+
+        {% endfor %}
+    </p>
+    {% endif %}
+
+{% endblock %}

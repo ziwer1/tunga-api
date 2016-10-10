@@ -4,8 +4,8 @@ from django.dispatch.dispatcher import receiver
 
 from tunga_activity import verbs
 from tunga_profiles.emails import send_new_developer_email, send_developer_accepted_email, \
-    send_developer_application_received_email
-from tunga_profiles.models import Connection, DeveloperApplication
+    send_developer_application_received_email, send_new_skill_email
+from tunga_profiles.models import Connection, DeveloperApplication, Skill
 from tunga_utils.constants import REQUEST_STATUS_ACCEPTED
 
 
@@ -32,3 +32,9 @@ def activity_handler_developer_application(sender, instance, created, **kwargs):
     else:
         if instance.status == REQUEST_STATUS_ACCEPTED and not instance.confirmation_sent_at:
             send_developer_accepted_email.delay(instance.id)
+
+
+@receiver(post_save, sender=Skill)
+def activity_handler_new_skill(sender, instance, created, **kwargs):
+    if created:
+        send_new_skill_email.delay(instance.id)

@@ -1,0 +1,20 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello,
+
+A new skill "{{ skill }}" was added to Tunga:
+
+{% if tasks %}
+{% for task in tasks %}
+{% if forloop.first %}Tasks:{% endif %}
+{{ forloop.counter }}: {{ task.summary }}
+{% endfor %}
+
+{% endif %}
+{% if users %}
+{% for user in users %}
+{% if forloop.first %}Users:{% endif %}
+{{ forloop.counter }}: {{ user.display_name }} {% if user.type == 2 %}(Project owner){% elif user.type == 1 %}(Developer){% endif %}
+{% endfor %}
+{% endif %}
+
+{% endblock %}{% endautoescape %}
