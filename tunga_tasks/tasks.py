@@ -132,8 +132,10 @@ def distribute_task_payment(task):
                     share_amount = Decimal(share)*payment.btc_received
                     recipients = [
                         {
-                            bitpesa.KEY_REQUESTED_AMOUNT: float(bitpesa.get_pay_out_amount(
-                                share_amount, participant.user.mobile_money_cc
+                            bitpesa.KEY_REQUESTED_AMOUNT: float(bitcoin_utils.get_valid_btc_amount(
+                                bitpesa.get_pay_out_amount(
+                                    share_amount, participant.user.mobile_money_cc
+                                )
                             )),
                             bitpesa.KEY_REQUESTED_CURRENCY: CURRENCY_BTC,
                             bitpesa.KEY_PAYOUT_METHOD: {
@@ -212,7 +214,7 @@ def complete_bitpesa_payment(transaction):
                 ]:
                     payment.btc_sent = input_amount
                     payment.destination = destination_address
-                    payment.ref = transaction.id
+                    payment.ref = cb_transaction.id
                     payment.status = PAYMENT_STATUS_PROCESSING
                     payment.extra = json.dumps(dict(bitpesa=bp_transaction_id))
                     payment.save()
