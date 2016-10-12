@@ -46,6 +46,7 @@ KEY_EVENT = "event"
 KEY_URL = "url"
 KEY_STYLE = "style"
 KEY_PROVIDER = "provider"
+KEY_WEBHOOK = "webhook"
 
 KEY_REFERENCE = "reference"
 KEY_IDEM_KEY = "idem_key"

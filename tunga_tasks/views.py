@@ -679,10 +679,8 @@ def bitpesa_notification(request):
 
     payload = request.data
     if payload:
-        webhook = payload.get(bitpesa.KEY_OBJECT, None)
-        if webhook:
-            transaction = webhook.get(bitpesa.KEY_TRANSACTION, None)
-            if transaction and webhook.get(bitpesa.KEY_EVENT, None) == bitpesa.EVENT_TRANSACTION_APPROVED:
-                if complete_bitpesa_payment(transaction):
-                    return Response('Received')
+        transaction = payload.get(bitpesa.KEY_OBJECT, None)
+        if transaction and payload.get(bitpesa.KEY_EVENT, None) == bitpesa.EVENT_TRANSACTION_APPROVED:
+            if complete_bitpesa_payment(transaction):
+                return Response('Received')
     return Response('Failed to process', status=status.HTTP_400_BAD_REQUEST)
