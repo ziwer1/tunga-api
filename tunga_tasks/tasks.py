@@ -132,11 +132,9 @@ def distribute_task_payment(task):
                     share_amount = Decimal(share)*payment.btc_received
                     recipients = [
                         {
-                            bitpesa.KEY_REQUESTED_AMOUNT: float(bitcoin_utils.get_valid_btc_amount(
-                                bitpesa.get_pay_out_amount(
-                                    share_amount, participant.user.mobile_money_cc
-                                )
-                            )),
+                            bitpesa.KEY_REQUESTED_AMOUNT: float(
+                                bitcoin_utils.get_valid_btc_amount(share_amount)
+                            ),
                             bitpesa.KEY_REQUESTED_CURRENCY: CURRENCY_BTC,
                             bitpesa.KEY_PAYOUT_METHOD: {
                                 bitpesa.KEY_TYPE: bitpesa.get_pay_out_method(participant.user.mobile_money_cc),
