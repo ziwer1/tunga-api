@@ -108,8 +108,8 @@ def distribute_task_payment(task):
             participant_pay, created = ParticipantPayment.objects.get_or_create(
                 source=payment, participant=participant
             )
+            payment_method = participant.user.payment_method
             if created or (participant_pay and participant_pay.status == PAYMENT_STATUS_PENDING):
-                payment_method = participant.user.payment_method
                 if payment_method in [PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_BTC_WALLET]:
                     if not (participant_pay.destination and bitcoin_utils.is_valid_btc_address(participant_pay.destination)):
                         participant_pay.destination = participant.user.btc_address
@@ -159,6 +159,15 @@ def distribute_task_payment(task):
 
                         if complete_bitpesa_payment(transaction):
                             portion_sent = True
+            elif participant_pay and payment_method == PAYMENT_METHOD_MOBILE_MONEY and \
+                            participant_pay.status == PAYMENT_STATUS_INITIATED:
+                transaction_details = bitpesa.call_api(
+                    bitpesa.get_endpoint_url('transactions/%s' % participant_pay.ref),
+                    'GET', str(uuid4()), data={}
+                )
+                transaction = transaction_details.json().get(bitpesa.KEY_OBJECT)
+                if transaction and complete_bitpesa_payment(transaction):
+                    portion_sent = True
 
             portion_distribution.append(portion_sent)
         if portion_distribution and False not in portion_distribution:
@@ -183,7 +192,13 @@ def complete_bitpesa_payment(transaction):
 
     destination_address = None
     if payin_methods:
-        destination_address = payin_methods[0][bitpesa.KEY_OUT_DETAILS].get(bitpesa.KEY_BITCOIN_ADDRESS, None)
+        out_details = payin_methods[0][bitpesa.KEY_OUT_DETAILS]
+        # Key was originally 'bitcoin_address' on first test but it appeared to have 'Address',
+        # Check both for redundancy and inquire from BitPesa on this
+        if bitpesa.KEY_BITCOIN_ADDRESS in out_details:
+            destination_address = out_details.get(bitpesa.KEY_BITCOIN_ADDRESS, None)
+        else:
+            destination_address = out_details.get("Address", None)
         if not destination_address:
             destination_address = payin_methods[0][bitpesa.KEY_IN_DETAILS].get(bitpesa.KEY_ADDRESS, None)
 
@@ -196,7 +211,12 @@ def complete_bitpesa_payment(transaction):
             payment = None
 
         if payment:
-            share_amount = payment.source.btc_received * Decimal(payment.participant.payment_share)
+            share_amount = Decimal(
+                bitcoin_utils.get_valid_btc_amount(
+                    payment.source.btc_received * Decimal(payment.participant.payment_share)
+                )
+            )
+
             if input_amount <= share_amount:
                 cb_transaction = send_payment_share(
                     destination=destination_address,
