@@ -51,6 +51,11 @@ KEY_WEBHOOK = "webhook"
 KEY_REFERENCE = "reference"
 KEY_IDEM_KEY = "idem_key"
 
+VALUE_INITIAL = "initial"
+VALUE_FUNDED = "funded"
+VALUE_PAID = "paid"
+VALUE_CANCELED = "canceled"
+
 EVENT_SENDER_APPROVED = "sender.approved"
 EVENT_TRANSACTION_REQUEST_CREATED = "transaction_request.created"
 EVENT_TRANSACTION_REQUEST_ACCEPTED = "transaction_request.accepted"

@@ -211,6 +211,15 @@ def complete_bitpesa_payment(transaction):
             payment = None
 
         if payment:
+
+            if transaction.get(bitpesa.KEY_STATE, None) == bitpesa.VALUE_CANCELED:
+                # Fail for canceled BitPesa transactions
+                if payment.status == PAYMENT_STATUS_INITIATED:
+                    # Switch status to pending if BTC hasn't already been sent
+                    payment.status = PAYMENT_STATUS_PENDING
+                    payment.save()
+                return False
+
             share_amount = Decimal(
                 bitcoin_utils.get_valid_btc_amount(
                     payment.source.btc_received * Decimal(payment.participant.payment_share)
