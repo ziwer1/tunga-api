@@ -3,6 +3,7 @@ from actstream.models import Action
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 
+from tunga_activity import verbs
 from tunga_tasks.models import Task
 from tunga_utils.filters import GenericDateFilterSet
 
@@ -16,7 +17,7 @@ class ActionFilter(GenericDateFilterSet):
         model = Action
         fields = (
             'verb', 'actor_content_type', 'actor_object_id', 'target_content_type', 'target_object_id',
-            'action_object_content_type', 'action_object_object_id'
+            'action_object_content_type', 'action_object_object_id', 'since'
         )
 
     def filter_user(self, queryset, value):
@@ -30,3 +31,10 @@ class ActionFilter(GenericDateFilterSet):
         )
 
 
+class MessageActivityFilter(ActionFilter):
+    since = django_filters.MethodFilter()
+
+    def filter_since(self, queryset, value):
+        return queryset.filter(
+            id__gt=value, verb__in=[verbs.SEND, verbs.UPLOAD]
+        )

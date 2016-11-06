@@ -10,7 +10,6 @@ def all_messages_q_filter(user):
 
 
 def channel_last_read_annotation(user):
-    print user
     return Case(
         When(
             channeluser__user=user,

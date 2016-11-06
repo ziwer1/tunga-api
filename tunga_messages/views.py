@@ -10,7 +10,7 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 
-from tunga_activity.filters import ActionFilter
+from tunga_activity.filters import ActionFilter, MessageActivityFilter
 from tunga_activity.serializers import SimpleActivitySerializer, LastReadActivitySerializer
 from tunga_messages.filterbackends import MessageFilterBackend, ChannelFilterBackend
 from tunga_messages.filters import MessageFilter, ChannelFilter
@@ -190,7 +190,10 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        queryset = ActionFilter(request.GET, self.filter_queryset(channel.target_actions.all().order_by('-id')))
+        queryset = MessageActivityFilter(
+            request.GET,
+            self.filter_queryset(channel.target_actions.all().order_by('-id'))
+        )
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
