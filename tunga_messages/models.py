@@ -15,7 +15,7 @@ from dry_rest_permissions.generics import allow_staff_or_superuser
 from tunga import settings
 from tunga_profiles.models import Connection, Inquirer
 from tunga_utils.constants import CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_SUPPORT, \
-    APP_INTEGRATION_PROVIDER_SLACK
+    APP_INTEGRATION_PROVIDER_SLACK, CHANNEL_TYPE_DEVELOPER
 from tunga_utils.helpers import GenericObject, convert_to_text, convert_to_html
 from tunga_utils.models import Upload
 
@@ -23,7 +23,8 @@ from tunga_utils.models import Upload
 CHANNEL_TYPE_CHOICES = (
     (CHANNEL_TYPE_DIRECT, 'Direct Channel'),
     (CHANNEL_TYPE_TOPIC, 'Topic Channel'),
-    (CHANNEL_TYPE_SUPPORT, 'Support Channel')
+    (CHANNEL_TYPE_SUPPORT, 'Support Channel'),
+    (CHANNEL_TYPE_DEVELOPER, 'Developer Channel')
 )
 
 
@@ -85,22 +86,32 @@ class Channel(models.Model):
             return True
         elif not request.user.is_authenticated():
             return False
-        if self.has_object_write_permission(request):
+        if self.type == CHANNEL_TYPE_DEVELOPER and request.user.is_developer:
             return True
-        return self.channeluser_set.filter(user=request.user).count()
+        return self.has_object_write_permission(request)
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
-        return request.user == self.created_by
+        return request.user == self.created_by or self.channeluser_set.filter(user=request.user).count()
+
+    @allow_staff_or_superuser
+    def has_object_update_permission(self, request):
+        if self.has_object_write_permission(request):
+            return True
+        # Developers can upload to developer channels
+        is_upload_only = not [x for x in request.data.keys() if not re.match(r'^file\d*$', x)]
+        if self.type == CHANNEL_TYPE_DEVELOPER and request.user.is_developer and is_upload_only:
+            return True
+        return False
 
     @property
     def all_attachments(self):
         return Upload.objects.filter(Q(channels=self) | Q(messages__channel=self))
 
     def get_receiver(self, sender):
-        if sender and self.type == CHANNEL_TYPE_DIRECT:
+        if sender and self.type in [CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC]:
             participation = self.channeluser_set.filter(~Q(user_id=sender.id))
-            if participation:
+            if participation and participation.count() == 1:
                 return participation[0].user
         return None
 
@@ -124,12 +135,14 @@ class Channel(models.Model):
         return None
 
     def get_alt_subject(self):
-        if self.subject:
-            return self.subject
         if self.type == CHANNEL_TYPE_SUPPORT:
             inquirer = self.get_inquirer()
             if inquirer:
-                return 'Help: %s' % inquirer.name
+                return '%s (Guest)' % inquirer.name
+            elif self.created_by:
+                return '%s (%s)' % (self.created_by.name, self.created_by.get_type_display())
+        if self.subject:
+            return self.subject
         return None
 
 
@@ -242,7 +255,8 @@ class Message(models.Model):
     @property
     def sender(self):
         if self.user:
-            if self.user.is_staff or self.user.is_superuser and self.channel.type == CHANNEL_TYPE_SUPPORT:
+            if (self.user.is_staff or self.user.is_superuser) and \
+                            self.channel.type in [CHANNEL_TYPE_SUPPORT, CHANNEL_TYPE_DEVELOPER]:
                 support_name = '%s from Tunga' % self.user.short_name
                 user = GenericObject(**dict(
                     id=self.user_id,

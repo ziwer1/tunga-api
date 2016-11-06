@@ -1,11 +1,12 @@
 from django.contrib.auth import get_user_model
+from django.db.models.query_utils import Q
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from tunga_messages.filterbackends import new_messages_filter
+from tunga_messages.utils import channel_activity_new_messages_filter
 from tunga_messages.models import Message, Channel, ChannelUser
 from tunga_messages.tasks import get_or_create_direct_channel
-from tunga_utils.constants import CHANNEL_TYPE_SUPPORT
+from tunga_utils.constants import CHANNEL_TYPE_SUPPORT, CHANNEL_TYPE_DEVELOPER
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.serializers import CreateOnlyCurrentUserDefault, SimpleUserSerializer, DetailAnnotatedModelSerializer, ContentTypeAnnotatedModelSerializer, UploadSerializer
 
@@ -35,11 +36,10 @@ class SupportChannelSerializer(serializers.Serializer, GetCurrentUserAnnotatedSe
             raise ValidationError('Please enter your name')
         return value
 
-    def validate_subject(self, value):
-        current_user = self.get_current_user()
-        if current_user and current_user.is_authenticated() and not value:
-            raise ValidationError('Please enter a subject for this support request')
-        return value
+
+class DeveloperChannelSerializer(serializers.Serializer, GetCurrentUserAnnotatedSerializerMixin):
+    subject = serializers.CharField(required=True)
+    message = serializers.CharField(required=True)
 
 
 class ChannelDetailsSerializer(serializers.ModelSerializer):
@@ -58,6 +58,7 @@ class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedS
     )
     attachments = UploadSerializer(read_only=True, required=False, many=True, source='all_attachments')
     user = serializers.SerializerMethodField(read_only=True, required=False)
+    new_messages = serializers.IntegerField(read_only=True, required=False)
     new = serializers.SerializerMethodField(read_only=True, required=False)
     last_read = serializers.SerializerMethodField(read_only=True, required=False)
     alt_subject = serializers.CharField(required=False, read_only=True, source='get_alt_subject')
@@ -124,18 +125,19 @@ class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedS
                     pass
 
     def get_user(self, obj):
-        user = self.get_current_user()
-        if user:
-            if obj.participants.count() <= 2:
-                for participant in obj.participants.all():
-                    if participant.id != user.id and not (obj.type == CHANNEL_TYPE_SUPPORT and (participant.is_staff or participant.is_superuser)):
-                        return SimpleUserSerializer(participant).data
+        current_user = self.get_current_user()
+        if current_user:
+            receiver = obj.get_receiver(current_user)
+            if receiver:
+                return SimpleUserSerializer(receiver).data
         return None
 
     def get_new(self, obj):
         user = self.get_current_user()
         if user:
-            return new_messages_filter(queryset=obj.target_actions.filter(channels__channeluser__user=user), user=user).count()
+            return channel_activity_new_messages_filter(
+                queryset=obj.target_actions.filter(channels__channeluser__user=user), user=user
+            ).count()
         return 0
 
     def get_last_read(self, obj):

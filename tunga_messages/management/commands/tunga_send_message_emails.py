@@ -62,7 +62,7 @@ class Command(BaseCommand):
                 'new_messages': user_channel.new_messages,
                 'channel_name': channel_name,
                 'channel': user_channel.channel,
-                'channel_url': '%s/channel/%s/' % (TUNGA_URL, user_channel.channel.id)
+                'channel_url': '%s/conversation/%s/' % (TUNGA_URL, user_channel.channel.id)
             }
 
             if send_mail(subject, 'tunga/email/email_unread_channel_messages', to, ctx):

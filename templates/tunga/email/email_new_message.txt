@@ -8,7 +8,7 @@ Hello,
 {{ message.excerpt }}
 
 
-Click the link below to go to the discussion:
+Click the link below to go to the conversation:
 
 {{ message_url }}
 

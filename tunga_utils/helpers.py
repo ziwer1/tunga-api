@@ -1,8 +1,9 @@
 import re
 
 from allauth.socialaccount.models import SocialToken
-from decimal import Decimal, ROUND_UP
+from decimal import Decimal
 from django.http import HttpResponseRedirect
+from django.template.defaultfilters import urlizetrunc, safe
 from django.utils.html import strip_tags
 
 from tunga.settings import SOCIAL_CONNECT_USER_TYPE, SOCIAL_CONNECT_TASK
@@ -82,7 +83,19 @@ def convert_to_text(body):
 
 
 def convert_to_html(body):
-    return re.sub(r'(<br\s*/>)?\n', '<br/>', body, flags=re.IGNORECASE)
+    return safe(
+        re.sub(
+            r'<a([^>]+)>(?:http|ftp)s?://([^<]+)</a>',
+            '<a\\1>\\2</a>',
+            re.sub(
+                r'<a([^>]+)(?<!target=)>',
+                '<a target="_blank"\\1>',
+                urlizetrunc(re.sub(r'(<br\s*/>)?\n', '<br/>', body, flags=re.IGNORECASE), limit=50, autoescape=False),
+                flags=re.IGNORECASE
+            ),
+            re.IGNORECASE
+        )
+    )
 
 
 def round_decimal(number, ndigits):

@@ -4,6 +4,7 @@ from django.core.mail.message import EmailMultiAlternatives, EmailMessage
 from django.template.exceptions import TemplateDoesNotExist
 from django.template.loader import render_to_string
 from django_rq.decorators import job
+from premailer import premailer
 
 from tunga.settings import DEFAULT_FROM_EMAIL, TUNGA_CONTACT_REQUEST_EMAIL_RECIPIENTS, EMAIL_SUBJECT_PREFIX
 from tunga_utils.helpers import clean_instance
@@ -26,9 +27,9 @@ def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None,
     if 'txt' in bodies:
         msg = EmailMultiAlternatives(subject, bodies['txt'], from_email, to_emails, bcc=bcc, cc=cc)
         if 'html' in bodies:
-            msg.attach_alternative(bodies['html'], 'text/html')
+            msg.attach_alternative(premailer.transform(bodies['html']), 'text/html')
     else:
-        msg = EmailMessage(subject, bodies['html'], from_email, to_emails, bcc=bcc, cc=cc)
+        msg = EmailMessage(subject, premailer.transform(bodies['html']), from_email, to_emails, bcc=bcc, cc=cc)
         msg.content_subtype = 'html'  # Main content is now text/html
     return msg
 

@@ -25,3 +25,4 @@ python-dateutil==2.5.3
 requests==2.10.0
 rest-framework-generic-relations==1.1.0
 WeasyPrint==0.30
+premailer==3.0.1

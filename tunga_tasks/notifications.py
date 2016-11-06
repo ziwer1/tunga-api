@@ -327,6 +327,6 @@ def send_task_invoice_request_email(instance):
         'owner': instance.user,
         'task': instance,
         'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id),
-        'invoice_url': '%s/task/%s/download/invoice/?format=pdf' % (TUNGA_URL, instance.id)
+        'invoice_url': '%s/api/task/%s/download/invoice/?format=pdf' % (TUNGA_URL, instance.id)
     }
     send_mail(subject, 'tunga/email/email_task_invoice_request', to, ctx)

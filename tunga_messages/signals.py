@@ -5,9 +5,10 @@ from django.dispatch.dispatcher import receiver
 
 from tunga_activity import verbs
 from tunga_messages.models import Message, Channel, ChannelUser
-from tunga_messages.notifications import notify_new_message_slack
+from tunga_messages.notifications import notify_new_message_slack, notify_new_message_developers
 from tunga_profiles.models import Inquirer
-from tunga_utils.constants import CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_SUPPORT, APP_INTEGRATION_PROVIDER_SLACK
+from tunga_utils.constants import CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_SUPPORT, APP_INTEGRATION_PROVIDER_SLACK, \
+    CHANNEL_TYPE_DEVELOPER
 from tunga_messages.tasks import clean_direct_channel
 
 
@@ -46,11 +47,11 @@ def activity_handler_new_message(sender, instance, created, **kwargs):
         actor = None
         if instance.user:
             actor = instance.user
+        elif instance.source == APP_INTEGRATION_PROVIDER_SLACK:
+            actor = instance.channel
         elif instance.channel.content_object and ContentType.objects.get_for_model(Inquirer) == ContentType.objects.get_for_model(instance.channel.content_object):
-            if instance.source == APP_INTEGRATION_PROVIDER_SLACK:
-                actor = instance.channel
-            else:
-                actor = instance.channel.content_object
+            actor = instance.channel.content_object
+
         if actor:
             action.send(
                 actor, verb=verbs.SEND, action_object=instance, target=instance.channel,
@@ -59,3 +60,6 @@ def activity_handler_new_message(sender, instance, created, **kwargs):
 
         if instance.channel.type == CHANNEL_TYPE_SUPPORT:
             notify_new_message_slack.delay(instance.id)
+
+        if instance.channel.type == CHANNEL_TYPE_DEVELOPER and (instance.user.is_staff or instance.user.is_superuser):
+            notify_new_message_developers.delay(instance.id)

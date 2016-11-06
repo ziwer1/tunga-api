@@ -291,7 +291,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
-    'PAGE_SIZE': 15,
+    'PAGE_SIZE': 20,
+    'DEFAULT_PAGINATION_CLASS': 'tunga_utils.pagination.DefaultPagination',
     'URL_FIELD_NAME': 'api_url',
     'DEFAULT_FILTER_BACKENDS': (
         'rest_framework.filters.DjangoFilterBackend', 'rest_framework.filters.SearchFilter'

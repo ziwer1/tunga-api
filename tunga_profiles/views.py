@@ -1,8 +1,6 @@
 import json
 
-from actstream.models import Action
 from allauth.socialaccount.providers.github.provider import GitHubProvider
-from django.contrib.contenttypes.models import ContentType
 from django.db.models.query_utils import Q
 from django.shortcuts import get_object_or_404
 from django_countries.fields import CountryField
@@ -12,8 +10,8 @@ from rest_framework.decorators import list_route
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
-from tunga_messages.filterbackends import new_messages_filter
 from tunga_messages.models import Channel
+from tunga_messages.utils import channel_new_messages_filter
 from tunga_profiles.filterbackends import ConnectionFilterBackend
 from tunga_profiles.filters import EducationFilter, WorkFilter, ConnectionFilter, DeveloperApplicationFilter
 from tunga_profiles.models import UserProfile, Education, Work, Connection, DeveloperApplication
@@ -22,7 +20,7 @@ from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, W
     DeveloperApplicationSerializer
 from tunga_utils import github
 from tunga_utils.constants import USER_TYPE_PROJECT_OWNER, APP_INTEGRATION_PROVIDER_SLACK, CHANNEL_TYPE_SUPPORT, \
-    CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC
+    CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_DEVELOPER
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.helpers import get_social_token, get_app_integration
 
@@ -145,17 +143,36 @@ class NotificationView(views.APIView):
                 {'status': 'Unauthorized', 'message': 'You are not logged in'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-        channel_types = [CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC]
-        if not (user.is_staff and user.is_superuser):
-            channel_types.append(CHANNEL_TYPE_SUPPORT)
-        activity_queryset = Action.objects.filter(
-            target_content_type=ContentType.objects.get_for_model(Channel),
-            channels__channeluser__user=user,
-            channels__type__in=channel_types
+
+        channel_filter = Q(channeluser__user=user)
+        if user.is_staff and user.is_superuser or user.is_developer:
+            # channel_filter = channel_filter | Q(type=CHANNEL_TYPE_DEVELOPER)
+            # TODO: Channel filter should include all developer channels for admins and devs
+            # However enabling above query currently breaks new message counts
+            pass
+
+        channels_with_messages = channel_new_messages_filter(
+            Channel.objects.filter(channel_filter),
+            user=user
         )
-        new_messages = new_messages_filter(
-            queryset=activity_queryset, user=user
-        ).count()
+
+        channel_updates = [
+            dict(id=channel.id, type=channel.type, new=channel.new_messages, last_read=channel.channel_last_read)
+            for channel in channels_with_messages]
+
+        channel_type_map = {
+            CHANNEL_TYPE_DIRECT: 'direct',
+            CHANNEL_TYPE_TOPIC: 'topic',
+            CHANNEL_TYPE_SUPPORT: 'support',
+            CHANNEL_TYPE_DEVELOPER: 'developer'
+        }
+
+        channel_type_summary_updates = dict()
+        for channel_type_name in channel_type_map.itervalues():
+            channel_type_summary_updates[channel_type_name] = 0
+
+        for channel in channel_updates:
+            channel_type_summary_updates[channel_type_map.get(channel['type'], '')] += channel['new']
 
         requests = user.connection_requests.filter(responded=False, from_user__pending=False).count()
         tasks = user.tasks_created.filter(closed=False).count() + user.participation_set.filter(
@@ -166,7 +183,8 @@ class NotificationView(views.APIView):
         try:
             profile = user.userprofile
         except:
-            profile_notifications['missing'] = ['skills', 'bio', 'country', 'city', 'street', 'plot_number', 'phone_number']
+            profile_notifications['missing'] = ['skills', 'bio', 'country', 'city', 'street', 'plot_number',
+                                                'phone_number']
 
         if not user.avatar_url:
             profile_notifications['missing'].append('image')
@@ -199,7 +217,14 @@ class NotificationView(views.APIView):
                                          + len(profile_notifications['improve'])
 
         return Response(
-            {'messages': new_messages, 'requests': requests, 'tasks': tasks, 'profile': profile_notifications},
+            {
+                'messages': channel_type_summary_updates['direct'] + channel_type_summary_updates['topic'] + channel_type_summary_updates['developer'],
+                'requests': requests,
+                'tasks': tasks,
+                'profile': profile_notifications,
+                'channels': channel_updates,
+                'channel_summary': channel_type_summary_updates
+            },
             status=status.HTTP_200_OK
         )
 
@@ -236,7 +261,8 @@ class IssueListView(views.APIView):
             return Response({'status': 'Unauthorized'}, status.HTTP_401_UNAUTHORIZED)
 
         if provider == GitHubProvider.id:
-            r = github.api(endpoint='/user/issues', method='get', params={'filter': 'all'}, access_token=social_token.token)
+            r = github.api(endpoint='/user/issues', method='get', params={'filter': 'all'},
+                           access_token=social_token.token)
             if r.status_code == 200:
                 issues = []
                 for issue in r.json():

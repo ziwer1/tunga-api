@@ -2,15 +2,12 @@ import json
 import re
 
 import datetime
-from django.db.models.aggregates import Max
-from django.db.models.expressions import Case, When, F
-from django.db.models.fields import DateTimeField
 from django.views.decorators.csrf import csrf_exempt
 from dry_rest_permissions.generics import DRYObjectPermissions, DRYPermissions
 from rest_framework import viewsets, status
 from rest_framework.decorators import detail_route, list_route, api_view, permission_classes
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 
 from tunga_activity.filters import ActionFilter
@@ -19,34 +16,22 @@ from tunga_messages.filterbackends import MessageFilterBackend, ChannelFilterBac
 from tunga_messages.filters import MessageFilter, ChannelFilter
 from tunga_messages.models import Message, Channel, ChannelUser
 from tunga_messages.serializers import MessageSerializer, ChannelSerializer, DirectChannelSerializer, \
-    SupportChannelSerializer
-from tunga_messages.tasks import get_or_create_direct_channel, create_channel
+    SupportChannelSerializer, DeveloperChannelSerializer
+from tunga_messages.tasks import get_or_create_direct_channel, get_or_create_support_channel, create_channel
+from tunga_messages.utils import annotate_channel_queryset_with_latest_activity_at
 from tunga_profiles.models import Inquirer
 from tunga_utils import slack_utils
-from tunga_utils.constants import CHANNEL_TYPE_SUPPORT, APP_INTEGRATION_PROVIDER_SLACK
+from tunga_utils.constants import CHANNEL_TYPE_SUPPORT, APP_INTEGRATION_PROVIDER_SLACK, CHANNEL_TYPE_DEVELOPER
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.mixins import SaveUploadsMixin
-from tunga_utils.pagination import LargeResultsSetPagination
+from tunga_utils.pagination import LargeResultsSetPagination, DefaultPagination
 
 
 class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
     """
     Channel Resource
     """
-    queryset = Channel.objects.all().annotate(
-        latest_message_created_at=Max('messages__created_at')
-    ).annotate(latest_activity_at=Case(
-        When(
-            latest_message_created_at__isnull=True,
-            then='created_at'
-        ),
-        When(
-            latest_message_created_at__gt=F('created_at'),
-            then='latest_message_created_at'
-        ),
-        default='created_at',
-        output_field=DateTimeField()
-    )).order_by('-latest_activity_at')
+    queryset = Channel.objects.all()
     serializer_class = ChannelSerializer
     permission_classes = [DRYPermissions, DRYObjectPermissions]
     filter_class = ChannelFilter
@@ -56,6 +41,11 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         'subject', 'channeluser__user__username', 'channeluser__user__first_name',
         'channeluser__user__last_name'
     )
+
+    def get_queryset(self):
+        return annotate_channel_queryset_with_latest_activity_at(
+            self.queryset, self.request.user
+        ).distinct().order_by('-latest_activity_at')
 
     @list_route(
         methods=['post'], url_path='direct',
@@ -97,8 +87,7 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         if serializer.is_valid(raise_exception=True):
             if request.user.is_authenticated():
                 # Create support channel for logged in user
-                subject = serializer.validated_data['subject']
-                channel = create_channel(request.user, subject=subject, channel_type=CHANNEL_TYPE_SUPPORT)
+                channel = get_or_create_support_channel(request.user)
             else:
                 # Create support channel for anonymous user
                 name = serializer.validated_data['name']
@@ -109,8 +98,42 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
             return Response(
                 {'status': "Couldn't get or create a support channel"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        response_serializer = ChannelSerializer(channel)
+        response_serializer = ChannelSerializer(channel, context={'request': request})
         return Response(response_serializer.data)
+
+    @list_route(
+        methods=['post'], url_path='developer',
+        permission_classes=[IsAdminUser], serializer_class=DeveloperChannelSerializer
+    )
+    def developer_channel(self, request):
+        """
+        Gets or creates a developer channel for the current user
+        ---
+        request_serializer: DeveloperChannelSerializer
+        response_serializer: ChannelSerializer
+        """
+
+        serializer = self.get_serializer(data=request.data)
+        channel = None
+        if serializer.is_valid(raise_exception=True):
+            # Create developer channel
+            subject = serializer.validated_data['subject']
+            message = serializer.validated_data['message']
+            channel = create_channel(
+                request.user,
+                channel_type=CHANNEL_TYPE_DEVELOPER,
+                subject=subject,
+                messages=[
+                    dict(user=request.user, body=message)
+                ]
+            )
+        if not channel:
+            return Response(
+                {'status': "Couldn't get or create a support channel"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        response_serializer = ChannelSerializer(channel, context={'request': request})
+        return Response(response_serializer.data)
+
 
     @detail_route(
         methods=['post'], url_path='read',
@@ -148,7 +171,8 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         serializer_class=SimpleActivitySerializer,
         filter_class=None,
         filter_backends=DEFAULT_FILTER_BACKENDS,
-        search_fields=('messages__body', 'uploads__file', 'messages__attachments__file')
+        search_fields=('messages__body', 'uploads__file', 'messages__attachments__file'),
+        pagination_class=DefaultPagination
     )
     def activity(self, request, pk=None):
         """
