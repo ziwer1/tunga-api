@@ -187,7 +187,7 @@ def complete_bitpesa_payment(transaction):
     reference = metadata.get(bitpesa.KEY_REFERENCE, None)
     bp_idem_key = metadata.get(bitpesa.KEY_IDEM_KEY, None)
 
-    input_amount = transaction.get(bitpesa.KEY_INPUT_AMOUNT, 0)
+    input_amount = Decimal('%s' % transaction.get(bitpesa.KEY_INPUT_AMOUNT, 0))
     payin_methods = transaction.get(bitpesa.KEY_PAYIN_METHODS, None)
 
     destination_address = None
