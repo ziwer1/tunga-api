@@ -14,7 +14,7 @@ from dry_rest_permissions.generics import allow_staff_or_superuser
 from tunga import settings
 from tunga_utils.constants import USER_TYPE_DEVELOPER, RATING_CRITERIA_CODING, RATING_CRITERIA_COMMUNICATION, \
     RATING_CRITERIA_SPEED, MONTHS, CONTACT_REQUEST_ITEM_ONBOARDING, CONTACT_REQUEST_ITEM_PROJECT, \
-    CONTACT_REQUEST_ITEM_ONBOARDING_SPECIAL
+    CONTACT_REQUEST_ITEM_ONBOARDING_SPECIAL, CONTACT_REQUEST_ITEM_DO_IT_YOURSELF
 from tunga_utils.validators import validate_year
 
 
@@ -82,6 +82,7 @@ class Upload(GenericUpload):
         return request.user == self.user
 
 CONTACT_REQUEST_ITEM_CHOICES = (
+    (CONTACT_REQUEST_ITEM_DO_IT_YOURSELF, 'Do-it-yourself'),
     (CONTACT_REQUEST_ITEM_ONBOARDING, 'Tunga onboarding'),
     (CONTACT_REQUEST_ITEM_ONBOARDING_SPECIAL, 'Onboarding special offer'),
     (CONTACT_REQUEST_ITEM_PROJECT, 'Tunga project'),
