@@ -12,6 +12,7 @@ from tunga_profiles.validators import validate_email
 from tunga_utils.constants import REQUEST_STATUS_INITIAL, REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED, \
     BTC_WALLET_PROVIDER_COINBASE, PAYMENT_METHOD_BTC_WALLET, PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, \
     COUNTRY_CODE_UGANDA, COUNTRY_CODE_TANZANIA, COUNTRY_CODE_NIGERIA, APP_INTEGRATION_PROVIDER_SLACK
+from tunga_utils.helpers import get_serialized_id
 from tunga_utils.models import AbstractExperience
 from tunga_utils.validators import validate_btc_address
 
@@ -262,7 +263,7 @@ class UserNumber(models.Model):
 
     @property
     def number(self):
-        return 'A{:04d}'.format(self.id)
+        return get_serialized_id(self.id, max_digits=4)
 
 
 class ClientNumber(UserNumber):

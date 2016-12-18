@@ -1,3 +1,6 @@
+from tunga_profiles.models import AppIntegration
+
+
 def profile_check(user):
     if not user.first_name or not user.last_name or not user.email or not user.profile:
         return False
@@ -14,3 +17,10 @@ def profile_check(user):
         if k in required and not v:
             return False
     return True
+
+
+def get_app_integration(user, provider):
+    try:
+        return AppIntegration.objects.filter(user=user, provider=provider).latest('updated_at')
+    except AppIntegration.DoesNotExist:
+        return None

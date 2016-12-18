@@ -22,7 +22,8 @@ from tunga_utils import github
 from tunga_utils.constants import USER_TYPE_PROJECT_OWNER, APP_INTEGRATION_PROVIDER_SLACK, CHANNEL_TYPE_SUPPORT, \
     CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_DEVELOPER
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
-from tunga_utils.helpers import get_social_token, get_app_integration
+from tunga_utils.helpers import get_social_token
+from tunga_profiles.utils import get_app_integration
 
 
 class ProfileView(generics.CreateAPIView, generics.RetrieveUpdateDestroyAPIView):

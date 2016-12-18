@@ -5,7 +5,7 @@ import requests
 from tunga.settings import SLACK_CUSTOMER_OUTGOING_WEBHOOK_TOKEN, SLACK_AUTHORIZE_URL, SLACK_SCOPES, SLACK_CLIENT_ID, \
     SLACK_ACCESS_TOKEN_URL
 from tunga_utils.constants import APP_INTEGRATION_PROVIDER_SLACK
-from tunga_utils.helpers import get_app_integration
+from tunga_profiles.utils import get_app_integration
 
 KEY_TOKEN = 'token'
 KEY_TEAM_ID = 'team_id'
@@ -42,6 +42,7 @@ KEY_FOOTER_ICON = 'footer_icon'
 KEY_TS = 'ts'
 KEY_MRKDWN = 'mrkdwn'
 KEY_MRKDWN_IN = 'mrkdwn_in'
+KEY_COMMAND = 'command'
 
 
 def get_authorize_url(redirect_uri):

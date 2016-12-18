@@ -1,13 +1,12 @@
 import re
+from decimal import Decimal
 
 from allauth.socialaccount.models import SocialToken
-from decimal import Decimal
 from django.http import HttpResponseRedirect
 from django.template.defaultfilters import urlizetrunc, safe
 from django.utils.html import strip_tags
 
 from tunga.settings import SOCIAL_CONNECT_USER_TYPE, SOCIAL_CONNECT_TASK
-from tunga_profiles.models import AppIntegration
 from tunga_utils.constants import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 
 
@@ -71,13 +70,6 @@ def get_social_token(user, provider):
         return None
 
 
-def get_app_integration(user, provider):
-    try:
-        return AppIntegration.objects.filter(user=user, provider=provider).latest('updated_at')
-    except AppIntegration.DoesNotExist:
-        return None
-
-
 def convert_to_text(body):
     return strip_tags(re.sub(r'<br\s*/>', '\n', body, flags=re.IGNORECASE))
 
@@ -101,3 +93,22 @@ def convert_to_html(body):
 def round_decimal(number, ndigits):
     formatter = '{0:.%sf}' % ndigits
     return Decimal(formatter.format(Decimal(number)))
+
+
+def get_serialized_id(number, max_digits=4):
+    remainder_max_digits = number % (10 ** max_digits)
+    divider_max_digits = (number // (10 ** max_digits))
+    letters = convert_to_base_alphabet(divider_max_digits)
+    return '{}{:04d}'.format(letters, remainder_max_digits)
+
+
+def convert_to_base_alphabet(number):
+    remainder_letters = number % 26
+    divider_letters = number // 26
+
+    last_letter = chr(ord('A') + remainder_letters)
+    base_alphabet_string = last_letter
+
+    if divider_letters > 0:
+        base_alphabet_string = '{}{}'.format(convert_to_base_alphabet(divider_letters-1), base_alphabet_string)
+    return base_alphabet_string

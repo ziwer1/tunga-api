@@ -34,7 +34,7 @@ from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPE
     PROGRESS_EVENT_TYPE_SUBMIT, PROGRESS_REPORT_STATUS_ON_SCHEDULE, PROGRESS_REPORT_STATUS_BEHIND, \
     PROGRESS_REPORT_STATUS_STUCK, INTEGRATION_TYPE_REPO, INTEGRATION_TYPE_ISSUE, PAYMENT_STATUS_PENDING, \
     PAYMENT_STATUS_PROCESSING, PAYMENT_STATUS_COMPLETED, PAYMENT_STATUS_FAILED, PAYMENT_STATUS_INITIATED
-from tunga_utils.helpers import round_decimal
+from tunga_utils.helpers import round_decimal, get_serialized_id
 from tunga_utils.models import Upload, Rating
 from tunga_utils.validators import validate_btc_address
 
@@ -228,7 +228,7 @@ class Task(models.Model):
 
     @property
     def task_number(self):
-        return 'A{:03d}'.format(self.id)
+        return get_serialized_id(self.id, max_digits=3)
 
     def display_fee(self, amount=None):
         if amount is None:
