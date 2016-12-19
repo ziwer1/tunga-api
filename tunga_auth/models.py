@@ -100,3 +100,16 @@ class TungaUser(AbstractUser):
                 client = coinbase_utils.get_oauth_client(wallet.token, wallet.token_secret, self)
                 return coinbase_utils.get_new_address(client)
         return None
+
+
+class EmailVisitor(models.Model):
+    email = models.EmailField(unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_login_at = models.DateTimeField(auto_now_add=True)
+
+    def __unicode__(self):
+        return self.email
+
+    class Meta:
+        ordering = ['-created_at']

@@ -7,6 +7,7 @@ from django.http.response import StreamingHttpResponse
 from django.utils.translation import ugettext_lazy as _
 
 from tunga_auth.forms import TungaUserChangeForm, TungaUserCreationForm
+from tunga_auth.models import EmailVisitor
 from tunga_utils.constants import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_profiles.admin import UserProfileInline
 from tunga_utils.helpers import Echo
@@ -93,3 +94,11 @@ class TungaUserAdmin(UserAdmin):
         return response
 
     download_csv.short_description = "Download CSV of selected users"
+
+
+@admin.register(EmailVisitor)
+class EmailVisitorAdmin(admin.ModelAdmin):
+    list_display = ('email', 'created_at', 'last_login_at')
+    list_filter = ('created_at', 'last_login_at')
+    search_fields = ('email',)
+    readonly_fields = ('email',)

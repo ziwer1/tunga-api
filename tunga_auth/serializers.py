@@ -1,6 +1,7 @@
 import datetime
 
 from django.contrib.auth import get_user_model
+from django.core.validators import EmailValidator
 from django.db.models.aggregates import Avg
 from django.db.models.query_utils import Q
 from rest_auth.registration.serializers import RegisterSerializer
@@ -8,7 +9,7 @@ from rest_auth.serializers import TokenSerializer, PasswordResetSerializer
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from tunga_auth.models import USER_TYPE_CHOICES
+from tunga_auth.models import USER_TYPE_CHOICES, EmailVisitor
 from tunga_utils.constants import USER_TYPE_DEVELOPER
 from tunga_profiles.models import Connection, DeveloperApplication, UserProfile
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
@@ -177,5 +178,20 @@ class TungaPasswordResetSerializer(PasswordResetSerializer):
         }
 
 
-class EmailVisitorSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
+class EmailVisitorSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=True, validators=[EmailValidator()])  # Disables uniqueness validator
+
+    class Meta:
+        model = EmailVisitor
+
+    def create_visitor(self, email):
+        visitor, created = EmailVisitor.objects.update_or_create(
+            email=email, defaults=dict(last_login_at=datetime.datetime.utcnow())
+        )
+        return visitor
+
+    def create(self, validated_data):
+        return self.create_visitor(validated_data.get('email'))
+
+    def update(self, instance, validated_data):
+        return self.create_visitor(validated_data.get('email'))

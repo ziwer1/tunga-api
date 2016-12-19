@@ -1,6 +1,7 @@
 import json
 import re
 
+import datetime
 import requests
 from allauth.socialaccount.providers.facebook.provider import FacebookProvider
 from allauth.socialaccount.providers.github.provider import GitHubProvider
@@ -17,6 +18,7 @@ from tunga.settings import GITHUB_SCOPES, COINBASE_CLIENT_ID, COINBASE_CLIENT_SE
     SOCIAL_CONNECT_ACTION_CONNECT, SLACK_CLIENT_ID, SLACK_CLIENT_SECRET, SOCIAL_CONNECT_TASK
 from tunga_auth.filterbackends import UserFilterBackend
 from tunga_auth.filters import UserFilter
+from tunga_auth.models import EmailVisitor
 from tunga_auth.permissions import IsAuthenticatedOrEmailVisitorReadOnly
 from tunga_auth.serializers import UserSerializer, AccountInfoSerializer, EmailVisitorSerializer
 from tunga_profiles.models import BTCWallet, UserProfile, AppIntegration
@@ -92,32 +94,40 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         return super(UserViewSet, self).get_object()
 
 
-class EmailVisitorView(views.APIView):
+class EmailVisitorView(generics.CreateAPIView, generics.RetrieveAPIView):
     """
     Email Visitor resource.
     Manages sessions for email only visitors
-    ---
-    GET:
-        response_serializer: EmailVisitorSerializer
-    POST:
-        request_serializer: EmailVisitorSerializer
-        response_serializer: EmailVisitorSerializer
     """
+    queryset = EmailVisitor.objects.all()
+    serializer_class = EmailVisitorSerializer
     permission_classes = [AllowAny]
 
-    def get(self, request):
-        email = get_session_visitor_email(request)
-        if not email:
+    def get_object(self):
+        email = get_session_visitor_email(self.request)
+        if email:
+            try:
+                # Visitor email logins will be valid for an hour
+                return EmailVisitor.objects.get(email=email, last_login_at__gte=(datetime.datetime.utcnow() - datetime.timedelta(hours=1)))
+            except:
+                pass
+        return None
+
+    def retrieve(self, request, *args, **kwargs):
+        visitor = self.get_object()
+        if not visitor:
             return Response(
                 {'status': 'Unauthorized', 'message': 'You are not an email visitor'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-        return Response(dict(email=email))
+        serializer = self.get_serializer(instance=visitor)
+        return Response(serializer.data)
 
-    def post(self, request):
+    def create(self, request, *args, **kwargs):
         serializer = EmailVisitorSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        create_email_visitor_session(request, serializer.data['email'])
+        visitor = serializer.save()
+        create_email_visitor_session(request, visitor.email)
         return Response(serializer.data)
 
 
