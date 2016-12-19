@@ -176,3 +176,6 @@ class TungaPasswordResetSerializer(PasswordResetSerializer):
             "html_email_template_name": "registration/password_reset_email.html"
         }
 
+
+class EmailVisitorSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)

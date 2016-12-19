@@ -6,9 +6,6 @@ from django.http import HttpResponseRedirect
 from django.template.defaultfilters import urlizetrunc, safe
 from django.utils.html import strip_tags
 
-from tunga.settings import SOCIAL_CONNECT_USER_TYPE, SOCIAL_CONNECT_TASK
-from tunga_utils.constants import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
-
 
 def clean_instance(instance, model):
     if instance and model:
@@ -44,23 +41,6 @@ class GenericObject:
     def __init__(self, **kwargs):
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
-
-
-def get_session_user_type(request):
-    try:
-        user_type = int(request.session.get(SOCIAL_CONNECT_USER_TYPE, None))
-    except:
-        user_type = None
-    if user_type in [USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER]:
-        return user_type
-    return None
-
-
-def get_session_task(request):
-    try:
-        return int(request.session.get(SOCIAL_CONNECT_TASK, None))
-    except:
-        return None
 
 
 def get_social_token(user, provider):

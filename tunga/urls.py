@@ -23,7 +23,7 @@ from rest_framework_jwt.views import obtain_jwt_token, refresh_jwt_token, verify
 
 from tunga_activity.views import ActionViewSet
 from tunga_auth.views import VerifyUserView, AccountInfoView, UserViewSet, social_login_view, coinbase_connect_callback, \
-    slack_connect_callback
+    slack_connect_callback, EmailVisitorView
 from tunga_comments.views import CommentViewSet
 from tunga_messages.views import MessageViewSet, ChannelViewSet, slack_customer_notification
 from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, ConnectionViewSet, \
@@ -69,6 +69,7 @@ urlpatterns = [
         name='account_confirm_email'),
     url(r'^api/auth/register/', include('rest_auth.registration.urls')),
     url(r'^api/auth/verify/', VerifyUserView.as_view(), name='auth-verify'),
+    url(r'^api/auth/visitor/', EmailVisitorView.as_view(), name='auth-visitor'),
     url(r'^api/auth/jwt/token/', obtain_jwt_token),
     url(r'^api/auth/jwt/refresh/', refresh_jwt_token),
     url(r'^api/auth/jwt/verify/', verify_jwt_token),

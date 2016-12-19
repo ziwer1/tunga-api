@@ -1,7 +1,6 @@
 from actstream.models import Action
-
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAdminUser
 
 from tunga_activity.filters import ActionFilter
 from tunga_activity.serializers import ActivitySerializer

@@ -20,7 +20,7 @@ class CreateOnlyCurrentUserDefault(serializers.CurrentUserDefault):
             # TODO: Make sure this check is sufficient for all update scenarios
             raise SkipField()
         user = super(CreateOnlyCurrentUserDefault, self).__call__()
-        if user.is_authenticated():
+        if user and user.is_authenticated():
             return user
         return None
 

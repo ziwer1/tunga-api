@@ -15,7 +15,7 @@ from tunga_messages.utils import channel_new_messages_filter
 from tunga_profiles.filterbackends import ConnectionFilterBackend
 from tunga_profiles.filters import EducationFilter, WorkFilter, ConnectionFilter, DeveloperApplicationFilter
 from tunga_profiles.models import UserProfile, Education, Work, Connection, DeveloperApplication
-from tunga_profiles.permissions import IsAdminOrCreateOnly
+from tunga_auth.permissions import IsAdminOrCreateOnly
 from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, WorkSerializer, ConnectionSerializer, \
     DeveloperApplicationSerializer
 from tunga_utils import github

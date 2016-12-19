@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 
-from tunga_profiles.permissions import IsAdminOrReadOnly
+from tunga_auth.permissions import IsAdminOrReadOnly
 from tunga_support.filterbackends import SupportFilterBackend
 from tunga_support.filters import SupportPageFilter, SupportSectionFilter
 from tunga_support.models import SupportSection, SupportPage

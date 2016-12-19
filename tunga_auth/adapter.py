@@ -4,7 +4,7 @@ from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.shortcuts import redirect
 
 from tunga_utils.constants import USER_TYPE_DEVELOPER
-from tunga_utils.helpers import get_session_user_type
+from tunga_auth.utils import get_session_user_type
 
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):

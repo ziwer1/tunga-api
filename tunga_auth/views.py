@@ -10,20 +10,21 @@ from django.contrib.auth import get_user_model
 from django.core.urlresolvers import reverse
 from django.shortcuts import redirect
 from rest_framework import views, status, generics, viewsets
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
 from tunga.settings import GITHUB_SCOPES, COINBASE_CLIENT_ID, COINBASE_CLIENT_SECRET, SOCIAL_CONNECT_ACTION, SOCIAL_CONNECT_NEXT, SOCIAL_CONNECT_USER_TYPE, SOCIAL_CONNECT_ACTION_REGISTER, \
     SOCIAL_CONNECT_ACTION_CONNECT, SLACK_CLIENT_ID, SLACK_CLIENT_SECRET, SOCIAL_CONNECT_TASK
 from tunga_auth.filterbackends import UserFilterBackend
 from tunga_auth.filters import UserFilter
-from tunga_auth.serializers import UserSerializer, AccountInfoSerializer
+from tunga_auth.permissions import IsAuthenticatedOrEmailVisitorReadOnly
+from tunga_auth.serializers import UserSerializer, AccountInfoSerializer, EmailVisitorSerializer
 from tunga_profiles.models import BTCWallet, UserProfile, AppIntegration
 from tunga_utils import coinbase_utils, slack_utils
 from tunga_utils.constants import BTC_WALLET_PROVIDER_COINBASE, PAYMENT_METHOD_BTC_WALLET, USER_TYPE_DEVELOPER, \
     USER_TYPE_PROJECT_OWNER, APP_INTEGRATION_PROVIDER_SLACK
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
-from tunga_utils.helpers import get_session_task
+from tunga_auth.utils import get_session_task, get_session_visitor_email, create_email_visitor_session
 from tunga_utils.serializers import SimpleUserSerializer
 
 
@@ -75,7 +76,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = get_user_model().objects.order_by('first_name', 'last_name')
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedOrEmailVisitorReadOnly]
     lookup_url_kwarg = 'user_id'
     lookup_field = 'id'
     lookup_value_regex = '[^/]+'
@@ -89,6 +90,35 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         if re.match(r'[^\d]', user_id):
             self.lookup_field = 'username'
         return super(UserViewSet, self).get_object()
+
+
+class EmailVisitorView(views.APIView):
+    """
+    Email Visitor resource.
+    Manages sessions for email only visitors
+    ---
+    GET:
+        response_serializer: EmailVisitorSerializer
+    POST:
+        request_serializer: EmailVisitorSerializer
+        response_serializer: EmailVisitorSerializer
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        email = get_session_visitor_email(request)
+        if not email:
+            return Response(
+                {'status': 'Unauthorized', 'message': 'You are not an email visitor'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        return Response(dict(email=email))
+
+    def post(self, request):
+        serializer = EmailVisitorSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        create_email_visitor_session(request, serializer.data['email'])
+        return Response(serializer.data)
 
 
 def social_login_view(request, provider=None):
