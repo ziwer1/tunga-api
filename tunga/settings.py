@@ -372,6 +372,10 @@ SLACK_ATTACHMENT_COLOR_RED = '#FF0000'
 
 TUNGA_ICON_URL_150 = 'https://tunga.io/icons/Tunga_iconx150.png'
 
+HARVEST_CLIENT_ID = None
+HARVEST_CLIENT_SECRET = None
+HARVEST_API_URL = 'https://api.harvestapp.com'
+
 try:
     from .env.dev import *
 except ImportError:

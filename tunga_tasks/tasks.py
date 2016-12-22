@@ -1,5 +1,6 @@
 import datetime
 import json
+import re
 from decimal import Decimal
 from uuid import uuid4
 
@@ -9,14 +10,15 @@ from django_rq.decorators import job
 
 from tunga.settings import BITPESA_SENDER
 from tunga_profiles.models import ClientNumber
+from tunga_profiles.utils import get_app_integration
 from tunga_tasks.models import ProgressEvent, Task, ParticipantPayment, \
-    TaskInvoice
-from tunga_utils import bitcoin_utils, coinbase_utils, bitpesa
+    TaskInvoice, Integration, IntegrationMeta
+from tunga_utils import bitcoin_utils, coinbase_utils, bitpesa, harvest_utils
 from tunga_utils.constants import CURRENCY_BTC, PAYMENT_METHOD_BTC_WALLET, \
     PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, \
     UPDATE_SCHEDULE_WEEKLY, UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, UPDATE_SCHEDULE_ANNUALLY, \
     PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_SUBMIT, PAYMENT_STATUS_PENDING, PAYMENT_STATUS_PROCESSING, \
-    PAYMENT_STATUS_INITIATED
+    PAYMENT_STATUS_INITIATED, APP_INTEGRATION_PROVIDER_HARVEST
 from tunga_utils.helpers import clean_instance
 
 
@@ -111,11 +113,12 @@ def distribute_task_payment(task):
             payment_method = participant.user.payment_method
             if created or (participant_pay and participant_pay.status == PAYMENT_STATUS_PENDING):
                 if payment_method in [PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_BTC_WALLET]:
-                    if not (participant_pay.destination and bitcoin_utils.is_valid_btc_address(participant_pay.destination)):
+                    if not (participant_pay.destination and bitcoin_utils.is_valid_btc_address(
+                            participant_pay.destination)):
                         participant_pay.destination = participant.user.btc_address
                     transaction = send_payment_share(
                         destination=participant_pay.destination,
-                        amount=Decimal(share)*payment.btc_received,
+                        amount=Decimal(share) * payment.btc_received,
                         idem=str(participant_pay.idem_key),
                         description='%s - %s' % (pay_description, participant.user.display_name)
                     )
@@ -129,7 +132,7 @@ def distribute_task_payment(task):
                         participant_pay.save()
                         portion_sent = True
                 elif payment_method == PAYMENT_METHOD_MOBILE_MONEY:
-                    share_amount = Decimal(share)*payment.btc_received
+                    share_amount = Decimal(share) * payment.btc_received
                     recipients = [
                         {
                             bitpesa.KEY_REQUESTED_AMOUNT: float(
@@ -282,3 +285,69 @@ def generate_invoice_number(invoice):
         invoice.number = invoice_number
         invoice.save()
     return invoice
+
+
+@job
+def complete_harvest_integration(integration):
+    integration = clean_instance(integration, Integration)
+    print 'task_integration', integration
+    if integration.provider != APP_INTEGRATION_PROVIDER_HARVEST:
+        return
+
+    user = integration.task.user
+    app_integration = get_app_integration(user=integration.task.user, provider=APP_INTEGRATION_PROVIDER_HARVEST)
+    if app_integration and app_integration.extra:
+        token = json.loads(app_integration.extra)
+
+        project_id = integration.project_id
+
+        harvest_client = harvest_utils.get_api_client(token, user=user, return_response_obj=True)
+
+        # Create the task and assign it to the project in Harvest
+        resp_task_assignment = harvest_client.create_task_to_project(
+            project_id, task=dict(
+                name='Tunga: {}'.format(integration.task.title)
+            )
+        )
+
+        # TODO: Harvest isn't returning the created object, find a work around
+        if resp_task_assignment and resp_task_assignment.headers:
+            task_assignment_path = resp_task_assignment.headers.get('Location', '')
+
+            m = re.match(
+                r'^/projects/(?P<project_id>\d+)/task_assignments/(?P<task_assignment_id>\d+)',
+                task_assignment_path,
+                flags=re.IGNORECASE
+            )
+            if m:
+                matches = m.groupdict()
+                if matches.get('project_id', None) == project_id:
+                    task_assignment_id = matches.get('task_assignment_id', None)
+
+                    if task_assignment_id:
+                        resp_task_assignment_retrieve = harvest_client.get_one_task_assigment(project_id, task_assignment_id)
+                        task_assignment = resp_task_assignment_retrieve.json()
+
+                        defaults = {
+                            'created_by': user,
+                            'meta_key': 'project_task_id',
+                            'meta_value': task_assignment['task_assignment']['task_id']
+                        }
+
+                        try:
+                            IntegrationMeta.objects.update_or_create(
+                                integration=integration, meta_key=defaults['meta_key'], defaults=defaults
+                            )
+                        except:
+                            pass
+
+        # Create task participants in Harvest
+        participants = integration.task.participation_set.filter(accepted=True)
+        for participant in participants:
+            harvest_client.create_user(
+                user={
+                    'email': participant.user.email,
+                    'first-name': participant.user.first_name,
+                    'last-name': participant.user.last_name
+                }
+            )

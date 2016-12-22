@@ -18,9 +18,9 @@ from tunga_profiles.models import UserProfile, Education, Work, Connection, Deve
 from tunga_auth.permissions import IsAdminOrCreateOnly
 from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, WorkSerializer, ConnectionSerializer, \
     DeveloperApplicationSerializer
-from tunga_utils import github
+from tunga_utils import github, harvest_utils
 from tunga_utils.constants import USER_TYPE_PROJECT_OWNER, APP_INTEGRATION_PROVIDER_SLACK, CHANNEL_TYPE_SUPPORT, \
-    CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_DEVELOPER
+    CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_DEVELOPER, APP_INTEGRATION_PROVIDER_HARVEST
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.helpers import get_social_token
 from tunga_profiles.utils import get_app_integration
@@ -296,5 +296,61 @@ class SlackIntegrationView(views.APIView):
                 'incoming_webhook': {'channel': extra.get('incoming_webhook').get('channel')}
             }
             return Response(details, status.HTTP_200_OK)
+
+        return Response({'status': 'Not implemented'}, status.HTTP_501_NOT_IMPLEMENTED)
+
+
+class HarvestAPIView(views.APIView):
+    """
+    Harvest API Resource
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, resource=None):
+        app_integration = get_app_integration(user=request.user, provider=APP_INTEGRATION_PROVIDER_HARVEST)
+        if app_integration and app_integration.extra:
+            token = json.loads(app_integration.extra)
+
+            response = None
+            harvest_client = harvest_utils.get_api_client(token, user=request.user)
+
+            if resource == 'projects':
+                response = harvest_client.projects()
+            elif resource == 'tasks':
+                project_id = request.query_params.get('project', None)
+                if project_id:
+                    response = harvest_client.get_all_tasks_from_project(project_id)
+                else:
+                    response = harvest_client.tasks()
+            elif resource == 'task_assignments':
+                project_id = request.query_params.get('project', None)
+                if project_id:
+                    response = harvest_client.get_all_tasks_from_project(project_id)
+
+            return Response(response, status.HTTP_200_OK)
+
+        return Response({'status': 'Not implemented'}, status.HTTP_501_NOT_IMPLEMENTED)
+
+    def post(self, request, resource=None):
+        app_integration = get_app_integration(user=request.user, provider=APP_INTEGRATION_PROVIDER_HARVEST)
+        if app_integration and app_integration.extra:
+            token = json.loads(app_integration.extra)
+            response = None
+            harvest_client = harvest_utils.get_api_client(token, user=request.user)
+
+            if resource == 'users':
+                harvest_client.create_user(request.data)
+            elif resource == 'entries':
+                harvest_client.add(request.data)
+            elif resource == 'projects':
+                harvest_client.create_project(**request.data)
+            elif resource == 'tasks':
+                project_id = request.query_params.get('project', None)
+                if project_id:
+                    harvest_client.create_task_to_project(project_id, **request.data)
+                else:
+                    harvest_client.create_task(**request.data)
+
+            return Response(response, status.HTTP_200_OK)
 
         return Response({'status': 'Not implemented'}, status.HTTP_501_NOT_IMPLEMENTED)

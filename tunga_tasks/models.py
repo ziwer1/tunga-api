@@ -33,7 +33,8 @@ from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPE
     TASK_REQUEST_PAY, PROGRESS_EVENT_TYPE_DEFAULT, PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_MILESTONE, \
     PROGRESS_EVENT_TYPE_SUBMIT, PROGRESS_REPORT_STATUS_ON_SCHEDULE, PROGRESS_REPORT_STATUS_BEHIND, \
     PROGRESS_REPORT_STATUS_STUCK, INTEGRATION_TYPE_REPO, INTEGRATION_TYPE_ISSUE, PAYMENT_STATUS_PENDING, \
-    PAYMENT_STATUS_PROCESSING, PAYMENT_STATUS_COMPLETED, PAYMENT_STATUS_FAILED, PAYMENT_STATUS_INITIATED
+    PAYMENT_STATUS_PROCESSING, PAYMENT_STATUS_COMPLETED, PAYMENT_STATUS_FAILED, PAYMENT_STATUS_INITIATED, \
+    APP_INTEGRATION_PROVIDER_SLACK, APP_INTEGRATION_PROVIDER_HARVEST, APP_INTEGRATION_PROVIDER_GITHUB
 from tunga_utils.helpers import round_decimal, get_serialized_id
 from tunga_utils.models import Upload, Rating
 from tunga_utils.validators import validate_btc_address
@@ -640,6 +641,13 @@ class IntegrationEvent(models.Model):
         ordering = ['id', 'name']
 
 
+APP_INTEGRATION_PROVIDER_CHOICES = (
+    (APP_INTEGRATION_PROVIDER_GITHUB, 'GitHub'),
+    (APP_INTEGRATION_PROVIDER_SLACK, 'Slack'),
+    (APP_INTEGRATION_PROVIDER_HARVEST, 'Harvest'),
+)
+
+
 INTEGRATION_TYPE_CHOICES = (
     (INTEGRATION_TYPE_REPO, 'Repo'),
     (INTEGRATION_TYPE_ISSUE, 'Issue')
@@ -648,7 +656,10 @@ INTEGRATION_TYPE_CHOICES = (
 
 class Integration(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    provider = models.CharField(max_length=30, choices=providers.registry.as_choices())
+    provider = models.CharField(
+        max_length=30, choices=APP_INTEGRATION_PROVIDER_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in APP_INTEGRATION_PROVIDER_CHOICES])
+    )
     type = models.PositiveSmallIntegerField(
         choices=INTEGRATION_TYPE_CHOICES,
         help_text=','.join(['%s - %s' % (item[0], item[1]) for item in INTEGRATION_TYPE_CHOICES]),
@@ -717,6 +728,20 @@ class Integration(models.Model):
     def issue_number(self):
         try:
             return self.integrationmeta_set.get(meta_key='issue_number').meta_value
+        except:
+            return None
+
+    @property
+    def project_id(self):
+        try:
+            return self.integrationmeta_set.get(meta_key='project_id').meta_value
+        except:
+            return None
+
+    @property
+    def project_task_id(self):
+        try:
+            return self.integrationmeta_set.get(meta_key='project_task_id').meta_value
         except:
             return None
 

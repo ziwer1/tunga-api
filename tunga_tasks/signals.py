@@ -9,7 +9,9 @@ from tunga_tasks.notifications import notify_new_task_application, send_new_task
     send_task_application_not_selected_email, notify_new_progress_report
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, ProgressEvent, ProgressReport, \
     IntegrationActivity, Integration
-from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates
+from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates, \
+    complete_harvest_integration
+from tunga_utils.constants import APP_INTEGRATION_PROVIDER_HARVEST
 
 task_applications_closed = Signal(providing_args=["task"])
 
@@ -18,6 +20,8 @@ task_closed = Signal(providing_args=["task"])
 application_response = Signal(providing_args=["application"])
 
 participation_response = Signal(providing_args=["participation"])
+
+task_integration = Signal(providing_args=["integration"])
 
 
 @receiver(post_save, sender=Task)
@@ -133,3 +137,9 @@ def activity_handler_integration(sender, instance, created, **kwargs):
 def activity_handler_integration_activity(sender, instance, created, **kwargs):
     if created:
         action.send(instance.integration, verb=verbs.REPORT, action_object=instance, target=instance.integration.task)
+
+
+@receiver(task_integration, sender=Integration)
+def activity_handler_task_integration(sender, integration, **kwargs):
+    if integration.provider == APP_INTEGRATION_PROVIDER_HARVEST:
+        complete_harvest_integration.delay(integration.id)

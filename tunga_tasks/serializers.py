@@ -17,7 +17,8 @@ from tunga_tasks.models import Task, Application, Participation, TaskRequest, Sa
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
     TaskInvoice
 from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, VISIBILITY_CUSTOM
-from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed
+from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
+    task_integration
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.models import Rating
 from tunga_utils.serializers import ContentTypeAnnotatedModelSerializer, SkillSerializer, \
@@ -604,21 +605,32 @@ class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserA
         many=True, queryset=IntegrationEvent.objects.all(), required=False, read_only=False
     )
     meta = NestedIntegrationMetaSerializer(required=False, read_only=False, many=True, source='integrationmeta_set')
+
+    # Write Only
     repo = serializers.JSONField(required=False, write_only=True, allow_null=True)
     issue = serializers.JSONField(required=False, write_only=True, allow_null=True)
+    project = serializers.JSONField(required=False, write_only=True, allow_null=True)
+
+    # Read Only
     repo_id = serializers.CharField(required=False, read_only=True)
     issue_id = serializers.CharField(required=False, read_only=True)
+    project_id = serializers.CharField(required=False, read_only=True)
+    project_task_id = serializers.CharField(required=False, read_only=True)
 
     class Meta:
         model = Integration
         exclude = ('secret',)
         read_only_fields = ('created_at', 'updated_at')
 
+    def send_creation_signal(self, instance):
+        task_integration.send(sender=Integration, integration=instance)
+
     def create(self, validated_data):
         events = None
         meta = None
         repo = None
         issue = None
+        project = None
         if 'events' in validated_data:
             events = validated_data.pop('events')
         if 'meta' in validated_data:
@@ -627,12 +639,16 @@ class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserA
             repo = validated_data.pop('repo')
         if 'issue' in validated_data:
             issue = validated_data.pop('issue')
+        if 'project' in validated_data:
+            project = validated_data.pop('project')
 
         instance = super(IntegrationSerializer, self).create(validated_data)
         self.save_events(instance, events)
         self.save_meta(instance, meta)
         self.save_repo_meta(instance, repo)
         self.save_issue_meta(instance, issue)
+        self.save_project_meta(instance, project)
+        self.send_creation_signal(instance)
         return instance
 
     def update(self, instance, validated_data):
@@ -640,6 +656,7 @@ class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserA
         meta = None
         repo = None
         issue = None
+        project = None
         if 'events' in validated_data:
             events = validated_data.pop('events')
         if 'meta' in validated_data:
@@ -648,12 +665,16 @@ class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserA
             repo = validated_data.pop('repo')
         if 'issue' in validated_data:
             issue = validated_data.pop('issue')
+        if 'project' in validated_data:
+            project = validated_data.pop('project')
 
         instance = super(IntegrationSerializer, self).update(instance, validated_data)
         self.save_events(instance, events)
         self.save_meta(instance, meta)
         self.save_repo_meta(instance, repo)
         self.save_issue_meta(instance, issue)
+        self.save_project_meta(instance, project)
+        self.send_creation_signal(instance)
         return instance
 
     def save_events(self, instance, events):
@@ -698,6 +719,21 @@ class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserA
                 defaults = {
                     'created_by': self.get_current_user() or instance.user,
                     'meta_key': 'issue_%s' % key,
+                    'meta_value': value
+                }
+                try:
+                    IntegrationMeta.objects.update_or_create(
+                        integration=instance, meta_key=defaults['meta_key'], defaults=defaults
+                    )
+                except:
+                    pass
+
+    def save_project_meta(self, instance, project):
+        if project:
+            for key, value in project.iteritems():
+                defaults = {
+                    'created_by': self.get_current_user() or instance.user,
+                    'meta_key': 'project_%s' % key,
                     'meta_value': value
                 }
                 try:
