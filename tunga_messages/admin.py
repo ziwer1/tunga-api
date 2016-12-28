@@ -18,5 +18,7 @@ class ChannelAdmin(admin.ModelAdmin):
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
     list_display = ('user', 'body', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('body',)
 
 

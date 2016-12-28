@@ -44,3 +44,4 @@ class ReadOnlyModelAdmin(admin.ModelAdmin):
 class ContactRequestAdmin(admin.ModelAdmin):
     list_display = ('email', 'item', 'created_at')
     list_filter = ('created_at',)
+    search_fields = ('email',)

@@ -18,6 +18,7 @@ class TungaUserAdmin(UserAdmin):
     form = TungaUserChangeForm
     add_form = TungaUserCreationForm
     actions = UserAdmin.actions + ['make_pending', 'make_not_pending', 'download_csv']
+    search_fields = ('first_name', 'last_name', 'email')
 
     fieldsets = UserAdmin.fieldsets + (
         (_('Profile'), {'fields': ('type', 'image', 'verified', 'pending')}),

@@ -9,6 +9,7 @@ from tunga_utils.admin import ReadOnlyModelAdmin
 class ProjectAdmin(admin.ModelAdmin):
     list_display = ('title', 'deadline', 'closed', 'created_at', 'archived')
     list_filter = ('archived',)
+    search_fields = ('title',)
 
 
 class ParticipationInline(admin.TabularInline):
@@ -25,6 +26,7 @@ class ParticipationInline(admin.TabularInline):
 class TaskAdmin(admin.ModelAdmin):
     list_display = ('summary', 'user', 'apply', 'closed', 'archived', 'skills_list', 'created_at')
     list_filter = ('closed', 'apply', 'archived')
+    search_fields = ('title',)
     inlines = (ParticipationInline,)
 
     def save_formset(self, request, form, formset, change):
@@ -38,13 +40,13 @@ class TaskAdmin(admin.ModelAdmin):
 @admin.register(Application)
 class ApplicationAdmin(admin.ModelAdmin):
     list_display = ('task', 'user', 'responded', 'accepted', 'created_at')
-    list_filter = ('accepted',)
+    list_filter = ('accepted', 'created_at')
 
 
 @admin.register(Participation)
 class ParticipationAdmin(admin.ModelAdmin):
     list_display = ('task', 'user', 'responded', 'accepted', 'share', 'created_at')
-    list_filter = ('accepted',)
+    list_filter = ('accepted', 'created_at')
 
 
 @admin.register(TaskRequest)

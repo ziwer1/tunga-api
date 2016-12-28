@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from tunga_profiles.emails import send_developer_accepted_email
 from tunga_profiles.models import Education, Work, Connection, \
-    DeveloperApplication, BTCWallet, UserProfile, AppIntegration
+    DeveloperApplication, BTCWallet, UserProfile, AppIntegration, Inquirer
 from tunga_utils.constants import REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED
 
 
@@ -50,6 +50,7 @@ class DeveloperApplicationAdmin(admin.ModelAdmin):
         'confirmation_sent_at', 'used', 'used_at',
     )
     actions = ['accept_users', 'reject_users']
+    search_fields = ('first_name', 'last_name', 'email')
 
     def has_add_permission(self, request):
         return False
@@ -69,3 +70,10 @@ class DeveloperApplicationAdmin(admin.ModelAdmin):
         self.message_user(
             request, "%s developer%s successfully marked as rejected." % (rows_updated, (rows_updated > 1 and 's' or '')))
     reject_users.short_description = "Reject selected developers"
+
+
+@admin.register(Inquirer)
+class InquirerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'email', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('name', 'email')

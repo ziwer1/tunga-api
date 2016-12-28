@@ -10,12 +10,14 @@ from tunga_utils.admin import AdminAutoCreatedBy
 class SupportSectionAdmin(AdminAutoCreatedBy):
     list_display = ('title', 'slug', 'order', 'visibility', 'created_by', 'created_at')
     list_filter = ('created_at',)
+    search_fields = ('title',)
 
 
 @admin.register(SupportPage)
 class SupportPageAdmin(AdminAutoCreatedBy):
     list_display = ('title', 'section', 'slug', 'order', 'visibility', 'created_by', 'created_at')
     list_filter = ('section', 'created_at')
+    search_fields = ('title',)
     formfield_overrides = {models.TextField: {'widget': forms.Textarea(attrs={'class': 'ckeditor'})}}
 
     class Media:
