@@ -326,8 +326,10 @@ class HarvestAPIView(views.APIView):
                 project_id = request.query_params.get('project', None)
                 if project_id:
                     response = harvest_client.get_all_tasks_from_project(project_id)
-
-            return Response(response, status.HTTP_200_OK)
+            return Response(
+                response and response.json() or {'status': 'Failed'},
+                response and response.status_code or status.HTTP_400_BAD_REQUEST
+            )
 
         return Response({'status': 'Not implemented'}, status.HTTP_501_NOT_IMPLEMENTED)
 
@@ -351,6 +353,9 @@ class HarvestAPIView(views.APIView):
                 else:
                     harvest_client.create_task(**request.data)
 
-            return Response(response, status.HTTP_200_OK)
+                    return Response(
+                        response and response.json() or {'status': 'Failed'},
+                        response and response.status_code or status.HTTP_400_BAD_REQUEST
+                    )
 
         return Response({'status': 'Not implemented'}, status.HTTP_501_NOT_IMPLEMENTED)
