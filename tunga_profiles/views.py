@@ -7,17 +7,18 @@ from django_countries.fields import CountryField
 from dry_rest_permissions.generics import DRYObjectPermissions, DRYPermissions
 from rest_framework import viewsets, generics, views, status
 from rest_framework.decorators import list_route
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 
 from tunga_messages.models import Channel
 from tunga_messages.utils import channel_new_messages_filter
 from tunga_profiles.filterbackends import ConnectionFilterBackend
-from tunga_profiles.filters import EducationFilter, WorkFilter, ConnectionFilter, DeveloperApplicationFilter
-from tunga_profiles.models import UserProfile, Education, Work, Connection, DeveloperApplication
+from tunga_profiles.filters import EducationFilter, WorkFilter, ConnectionFilter, DeveloperApplicationFilter, \
+    DeveloperInvitationFilter
+from tunga_profiles.models import UserProfile, Education, Work, Connection, DeveloperApplication, DeveloperInvitation
 from tunga_auth.permissions import IsAdminOrCreateOnly
 from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, WorkSerializer, ConnectionSerializer, \
-    DeveloperApplicationSerializer
+    DeveloperApplicationSerializer, DeveloperInvitationSerializer
 from tunga_utils import github, harvest_utils
 from tunga_utils.constants import USER_TYPE_PROJECT_OWNER, APP_INTEGRATION_PROVIDER_SLACK, CHANNEL_TYPE_SUPPORT, \
     CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_DEVELOPER, APP_INTEGRATION_PROVIDER_HARVEST
@@ -105,6 +106,36 @@ class DeveloperApplicationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         serializer = DeveloperApplicationSerializer(application)
+        return Response(serializer.data)
+
+
+class DeveloperInvitationViewSet(viewsets.ModelViewSet):
+    """
+    Developer Application Resource
+    """
+    queryset = DeveloperInvitation.objects.all()
+    serializer_class = DeveloperInvitationSerializer
+    permission_classes = [IsAdminUser]
+    filter_class = DeveloperInvitationFilter
+    filter_backends = DEFAULT_FILTER_BACKENDS
+    search_fields = ('first_name', 'last_name')
+
+    @list_route(
+        methods=['get'], url_path='key/(?P<key>[^/]+)',
+        permission_classes=[AllowAny]
+    )
+    def get_by_key(self, request, key=None):
+        """
+        Get application by invitation key
+        """
+        try:
+            application = get_object_or_404(self.get_queryset(), invitation_key=key, used=False)
+        except ValueError:
+            return Response(
+                {'status': 'Bad request', 'message': 'Invalid key'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        serializer = DeveloperInvitationSerializer(application)
         return Response(serializer.data)
 
 

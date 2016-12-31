@@ -1,3 +1,4 @@
+from allauth.account.adapter import DefaultAccountAdapter
 from allauth.account.models import EmailAddress
 from allauth.exceptions import ImmediateHttpResponse
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
@@ -5,6 +6,10 @@ from django.shortcuts import redirect
 
 from tunga_utils.constants import USER_TYPE_DEVELOPER
 from tunga_auth.utils import get_session_user_type
+
+
+class TungaAccountAdapter(DefaultAccountAdapter):
+    pass
 
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):

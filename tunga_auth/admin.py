@@ -30,7 +30,7 @@ class TungaUserAdmin(UserAdmin):
     )
 
     list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'type', 'pending', 'verified')
-    list_filter = ('type', 'pending', 'is_staff', 'is_superuser')
+    list_filter = ('date_joined', 'type', 'pending', 'is_staff', 'is_superuser')
 
     inlines = (UserProfileInline,)
 

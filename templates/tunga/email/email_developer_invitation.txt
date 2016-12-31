@@ -1,0 +1,9 @@
+{% load i18n %}{% autoescape off %}{% block email_content %}
+Hello {{ invite.first_name }},
+
+You have been invited to become a Tunga developer.
+
+Click the link below to accept your invitation:
+{{ invite_url }}
+
+{% endblock %}{% endautoescape %}

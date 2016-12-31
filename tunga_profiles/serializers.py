@@ -2,7 +2,7 @@ from django_countries.serializer_fields import CountryField
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from tunga_profiles.models import UserProfile, Education, Work, Connection, DeveloperApplication
+from tunga_profiles.models import UserProfile, Education, Work, Connection, DeveloperApplication, DeveloperInvitation
 from tunga_utils.constants import PAYMENT_METHOD_MOBILE_MONEY, PAYMENT_METHOD_BTC_ADDRESS
 from tunga_utils.serializers import SimpleProfileSerializer, CreateOnlyCurrentUserDefault, SimpleUserSerializer, AbstractExperienceSerializer, \
     DetailAnnotatedModelSerializer, SimpleBTCWalletSerializer
@@ -135,3 +135,12 @@ class DeveloperApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = DeveloperApplication
         exclude = ('confirmation_key', 'confirmation_sent_at', 'used', 'used_at')
+
+
+class DeveloperInvitationSerializer(serializers.ModelSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    display_name = serializers.CharField(required=False, read_only=True)
+
+    class Meta:
+        model = DeveloperInvitation
+        exclude = ('invitation_key', 'used', 'used_at')

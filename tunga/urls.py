@@ -28,7 +28,7 @@ from tunga_comments.views import CommentViewSet
 from tunga_messages.views import MessageViewSet, ChannelViewSet, slack_customer_notification
 from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, ConnectionViewSet, \
     NotificationView, CountryListView, DeveloperApplicationViewSet, RepoListView, IssueListView, SlackIntegrationView, \
-    HarvestAPIView
+    HarvestAPIView, DeveloperInvitationViewSet
 from tunga_settings.views import UserSettingsView
 from tunga_support.views import SupportPageViewSet, SupportSectionViewSet
 from tunga_tasks.views import TaskViewSet, ApplicationViewSet, ParticipationViewSet, TaskRequestViewSet, \
@@ -39,6 +39,7 @@ from tunga_utils.views import SkillViewSet, ContactRequestView
 router = DefaultRouter()
 router.register(r'user', UserViewSet)
 router.register(r'apply', DeveloperApplicationViewSet)
+router.register(r'invite', DeveloperInvitationViewSet)
 router.register(r'project', ProjectViewSet)
 router.register(r'task', TaskViewSet)
 router.register(r'application', ApplicationViewSet)

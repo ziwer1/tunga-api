@@ -1,4 +1,4 @@
-from tunga_profiles.models import Education, Work, Connection, DeveloperApplication
+from tunga_profiles.models import Education, Work, Connection, DeveloperApplication, DeveloperInvitation
 from tunga_utils.filters import GenericDateFilterSet
 
 
@@ -23,5 +23,10 @@ class ConnectionFilter(GenericDateFilterSet):
 class DeveloperApplicationFilter(GenericDateFilterSet):
     class Meta:
         model = DeveloperApplication
-        fields = ('status',)
+        fields = ('status', 'used')
 
+
+class DeveloperInvitationFilter(GenericDateFilterSet):
+    class Meta:
+        model = DeveloperInvitation
+        fields = ('used',)

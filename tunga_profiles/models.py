@@ -250,6 +250,25 @@ class DeveloperApplication(models.Model):
     country_name.fget.short_description = 'country'
 
 
+class DeveloperInvitation(models.Model):
+    first_name = models.CharField(max_length=30)
+    last_name = models.CharField(max_length=30)
+    email = models.EmailField(unique=True, validators=[validate_email])
+    invitation_key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    invitation_sent_at = models.DateTimeField(blank=True, null=True, editable=False)
+    used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(blank=True, null=True, editable=False)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __unicode__(self):
+        return self.display_name
+
+    @property
+    def display_name(self):
+        return '%s %s' % (self.first_name, self.last_name)
+
+
 class UserNumber(models.Model):
     """
     Helper table for generating user numbers in a sequence

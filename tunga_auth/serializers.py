@@ -1,5 +1,6 @@
 import datetime
 
+from allauth.account.adapter import get_adapter
 from django.contrib.auth import get_user_model
 from django.core.validators import EmailValidator
 from django.db.models.aggregates import Avg
@@ -10,8 +11,9 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from tunga_auth.models import USER_TYPE_CHOICES, EmailVisitor
+from tunga_profiles.notifications import send_developer_invitation_accepted_email
 from tunga_utils.constants import USER_TYPE_DEVELOPER
-from tunga_profiles.models import Connection, DeveloperApplication, UserProfile
+from tunga_profiles.models import Connection, DeveloperApplication, UserProfile, DeveloperInvitation
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.models import Rating
 from tunga_utils.serializers import SimpleProfileSerializer, SimpleUserSerializer, SimpleWorkSerializer, \
@@ -135,14 +137,29 @@ class TungaRegisterSerializer(RegisterSerializer):
     key = serializers.CharField(required=False, write_only=True, allow_blank=True, allow_null=True)
 
     def save(self, request):
+        email = self.initial_data.get('email', None)
         user_type = self.initial_data.get('type', None)
         confirm_key = self.initial_data.get('key', None)
+        invite_key = self.initial_data.get('invite_key', None)
         application = None
+        invitation = None
         if user_type == USER_TYPE_DEVELOPER:
-            try:
-                application = DeveloperApplication.objects.get(confirmation_key=confirm_key, used=False)
-            except:
-                raise ValidationError({'key': 'Invalid key'})
+            if confirm_key:
+                try:
+                    application = DeveloperApplication.objects.get(confirmation_key=confirm_key, used=False)
+                except:
+                    raise ValidationError({'key': 'Invalid or expired key'})
+            elif invite_key:
+                try:
+                    invitation = DeveloperInvitation.objects.get(invitation_key=invite_key, used=False)
+                except:
+                    raise ValidationError({'invite_key': 'Invalid or expired key'})
+
+        if application or invitation:
+            # Skip email activation for developer applications and invitations
+            adapter = get_adapter()
+            adapter.stash_verified_email(request, email)
+
         user = super(TungaRegisterSerializer, self).save(request)
         user.type = user_type
         user.first_name = self.initial_data['first_name']
@@ -158,6 +175,14 @@ class TungaRegisterSerializer(RegisterSerializer):
             profile = UserProfile(user=user, phone_number=application.phone_number, country=application.country)
             profile.city = application.city
             profile.save()
+
+        if invitation:
+            invitation.used = True
+            invitation.used_at = datetime.datetime.utcnow()
+            invitation.save()
+
+            # Notify admins that developer has accepted invitation
+            send_developer_invitation_accepted_email.delay(invitation.id)
         return user
 
 
