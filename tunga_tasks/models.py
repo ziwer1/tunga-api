@@ -261,7 +261,7 @@ class Task(models.Model):
 
     @property
     def summary(self):
-        return '%s - Fee: %s' % (self.title, self.display_fee())
+        return self.title
 
     @property
     def excerpt(self):
