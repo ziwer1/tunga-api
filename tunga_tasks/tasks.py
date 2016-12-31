@@ -33,7 +33,8 @@ def initialize_task_progress_events(task):
 def update_task_submit_milestone(task):
     task = clean_instance(task, Task)
     if task.deadline:
-        days_before = task.fee > 150 and 2 or 1
+        task_period = (task.deadline - task.created_at).days
+        days_before = (task.fee > 150 and task_period >= 7) and 2 or 1
         submission_date = task.deadline - datetime.timedelta(days=days_before)
         defaults = {'due_at': submission_date, 'title': 'Submit final draft'}
         ProgressEvent.objects.update_or_create(task=task, type=PROGRESS_EVENT_TYPE_SUBMIT, defaults=defaults)
@@ -73,6 +74,9 @@ def update_task_periodic_updates(task):
                 last_update_at = periodic_start_date
                 while True:
                     next_update_at = last_update_at + relativedelta(**delta)
+                    if next_update_at.weekday() in [5, 6]:
+                        # Don't schedule updates on weekends
+                        next_update_at += relativedelta(days=7-next_update_at.weekday())
                     if not task.deadline or next_update_at < task.deadline:
                         ProgressEvent.objects.update_or_create(
                             task=task, type=PROGRESS_EVENT_TYPE_PERIODIC, due_at=next_update_at
