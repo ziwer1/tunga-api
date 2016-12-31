@@ -290,7 +290,6 @@ def generate_invoice_number(invoice):
 @job
 def complete_harvest_integration(integration):
     integration = clean_instance(integration, Integration)
-    print 'task_integration', integration
     if integration.provider != APP_INTEGRATION_PROVIDER_HARVEST:
         return
 

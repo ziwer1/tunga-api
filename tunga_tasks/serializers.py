@@ -322,7 +322,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         if participation:
             new_assignee = None
             for item in participation:
-                if item.get('accepted', False):
+                if 'accepted' in item and item.get('accepted', False):
                     item['activated_at'] = datetime.datetime.utcnow()
                 defaults = item
                 if isinstance(defaults, dict):
@@ -331,7 +331,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                 try:
                     participation_obj, created = Participation.objects.update_or_create(
                         task=task, user=item['user'], defaults=defaults)
-                    if not created:
+                    if (not created) and 'accepted' in item:
                         participation_response.send(sender=Participation, participation=participation_obj)
                     if 'assignee' in item and item['assignee']:
                         new_assignee = item['user']
@@ -388,7 +388,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
 
                     participation_obj, created = Participation.objects.update_or_create(
                         task=task, user=user, defaults=defaults)
-                    if not created:
+                    if (not created) and (user.id in rejected_participants or user.id in confirmed_participants):
                         participation_response.send(sender=Participation, participation=participation_obj)
                     if user.id == assignee:
                         changed_assignee = True
