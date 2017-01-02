@@ -32,6 +32,8 @@ COINBASE_BASE_API_URL = 'https://api.sandbox.coinbase.com'
 BITONIC_URL = 'https://niels-bitonic-664-web.garage.bitonic.nl:33488'
 """
 
+HUBSPOT_API_KEY = 'aabefdb6-ffc8-4bed-bfbe-33858f4ff3b9'
+
 try:
     from .local import *
 except ImportError:

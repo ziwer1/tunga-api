@@ -153,7 +153,7 @@ class UserProfile(models.Model):
 
     @property
     def country_name(self):
-        return self.country.name
+        return str(self.country.name)
 
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):

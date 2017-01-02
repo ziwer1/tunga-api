@@ -376,6 +376,8 @@ HARVEST_CLIENT_ID = None
 HARVEST_CLIENT_SECRET = None
 HARVEST_API_URL = 'https://api.harvestapp.com'
 
+HUBSPOT_API_KEY = None
+
 try:
     from .env.dev import *
 except ImportError:
