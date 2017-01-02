@@ -15,7 +15,10 @@ def sync_hubspot_contact(user):
             profile_kwargs = dict(
                 country=user.profile.country_name,
                 city=user.profile.city_name,
-                address='{} {}'.format(user.profile.plot_number, user.profile.street),
+                address='{} {}'.format(
+                    user.profile.plot_number and user.profile.plot_number.encode('utf-8') or '',
+                    user.profile.street and user.profile.street.encode('utf-8') or ''
+                ),
                 zip=user.profile.postal_code,
                 company=user.profile.company,
                 website=user.profile.website,
