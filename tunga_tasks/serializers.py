@@ -566,7 +566,7 @@ class ProgressReportDetailsSerializer(serializers.ModelSerializer):
     event = BasicProgressEventSerializer()
 
     class Meta:
-        model = SavedTask
+        model = ProgressReport
         fields = ('event',)
 
 
@@ -610,12 +610,18 @@ class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserA
     repo = serializers.JSONField(required=False, write_only=True, allow_null=True)
     issue = serializers.JSONField(required=False, write_only=True, allow_null=True)
     project = serializers.JSONField(required=False, write_only=True, allow_null=True)
+    team = serializers.JSONField(required=False, write_only=True, allow_null=True)
+    channel = serializers.JSONField(required=False, write_only=True, allow_null=True)
 
     # Read Only
     repo_id = serializers.CharField(required=False, read_only=True)
     issue_id = serializers.CharField(required=False, read_only=True)
     project_id = serializers.CharField(required=False, read_only=True)
     project_task_id = serializers.CharField(required=False, read_only=True)
+    team_id = serializers.CharField(required=False, read_only=True)
+    team_name = serializers.CharField(required=False, read_only=True)
+    channel_id = serializers.CharField(required=False, read_only=True)
+    channel_name = serializers.CharField(required=False, read_only=True)
 
     class Meta:
         model = Integration
@@ -625,57 +631,36 @@ class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserA
     def send_creation_signal(self, instance):
         task_integration.send(sender=Integration, integration=instance)
 
-    def create(self, validated_data):
+    def save_integration(self, validated_data, instance=None):
         events = None
-        meta = None
-        repo = None
-        issue = None
-        project = None
         if 'events' in validated_data:
             events = validated_data.pop('events')
+        meta = None
         if 'meta' in validated_data:
             meta = validated_data.pop('meta')
-        if 'repo' in validated_data:
-            repo = validated_data.pop('repo')
-        if 'issue' in validated_data:
-            issue = validated_data.pop('issue')
-        if 'project' in validated_data:
-            project = validated_data.pop('project')
+        metadata_objects = dict()
+        metadata_keys = ['repo', 'issue', 'project', 'team', 'channel']
+        for key in metadata_keys:
+            if key in validated_data:
+                metadata_objects[key] = validated_data.pop(key)
 
-        instance = super(IntegrationSerializer, self).create(validated_data)
+        if instance:
+            instance = super(IntegrationSerializer, self).update(instance, validated_data)
+        else:
+            instance = super(IntegrationSerializer, self).create(validated_data)
         self.save_events(instance, events)
         self.save_meta(instance, meta)
-        self.save_repo_meta(instance, repo)
-        self.save_issue_meta(instance, issue)
-        self.save_project_meta(instance, project)
+        for key in metadata_keys:
+            self.save_meta_object(instance, metadata_objects.get(key, None), key)
+
         self.send_creation_signal(instance)
         return instance
+
+    def create(self, validated_data):
+        return self.save_integration(validated_data)
 
     def update(self, instance, validated_data):
-        events = None
-        meta = None
-        repo = None
-        issue = None
-        project = None
-        if 'events' in validated_data:
-            events = validated_data.pop('events')
-        if 'meta' in validated_data:
-            meta = validated_data.pop('meta')
-        if 'repo' in validated_data:
-            repo = validated_data.pop('repo')
-        if 'issue' in validated_data:
-            issue = validated_data.pop('issue')
-        if 'project' in validated_data:
-            project = validated_data.pop('project')
-
-        instance = super(IntegrationSerializer, self).update(instance, validated_data)
-        self.save_events(instance, events)
-        self.save_meta(instance, meta)
-        self.save_repo_meta(instance, repo)
-        self.save_issue_meta(instance, issue)
-        self.save_project_meta(instance, project)
-        self.send_creation_signal(instance)
-        return instance
+        return self.save_integration(validated_data, instance=instance)
 
     def save_events(self, instance, events):
         if events:
@@ -698,43 +683,14 @@ class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserA
                 except:
                     pass
 
-    def save_repo_meta(self, instance, repo):
-        if repo:
-            for key, value in repo.iteritems():
+    def save_meta_object(self, instance, meta_object, prefix):
+        if meta_object:
+            for key, value in meta_object.iteritems():
+                meta_value = isinstance(value, (str, unicode, int, float)) and value or str(value)
                 defaults = {
                     'created_by': self.get_current_user() or instance.user,
-                    'meta_key': 'repo_%s' % key,
-                    'meta_value': value
-                }
-                try:
-                    IntegrationMeta.objects.update_or_create(
-                        integration=instance, meta_key=defaults['meta_key'], defaults=defaults
-                    )
-                except:
-                    pass
-
-    def save_issue_meta(self, instance, issue):
-        if issue:
-            for key, value in issue.iteritems():
-                defaults = {
-                    'created_by': self.get_current_user() or instance.user,
-                    'meta_key': 'issue_%s' % key,
-                    'meta_value': value
-                }
-                try:
-                    IntegrationMeta.objects.update_or_create(
-                        integration=instance, meta_key=defaults['meta_key'], defaults=defaults
-                    )
-                except:
-                    pass
-
-    def save_project_meta(self, instance, project):
-        if project:
-            for key, value in project.iteritems():
-                defaults = {
-                    'created_by': self.get_current_user() or instance.user,
-                    'meta_key': 'project_%s' % key,
-                    'meta_value': value
+                    'meta_key': '%s_%s' % (prefix, key),
+                    'meta_value': meta_value
                 }
                 try:
                     IntegrationMeta.objects.update_or_create(

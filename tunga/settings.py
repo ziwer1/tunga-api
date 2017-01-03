@@ -364,13 +364,22 @@ SLACK_CLIENT_ID = None
 SLACK_CLIENT_SECRET = None
 SLACK_ACCESS_TOKEN_URL = 'https://slack.com/api/oauth.access'
 SLACK_AUTHORIZE_URL = 'https://slack.com/oauth/authorize'
-SLACK_SCOPES = ['incoming-webhook']
+SLACK_SCOPES = [
+    'identify',
+    'channels:history', 'channels:read', 'channels:write',
+    'chat:write:bot', 'im:write',
+    'users:read', 'users.profile:read',
+    # 'bot'
+]
 
 SLACK_ATTACHMENT_COLOR_TUNGA = '#EE1F54'
+SLACK_ATTACHMENT_COLOR_NEUTRAL = '#CCC'
 SLACK_ATTACHMENT_COLOR_GREEN = '#4CAF50'
 SLACK_ATTACHMENT_COLOR_RED = '#FF0000'
+SLACK_ATTACHMENT_COLOR_BLUE = '#0078BD'
 
 TUNGA_ICON_URL_150 = 'https://tunga.io/icons/Tunga_iconx150.png'
+TUNGA_ICON_SQUARE_URL_150 = 'https://tunga.io/icons/Tunga_squarex150.png'
 
 HARVEST_CLIENT_ID = None
 HARVEST_CLIENT_SECRET = None

@@ -85,6 +85,7 @@ urlpatterns = [
     url(r'^api/me/app/(?P<provider>\w+)/repos/$', RepoListView.as_view(), name="repo-list"),
     url(r'^api/me/app/(?P<provider>\w+)/issues/$', IssueListView.as_view(), name="issue-list"),
     url(r'^api/me/app/slack/$', SlackIntegrationView.as_view(), name="slack-app"),
+    url(r'^api/me/app/slack/(?P<resource>\w+)/$', SlackIntegrationView.as_view(), name="slack-app-resource"),
     url(r'^api/me/app/harvest/(?P<resource>\w+)/$', HarvestAPIView.as_view(), name="harvest-app"),
     url(r'^api/hook/coinbase/$', coinbase_notification, name="coinbase-notification"),
     url(r'^api/hook/bitpesa/$', bitpesa_notification, name="bitpesa-notification"),

@@ -597,6 +597,7 @@ class ProgressReport(models.Model):
     percentage = models.PositiveIntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
     accomplished = models.TextField()
     next_steps = models.TextField(blank=True, null=True)
+    obstacles = models.TextField(blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     uploads = GenericRelation(Upload, related_query_name='progress_reports')
@@ -698,50 +699,51 @@ class Integration(models.Model):
 
     @property
     def hook_id(self):
-        try:
-            return self.integrationmeta_set.get(meta_key='hook_id').meta_value
-        except:
-            return None
+        return self.get_meta_value('hook_id')
 
     @property
     def repo_id(self):
-        try:
-            return self.integrationmeta_set.get(meta_key='repo_id').meta_value
-        except:
-            return None
+        return self.get_meta_value('repo_id')
 
     @property
     def repo_full_name(self):
-        try:
-            return self.integrationmeta_set.get(meta_key='repo_full_name').meta_value
-        except:
-            return None
+        return self.get_meta_value('repo_full_name')
 
     @property
     def issue_id(self):
-        try:
-            return self.integrationmeta_set.get(meta_key='issue_id').meta_value
-        except:
-            return None
+        return self.get_meta_value('issue_id')
 
     @property
     def issue_number(self):
-        try:
-            return self.integrationmeta_set.get(meta_key='issue_number').meta_value
-        except:
-            return None
+        return self.get_meta_value('issue_number')
 
     @property
     def project_id(self):
-        try:
-            return self.integrationmeta_set.get(meta_key='project_id').meta_value
-        except:
-            return None
+        return self.get_meta_value('project_id')
 
     @property
     def project_task_id(self):
+        return self.get_meta_value('project_task_id')
+
+    @property
+    def team_id(self):
+        return self.get_meta_value('team_id')
+
+    @property
+    def team_name(self):
+        return self.get_meta_value('team_name')
+
+    @property
+    def channel_id(self):
+        return self.get_meta_value('channel_id')
+
+    @property
+    def channel_name(self):
+        return self.get_meta_value('channel_name')
+
+    def get_meta_value(self, key):
         try:
-            return self.integrationmeta_set.get(meta_key='project_task_id').meta_value
+            return self.integrationmeta_set.get(meta_key=key).meta_value
         except:
             return None
 

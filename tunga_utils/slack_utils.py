@@ -1,9 +1,10 @@
 import json
 
 import requests
+from slacker import Slacker
 
 from tunga.settings import SLACK_CUSTOMER_OUTGOING_WEBHOOK_TOKEN, SLACK_AUTHORIZE_URL, SLACK_SCOPES, SLACK_CLIENT_ID, \
-    SLACK_ACCESS_TOKEN_URL
+    SLACK_ACCESS_TOKEN_URL, TUNGA_ICON_URL_150, TUNGA_ICON_SQUARE_URL_150
 from tunga_utils.constants import APP_INTEGRATION_PROVIDER_SLACK
 from tunga_profiles.utils import get_app_integration
 
@@ -44,6 +45,8 @@ KEY_MRKDWN = 'mrkdwn'
 KEY_MRKDWN_IN = 'mrkdwn_in'
 KEY_COMMAND = 'command'
 
+KEY_CHANNELS = 'channels'
+
 
 def get_authorize_url(redirect_uri):
     return '%s?client_id=%s&scope=%s&redirect_uri=%s' % (
@@ -75,3 +78,38 @@ def is_task_notification_enabled(task, event_id):
 
 def send_incoming_webhook(url, message):
     requests.post(url, json=message)
+
+
+def get_slack_token(user):
+    app_integration = get_app_integration(user=user, provider=APP_INTEGRATION_PROVIDER_SLACK)
+    if app_integration and app_integration.extra:
+        return app_integration.token
+    return None
+
+
+def send_integration_message(task, message=None, attachments=None, author_name='tunga', author_icon=TUNGA_ICON_SQUARE_URL_150):
+    try:
+        task_integration = task.integration_set.get(provider=APP_INTEGRATION_PROVIDER_SLACK)
+    except:
+        return
+    webhook_url = get_webhook_url(task.user)
+    if webhook_url:
+        # Attempt to send via webhook in case of old tokens
+        send_incoming_webhook(webhook_url, {
+            KEY_TEXT: message,
+            KEY_ATTACHMENTS: attachments
+        })
+    else:
+        token = get_slack_token(task.user)
+        send_slack_message(
+            token, task_integration.channel_id,
+            message=message, attachments=attachments, author_name=author_name, author_icon=author_icon
+        )
+
+
+def send_slack_message(token, channel, message=None, attachments=None, author_name='tunga', author_icon=TUNGA_ICON_SQUARE_URL_150):
+    slack_client = Slacker(token)
+    slack_client.chat.post_message(
+        channel, message, attachments=attachments,
+        as_user=False, username=author_name, icon_url=author_icon, link_names=1
+    )

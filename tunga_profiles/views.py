@@ -9,6 +9,7 @@ from rest_framework import viewsets, generics, views, status
 from rest_framework.decorators import list_route
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
+from slacker import Slacker
 
 from tunga_messages.models import Channel
 from tunga_messages.utils import channel_new_messages_filter
@@ -19,7 +20,7 @@ from tunga_profiles.models import UserProfile, Education, Work, Connection, Deve
 from tunga_auth.permissions import IsAdminOrCreateOnly
 from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, WorkSerializer, ConnectionSerializer, \
     DeveloperApplicationSerializer, DeveloperInvitationSerializer
-from tunga_utils import github, harvest_utils
+from tunga_utils import github, harvest_utils, slack_utils
 from tunga_utils.constants import USER_TYPE_PROJECT_OWNER, APP_INTEGRATION_PROVIDER_SLACK, CHANNEL_TYPE_SUPPORT, \
     CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_DEVELOPER, APP_INTEGRATION_PROVIDER_HARVEST
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
@@ -318,15 +319,24 @@ class SlackIntegrationView(views.APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request, resource=None):
         app_integration = get_app_integration(user=request.user, provider=APP_INTEGRATION_PROVIDER_SLACK)
         if app_integration and app_integration.extra:
             extra = json.loads(app_integration.extra)
-            details = {
-                'team': {'name': extra.get('team_name')},
-                'incoming_webhook': {'channel': extra.get('incoming_webhook').get('channel')}
-            }
-            return Response(details, status.HTTP_200_OK)
+            slack_client = Slacker(app_integration.token)
+            response = None
+            if resource == 'channels':
+                channel_response = slack_client.channels.list(exclude_archived=True)
+                if channel_response.successful:
+                    response = channel_response.body.get(slack_utils.KEY_CHANNELS, None)
+            else:
+                response = {
+                    'team': {'name': extra.get('team_name'), 'id': extra.get('team_id', None)},
+                    # 'incoming_webhook': {'channel': extra.get('incoming_webhook').get('channel')}
+                }
+            if response:
+                return Response(response, status.HTTP_200_OK)
+            return Response({'status': 'Failed'}, status.HTTP_400_BAD_REQUEST)
 
         return Response({'status': 'Not implemented'}, status.HTTP_501_NOT_IMPLEMENTED)
 
