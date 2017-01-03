@@ -48,7 +48,6 @@ python-openid==2.2.5      # via django-allauth
 PyYAML==3.11              # via django-rest-swagger
 redis==2.10.5             # via django-redis, rq
 requests-oauthlib==0.7.0  # via django-allauth
-requests-oauthlib==0.7.0  # via django-allauth
 requests==2.10.0
 rest-framework-generic-relations==1.1.0
 rq==0.6.0                 # via django-rq
