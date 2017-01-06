@@ -38,6 +38,5 @@ def create_hubspot_contact(email=None, **kwargs):
 
     if r.status_code in [200, 201]:
         response = r.json()
-        contact_id = response.get(KEY_VID, None)
         return response
     return None

@@ -4,8 +4,9 @@ from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch.dispatcher import receiver
 
+from tunga_auth.models import EmailVisitor
 from tunga_auth.notifications import send_new_user_email
-from tunga_auth.tasks import sync_hubspot_contact
+from tunga_auth.tasks import sync_hubspot_contact, sync_hubspot_email
 from tunga_utils.constants import USER_TYPE_PROJECT_OWNER
 
 
@@ -26,3 +27,9 @@ def new_user_signup_handler(request, user, **kwargs):
 
     if user.type == USER_TYPE_PROJECT_OWNER:
         sync_hubspot_contact.delay(user.id)
+
+
+@receiver(post_save, sender=EmailVisitor)
+def new_email_visitor_handler(sender, instance, created, **kwargs):
+    if created:
+        sync_hubspot_email.delay(instance.email)
