@@ -27,4 +27,5 @@ rest-framework-generic-relations==1.1.0
 WeasyPrint==0.30
 premailer==3.0.1
 slacker==0.9.30
+apscheduler==3.3.1
 -e git+https://github.com/davidsemakula/python-harvest.git@2.1.0rc1#egg=python-harvest-redux
