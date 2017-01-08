@@ -17,10 +17,11 @@ python manage.py initial_tunga_integration_events
 * Built with [Django](https://www.djangoproject.com/) and [Django REST framework](http://www.django-rest-framework.org/)
 
 # Development
-1. run this command from project root
+1. run this commands from project root
 ```
 python manage.py runserver
 python manage.py rqworker default
+python manage.py tunga_scheduler
 ```
 2. Access the API at http://127.0.0.1:8000/api/ and the backend at http://127.0.0.1:8000/admin/ in your browser
 
