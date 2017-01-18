@@ -44,6 +44,7 @@ from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, Parti
     TaskRequestSerializer, SavedTaskSerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
     IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment
+from tunga_tasks.utils import save_integration_tokens, get_integration_token
 from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa
 from tunga_utils.constants import TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BANK
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
@@ -406,7 +407,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                     web_hook_endpoint += '/%s' % instance.hook_id
                     hook_method = 'patch'
 
-                social_token = get_social_token(user=request.user, provider=provider)
+                social_token = get_integration_token(request.user, provider, task=pk)
                 if not social_token:
                     return Response({'status': 'Unauthorized'}, status.HTTP_401_UNAUTHORIZED)
 
@@ -418,10 +419,14 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                         IntegrationMeta.objects.update_or_create(
                                 integration=integration, meta_key='hook_id', defaults={'meta_value': hook['id']}
                         )
+                    if not integration.token:
+                        save_integration_tokens(request.user, pk, provider)
                     return Response(serializer.data)
                 return Response(r.json(), r.status_code)
             else:
-                serializer.save()
+                integration = serializer.save()
+                if not integration.token:
+                    save_integration_tokens(request.user, pk, provider)
                 return Response(serializer.data)
         else:
             return Response({'status': 'Method not allowed'}, status.HTTP_405_METHOD_NOT_ALLOWED)

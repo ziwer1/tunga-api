@@ -100,9 +100,9 @@ def send_integration_message(task, message=None, attachments=None, author_name='
             KEY_ATTACHMENTS: attachments
         })
     else:
-        token = get_slack_token(task.user)
+        #token = get_slack_token(task.user)
         send_slack_message(
-            token, task_integration.channel_id,
+            task_integration.token, task_integration.channel_id,
             message=message, attachments=attachments, author_name=author_name, author_icon=author_icon
         )
 

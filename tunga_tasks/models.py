@@ -741,6 +741,28 @@ class Integration(models.Model):
     def channel_name(self):
         return self.get_meta_value('channel_name')
 
+    @property
+    def token(self):
+        return self.get_meta_value('token')
+
+    @property
+    def token_secret(self):
+        return self.get_meta_value('token_secret')
+
+    @property
+    def refresh_token(self):
+        return self.get_meta_value('refresh_token')
+
+    @property
+    def bot_access_token(self):
+        if self.provider == APP_INTEGRATION_PROVIDER_GITHUB:
+            return self.get_meta_value('bot_access_token')
+        return
+
+    @property
+    def token_extra(self):
+        return self.get_meta_value('token_extra')
+
     def get_meta_value(self, key):
         try:
             return self.integrationmeta_set.get(meta_key=key).meta_value
@@ -751,7 +773,7 @@ class Integration(models.Model):
 class IntegrationMeta(models.Model):
     integration = models.ForeignKey(Integration, on_delete=models.CASCADE)
     meta_key = models.CharField(max_length=30)
-    meta_value = models.CharField(max_length=30)
+    meta_value = models.CharField(max_length=500)
     created_by = models.ForeignKey(
             settings.AUTH_USER_MODEL, related_name='integration_meta_created', blank=True, null=True,
             on_delete=models.DO_NOTHING

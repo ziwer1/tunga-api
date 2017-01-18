@@ -227,6 +227,11 @@ def send_task_application_not_selected_email(instance):
 
 
 @job
+def send_progress_event_reminder(instance):
+    send_progress_event_reminder_email(instance)
+
+
+@job
 def send_progress_event_reminder_email(instance):
     instance = clean_instance(instance, ProgressEvent)
     subject = "%s Upcoming Task Update" % (EMAIL_SUBJECT_PREFIX,)

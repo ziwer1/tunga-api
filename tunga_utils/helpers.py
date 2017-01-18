@@ -1,4 +1,5 @@
 import re
+import json
 from decimal import Decimal
 
 from allauth.socialaccount.models import SocialToken
@@ -92,3 +93,14 @@ def convert_to_base_alphabet(number):
     if divider_letters > 0:
         base_alphabet_string = '{}{}'.format(convert_to_base_alphabet(divider_letters-1), base_alphabet_string)
     return base_alphabet_string
+
+
+def clean_meta_value(meta_value):
+    if isinstance(meta_value, (str, unicode, int, float)):
+        return meta_value
+    elif isinstance(meta_value, dict):
+        try:
+            return json.dumps(meta_value)
+        except:
+            pass
+    return str(meta_value)

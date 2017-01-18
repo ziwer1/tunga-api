@@ -19,6 +19,7 @@ from tunga_tasks.models import Task, Application, Participation, TaskRequest, Sa
 from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, VISIBILITY_CUSTOM
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
     task_integration
+from tunga_utils.helpers import clean_meta_value
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.models import Rating
 from tunga_utils.serializers import ContentTypeAnnotatedModelSerializer, SkillSerializer, \
@@ -685,12 +686,11 @@ class IntegrationSerializer(ContentTypeAnnotatedModelSerializer, GetCurrentUserA
 
     def save_meta_object(self, instance, meta_object, prefix):
         if meta_object:
-            for key, value in meta_object.iteritems():
-                meta_value = isinstance(value, (str, unicode, int, float)) and value or str(value)
+            for key in meta_object:
                 defaults = {
                     'created_by': self.get_current_user() or instance.user,
                     'meta_key': '%s_%s' % (prefix, key),
-                    'meta_value': meta_value
+                    'meta_value': clean_meta_value(meta_object[key])
                 }
                 try:
                     IntegrationMeta.objects.update_or_create(

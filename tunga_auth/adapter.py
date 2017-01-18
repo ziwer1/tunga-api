@@ -5,7 +5,7 @@ from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.shortcuts import redirect
 
 from tunga_utils.constants import USER_TYPE_DEVELOPER
-from tunga_auth.utils import get_session_user_type
+from tunga_auth.utils import get_session_user_type, get_session_callback_url
 
 
 class TungaAccountAdapter(DefaultAccountAdapter):
@@ -72,3 +72,10 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
             user_type = get_session_user_type(request)
             user.type = user_type
         return user
+
+    def get_connect_redirect_url(self, request, socialaccount):
+        assert request.user.is_authenticated()
+        callback = get_session_callback_url(request)
+        if callback:
+            return callback
+        return super(SocialAccountAdapter, self).get_connect_redirect_url(request, socialaccount)

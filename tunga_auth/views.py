@@ -16,18 +16,20 @@ from rest_framework.response import Response
 
 from tunga.settings import GITHUB_SCOPES, COINBASE_CLIENT_ID, COINBASE_CLIENT_SECRET, SOCIAL_CONNECT_ACTION, SOCIAL_CONNECT_NEXT, SOCIAL_CONNECT_USER_TYPE, SOCIAL_CONNECT_ACTION_REGISTER, \
     SOCIAL_CONNECT_ACTION_CONNECT, SLACK_CLIENT_ID, SLACK_CLIENT_SECRET, SOCIAL_CONNECT_TASK, HARVEST_CLIENT_ID, \
-    HARVEST_CLIENT_SECRET
+    HARVEST_CLIENT_SECRET, SOCIAL_CONNECT_CALLBACK
 from tunga_auth.filterbackends import UserFilterBackend
 from tunga_auth.filters import UserFilter
 from tunga_auth.models import EmailVisitor
 from tunga_auth.permissions import IsAuthenticatedOrEmailVisitorReadOnly
 from tunga_auth.serializers import UserSerializer, AccountInfoSerializer, EmailVisitorSerializer
 from tunga_profiles.models import BTCWallet, UserProfile, AppIntegration
+from tunga_tasks.utils import save_task_integration_meta
 from tunga_utils import coinbase_utils, slack_utils, harvest_utils
 from tunga_utils.constants import BTC_WALLET_PROVIDER_COINBASE, PAYMENT_METHOD_BTC_WALLET, USER_TYPE_DEVELOPER, \
     USER_TYPE_PROJECT_OWNER, APP_INTEGRATION_PROVIDER_SLACK, APP_INTEGRATION_PROVIDER_HARVEST
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
-from tunga_auth.utils import get_session_task, get_session_visitor_email, create_email_visitor_session
+from tunga_auth.utils import get_session_task, get_session_visitor_email, create_email_visitor_session, get_session_next_url
+from tunga_utils.helpers import get_social_token
 from tunga_utils.serializers import SimpleUserSerializer
 
 
@@ -135,22 +137,22 @@ class EmailVisitorView(generics.CreateAPIView, generics.RetrieveAPIView):
 def social_login_view(request, provider=None):
     action = request.GET.get(SOCIAL_CONNECT_ACTION)
 
+    next_url = request.GET.get(SOCIAL_CONNECT_NEXT)
+    if next_url:
+        request.session[SOCIAL_CONNECT_NEXT] = next_url
+    try:
+        task = int(request.GET.get(SOCIAL_CONNECT_TASK))
+    except:
+        task = None
+
+    if task:
+        request.session[SOCIAL_CONNECT_TASK] = task
+
     if action == SOCIAL_CONNECT_ACTION_CONNECT or provider in [
         BTC_WALLET_PROVIDER_COINBASE,
         APP_INTEGRATION_PROVIDER_SLACK,
         APP_INTEGRATION_PROVIDER_HARVEST
     ]:
-        try:
-            task = int(request.GET.get(SOCIAL_CONNECT_TASK))
-        except:
-            task = None
-
-        if task:
-            request.session[SOCIAL_CONNECT_TASK] = task
-
-        next_url = request.GET.get(SOCIAL_CONNECT_NEXT)
-        if next_url:
-            request.session[SOCIAL_CONNECT_NEXT] = next_url
 
         if provider == BTC_WALLET_PROVIDER_COINBASE:
             redirect_uri = '%s://%s%s' % (request.scheme, request.get_host(), reverse('coinbase-connect-callback'))
@@ -164,7 +166,6 @@ def social_login_view(request, provider=None):
 
     enabled_providers = [FacebookProvider.id, GoogleProvider.id, GitHubProvider.id, SlackProvider.id]
 
-    redirect_uri = request.GET.get(SOCIAL_CONNECT_NEXT)
     try:
         user_type = int(request.GET.get(SOCIAL_CONNECT_USER_TYPE))
     except:
@@ -181,8 +182,9 @@ def social_login_view(request, provider=None):
         if provider == GitHubProvider.id and action == SOCIAL_CONNECT_ACTION_CONNECT:
             scope = ','.join(GITHUB_SCOPES)
             authorize_url += '?scope=%s&process=connect' % scope
+            redirect_uri = '%s://%s%s' % (request.scheme, request.get_host(), reverse('github-connect-callback'))
             if redirect_uri:
-                authorize_url += '&next=%s' % redirect_uri
+                request.session[SOCIAL_CONNECT_CALLBACK] = redirect_uri
     else:
         authorize_url = '/'
     return redirect(authorize_url)
@@ -216,6 +218,24 @@ def coinbase_connect_callback(request):
     return redirect('/profile/payment/coinbase/')
 
 
+def github_connect_callback(request):
+    task_id = get_session_task(request)
+    if task_id:
+        social_token = get_social_token(user=request.user, provider=GitHubProvider.id)
+        if not social_token:
+            return Response({'status': 'Unauthorized'}, status.HTTP_401_UNAUTHORIZED)
+
+        token_info = dict(
+            token=social_token.token,
+            token_secret=social_token.token_secret,
+            token_expires_at=social_token.expires_at
+        )
+
+        save_task_integration_meta(task_id, GitHubProvider.id, token_info)
+
+    return redirect(get_session_next_url(request, provider=GitHubProvider.id))
+
+
 def slack_connect_callback(request):
     code = request.GET.get('code', None)
     redirect_uri = '%s://%s%s' % (request.scheme, request.get_host(), reverse(request.resolver_match.url_name))
@@ -235,7 +255,18 @@ def slack_connect_callback(request):
         AppIntegration.objects.update_or_create(
             user=request.user, provider=APP_INTEGRATION_PROVIDER_SLACK, defaults=defaults
         )
-    return redirect('/task/%s/integrations/slack' % get_session_task(request))
+
+        task_id = get_session_task(request)
+        if task_id:
+            token_info = {
+                'token': response['access_token'],
+                'token_extra': json.dumps(response)
+            }
+            if 'bot' in response:
+                token_info['bot_access_token'] = response['bot'].get('bot_access_token')
+                token_info['bot_user_id'] = response['bot'].get('bot_user_id')
+            save_task_integration_meta(task_id, APP_INTEGRATION_PROVIDER_SLACK, token_info)
+    return redirect(get_session_next_url(request, provider=APP_INTEGRATION_PROVIDER_SLACK))
 
 
 def harvest_connect_callback(request):
@@ -259,4 +290,14 @@ def harvest_connect_callback(request):
         AppIntegration.objects.update_or_create(
             user=request.user, provider=APP_INTEGRATION_PROVIDER_HARVEST, defaults=defaults
         )
-    return redirect('/task/%s/integrations/harvest' % get_session_task(request))
+
+        task_id = get_session_task(request)
+        if task_id:
+            token_info = {
+                'token': response['access_token'],
+                'refresh_token': response['refresh_token'],
+                'token_extra': json.dumps(response)
+            }
+            save_task_integration_meta(task_id, APP_INTEGRATION_PROVIDER_HARVEST, token_info)
+
+    return redirect(get_session_next_url(request, provider=APP_INTEGRATION_PROVIDER_HARVEST))

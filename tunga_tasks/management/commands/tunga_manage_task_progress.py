@@ -4,7 +4,7 @@ from dateutil.relativedelta import relativedelta
 from django.core.management.base import BaseCommand
 from django.db.models.query_utils import Q
 
-from tunga_tasks.notifications import send_progress_event_reminder_email
+from tunga_tasks.notifications import send_progress_event_reminder
 from tunga_tasks.models import Task, ProgressEvent
 from tunga_tasks.tasks import initialize_task_progress_events
 
@@ -32,4 +32,4 @@ class Command(BaseCommand):
             task__closed=False, due_at__range=[min_date, max_date], last_reminder_at__isnull=True
         )
         for event in events:
-            send_progress_event_reminder_email(event.id)
+            send_progress_event_reminder(event.id)

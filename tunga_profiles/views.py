@@ -11,21 +11,20 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 from slacker import Slacker
 
+from tunga_auth.permissions import IsAdminOrCreateOnly
 from tunga_messages.models import Channel
 from tunga_messages.utils import channel_new_messages_filter
 from tunga_profiles.filterbackends import ConnectionFilterBackend
 from tunga_profiles.filters import EducationFilter, WorkFilter, ConnectionFilter, DeveloperApplicationFilter, \
     DeveloperInvitationFilter
 from tunga_profiles.models import UserProfile, Education, Work, Connection, DeveloperApplication, DeveloperInvitation
-from tunga_auth.permissions import IsAdminOrCreateOnly
 from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, WorkSerializer, ConnectionSerializer, \
     DeveloperApplicationSerializer, DeveloperInvitationSerializer
+from tunga_tasks.utils import get_integration_token
 from tunga_utils import github, harvest_utils, slack_utils
 from tunga_utils.constants import USER_TYPE_PROJECT_OWNER, APP_INTEGRATION_PROVIDER_SLACK, CHANNEL_TYPE_SUPPORT, \
     CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_DEVELOPER, APP_INTEGRATION_PROVIDER_HARVEST
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
-from tunga_utils.helpers import get_social_token
-from tunga_profiles.utils import get_app_integration
 
 
 class ProfileView(generics.CreateAPIView, generics.RetrieveUpdateDestroyAPIView):
@@ -269,7 +268,7 @@ class RepoListView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, provider=None):
-        social_token = get_social_token(user=request.user, provider=provider)
+        social_token = get_integration_token(request.user, provider, task=request.GET.get('task'))
         if not social_token:
             return Response({'status': 'Unauthorized'}, status.HTTP_401_UNAUTHORIZED)
 
@@ -289,7 +288,7 @@ class IssueListView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, provider=None):
-        social_token = get_social_token(user=request.user, provider=provider)
+        social_token = get_integration_token(request.user, provider, task=request.GET.get('task'))
         if not social_token:
             return Response({'status': 'Unauthorized'}, status.HTTP_401_UNAUTHORIZED)
 
@@ -320,7 +319,9 @@ class SlackIntegrationView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, resource=None):
-        app_integration = get_app_integration(user=request.user, provider=APP_INTEGRATION_PROVIDER_SLACK)
+        app_integration = get_integration_token(
+            request.user, APP_INTEGRATION_PROVIDER_SLACK, task=request.GET.get('task')
+        )
         if app_integration and app_integration.extra:
             extra = json.loads(app_integration.extra)
             slack_client = Slacker(app_integration.token)
@@ -348,7 +349,9 @@ class HarvestAPIView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, resource=None):
-        app_integration = get_app_integration(user=request.user, provider=APP_INTEGRATION_PROVIDER_HARVEST)
+        app_integration = get_integration_token(
+            request.user, APP_INTEGRATION_PROVIDER_HARVEST, task=request.GET.get('task')
+        )
         if app_integration and app_integration.extra:
             token = json.loads(app_integration.extra)
 
@@ -375,7 +378,7 @@ class HarvestAPIView(views.APIView):
         return Response({'status': 'Not implemented'}, status.HTTP_501_NOT_IMPLEMENTED)
 
     def post(self, request, resource=None):
-        app_integration = get_app_integration(user=request.user, provider=APP_INTEGRATION_PROVIDER_HARVEST)
+        app_integration = get_integration_token(request.user, APP_INTEGRATION_PROVIDER_HARVEST, task=request.GET.get('task'))
         if app_integration and app_integration.extra:
             token = json.loads(app_integration.extra)
             response = None

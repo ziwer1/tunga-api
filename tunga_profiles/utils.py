@@ -13,8 +13,8 @@ def profile_check(user):
         required.extend(['company'])
 
     profile_dict = user.profile.__dict__
-    for k, v in profile_dict.iteritems():
-        if k in required and not v:
+    for key in profile_dict:
+        if key in required and not profile_dict[key]:
             return False
     return True
 
