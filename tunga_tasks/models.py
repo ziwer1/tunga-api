@@ -187,7 +187,7 @@ class Task(models.Model):
 
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):
-        if request.user == self.user or request.user == self.parent.user:
+        if request.user == self.user or (self.parent and request.user == self.parent.user):
             return True
         elif self.visibility == VISIBILITY_DEVELOPER:
             return request.user.type == USER_TYPE_DEVELOPER
@@ -213,7 +213,7 @@ class Task(models.Model):
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
-        return request.user == self.user or request.user == self.parent.user
+        return request.user == self.user or (self.parent and request.user == self.parent.user)
 
     @allow_staff_or_superuser
     def has_object_update_permission(self, request):
