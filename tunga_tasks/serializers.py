@@ -178,6 +178,7 @@ class ParticipantShareSerializer(serializers.Serializer):
 
 class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
     project = SimpleProjectSerializer()
+    parent = SimpleTaskSerializer()
     skills = SkillSerializer(many=True)
     applications = SimpleApplicationSerializer(many=True, source='application_set')
     participation = SimpleParticipationSerializer(many=True, source='participation_set')
@@ -185,7 +186,7 @@ class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
 
     class Meta:
         model = Task
-        fields = ('project', 'amount', 'skills', 'applications', 'participation', 'participation_shares')
+        fields = ('project', 'is_project', 'parent', 'amount', 'skills', 'applications', 'participation', 'participation_shares')
 
 
 class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer,
@@ -406,7 +407,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         return obj.display_fee(amount=amount)
 
     def get_can_apply(self, obj):
-        if obj.closed or not obj.apply:
+        if obj.is_project or obj.closed or not obj.apply:
             return False
         user = self.get_current_user()
         if user:

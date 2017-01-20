@@ -34,9 +34,15 @@ def update_task_submit_milestone(task):
     task = clean_instance(task, Task)
     if task.deadline:
         task_period = (task.deadline - task.created_at).days
-        days_before = (task.fee > 150 and task_period >= 7) and 2 or 1
-        submission_date = task.deadline - datetime.timedelta(days=days_before)
-        defaults = {'due_at': submission_date, 'title': 'Submit final draft'}
+        if task.parent:
+            # task is part of a bigger project
+            submission_date = task.deadline
+        else:
+            # standalone task needs a milestone before the deadline
+            days_before = (task.fee > 150 and task_period >= 7) and 2 or 1
+            submission_date = task.deadline - datetime.timedelta(days=days_before)
+
+        defaults = {'due_at': submission_date, 'title': 'Submit {}'.format(task.parent and 'work' or 'final draft')}
         ProgressEvent.objects.update_or_create(task=task, type=PROGRESS_EVENT_TYPE_SUBMIT, defaults=defaults)
 
 

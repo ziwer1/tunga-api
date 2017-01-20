@@ -72,8 +72,16 @@ def verify_webhook_token(token):
     return token == SLACK_CUSTOMER_OUTGOING_WEBHOOK_TOKEN
 
 
+def get_integration_task(task):
+    target_task = task
+    if task.parent:
+        target_task = task.parent
+    return target_task
+
+
 def is_task_notification_enabled(task, event_id):
-    return task.integration_set.filter(provider=APP_INTEGRATION_PROVIDER_SLACK, events__id=event_id).count() > 0
+    target_task = get_integration_task(task)
+    return target_task.integration_set.filter(provider=APP_INTEGRATION_PROVIDER_SLACK, events__id=event_id).count() > 0
 
 
 def send_incoming_webhook(url, message):
@@ -89,7 +97,8 @@ def get_slack_token(user):
 
 def send_integration_message(task, message=None, attachments=None, author_name='tunga', author_icon=TUNGA_ICON_SQUARE_URL_150):
     try:
-        task_integration = task.integration_set.get(provider=APP_INTEGRATION_PROVIDER_SLACK)
+        target_task = get_integration_task(task)
+        task_integration = target_task.integration_set.get(provider=APP_INTEGRATION_PROVIDER_SLACK)
     except:
         return
     webhook_url = get_webhook_url(task.user)
@@ -100,7 +109,7 @@ def send_integration_message(task, message=None, attachments=None, author_name='
             KEY_ATTACHMENTS: attachments
         })
     else:
-        #token = get_slack_token(task.user)
+        # token = get_slack_token(task.user)
         send_slack_message(
             task_integration.token, task_integration.channel_id,
             message=message, attachments=attachments, author_name=author_name, author_icon=author_icon

@@ -113,6 +113,8 @@ TASK_PAYMENT_METHOD_CHOICES = (
 
 class Task(models.Model):
     project = models.ForeignKey(Project, related_name='tasks', on_delete=models.SET_NULL, blank=True, null=True)
+    parent = models.ForeignKey('self', related_name='sub_tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
+    is_project = models.BooleanField(default=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='tasks_created', on_delete=models.DO_NOTHING)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
@@ -185,7 +187,7 @@ class Task(models.Model):
 
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):
-        if request.user == self.user:
+        if request.user == self.user or request.user == self.parent.user:
             return True
         elif self.visibility == VISIBILITY_DEVELOPER:
             return request.user.type == USER_TYPE_DEVELOPER
@@ -211,7 +213,7 @@ class Task(models.Model):
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
-        return request.user == self.user
+        return request.user == self.user or request.user == self.parent.user
 
     @allow_staff_or_superuser
     def has_object_update_permission(self, request):
@@ -320,11 +322,17 @@ class Task(models.Model):
 
     @property
     def all_uploads(self):
-        return Upload.objects.filter(Q(tasks=self) | Q(comments__tasks=self) | Q(progress_reports__event__task=self))
+        return Upload.objects.filter(
+            Q(tasks=self) | Q(comments__tasks=self) | Q(progress_reports__event__task=self) |
+            Q(tasks__parent=self) | Q(comments__tasks__parent=self) | Q(progress_reports__event__task__parent=self)
+        )
 
     @property
     def activity_stream(self):
-        return Action.objects.filter(Q(tasks=self) | Q(progress_events__task=self))
+        return Action.objects.filter(
+            Q(tasks=self) | Q(tasks__parent=self) |
+            Q(progress_events__task=self) | Q(progress_events__task__parent=self)
+        )
 
     def get_participation_shares(self, return_hash=False):
         participants = self.participation_set.filter(accepted=True).order_by('-share')

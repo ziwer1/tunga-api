@@ -21,7 +21,7 @@ class TaskFilter(GenericDateFilterSet):
     class Meta:
         model = Task
         fields = (
-            'user', 'project', 'closed', 'applicant', 'participant',
+            'user', 'project', 'parent', 'is_project', 'closed', 'applicant', 'participant',
             'paid', 'pay_distributed', 'payment_status',
             'skill', 'skill_id'
         )
