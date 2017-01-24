@@ -13,6 +13,6 @@ def send_new_user_email(instance):
     to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
     ctx = {
         'user': instance,
-        'user_url': '%s/people/%s/' % (TUNGA_URL, instance.id)
+        'user_url': '%s/people/%s/' % (TUNGA_URL, instance.username)
     }
     send_mail(subject, 'tunga/email/email_new_user', to, ctx)
