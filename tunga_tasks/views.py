@@ -1,5 +1,4 @@
 import datetime
-import json
 from decimal import Decimal
 from urllib import urlencode, quote_plus
 
@@ -31,24 +30,23 @@ from tunga_activity.models import ActivityReadLog
 from tunga_activity.serializers import SimpleActivitySerializer, LastReadActivitySerializer
 from tunga_profiles.models import DeveloperNumber
 from tunga_tasks import slugs
-from tunga_tasks.notifications import send_task_invoice_request_email
 from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBackend, ParticipationFilterBackend, \
-    TaskRequestFilterBackend, SavedTaskFilterBackend, ProjectFilterBackend, ProgressReportFilterBackend, \
+    TaskRequestFilterBackend, TimeEntryFilterBackend, ProjectFilterBackend, ProgressReportFilterBackend, \
     ProgressEventFilterBackend
-from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TaskRequestFilter, SavedTaskFilter, \
+from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TaskRequestFilter, TimeEntryFilter, \
     ProjectFilter, ProgressReportFilter, ProgressEventFilter
-from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, Project, ProgressReport, ProgressEvent, \
+from tunga_tasks.models import Task, Application, Participation, TaskRequest, TimeEntry, Project, ProgressReport, ProgressEvent, \
     Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice
+from tunga_tasks.notifications import send_task_invoice_request_email
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
-    TaskRequestSerializer, SavedTaskSerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
+    TaskRequestSerializer, TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
     IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
 from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa
 from tunga_utils.constants import TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BANK
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
-from tunga_utils.helpers import get_social_token
 from tunga_utils.mixins import SaveUploadsMixin
 from tunga_utils.serializers import InvoiceUserSerializer
 
@@ -593,16 +591,16 @@ class TaskRequestViewSet(viewsets.ModelViewSet):
     search_fields = ('task__title', 'task__skills__name', '^user__username', '^user__first_name', '^user__last_name')
 
 
-class SavedTaskViewSet(viewsets.ModelViewSet):
+class TimeEntryViewSet(viewsets.ModelViewSet):
     """
-    Saved Task Resource
+    Time Entry Resource
     """
-    queryset = SavedTask.objects.all()
-    serializer_class = SavedTaskSerializer
+    queryset = TimeEntry.objects.all()
+    serializer_class = TimeEntrySerializer
     permission_classes = [IsAuthenticated, DRYPermissions]
-    filter_class = SavedTaskFilter
-    filter_backends = DEFAULT_FILTER_BACKENDS + (SavedTaskFilterBackend,)
-    search_fields = ('task__title', 'task__skills__name', '^user__username', '^user__first_name', '^user__last_name')
+    filter_class = TimeEntryFilter
+    filter_backends = DEFAULT_FILTER_BACKENDS + (TimeEntryFilterBackend,)
+    search_fields = ('description', '^task__title')
 
 
 class ProgressEventViewSet(viewsets.ModelViewSet):

@@ -516,13 +516,20 @@ class TaskRequest(models.Model):
         return request.user == self.user
 
 
-class SavedTask(models.Model):
+class TimeEntry(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    spent_at = models.DateField()
+    hours = models.FloatField()
+    description = models.CharField(max_length=1000, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __unicode__(self):
-        return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.summary)
+        return '{} hrs | {} - {}'.format(self.hours, self.task.summary, self.user.get_short_name() or self.user.username)
+
+    class Meta:
+        ordering = ['spent_at']
 
     @staticmethod
     @allow_staff_or_superuser

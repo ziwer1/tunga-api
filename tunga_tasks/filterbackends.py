@@ -41,8 +41,6 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                         )
                     )
                 )
-        elif label_filter == 'saved':
-            queryset = queryset.filter(savedtask__user=request.user)
         elif label_filter == 'skills':
             try:
                 user_skills = request.user.userprofile.skills.all()
@@ -141,10 +139,10 @@ class TaskRequestFilterBackend(DRYPermissionFiltersBase):
         )
 
 
-class SavedTaskFilterBackend(DRYPermissionFiltersBase):
+class TimeEntryFilterBackend(DRYPermissionFiltersBase):
     @dont_filter_staff_or_superuser
     def filter_list_queryset(self, request, queryset, view):
-        return queryset.filter(user=request.user)
+        return queryset.filter(Q(user=request.user) | Q(task__user=request.user) | Q(task__parent__user=request.user))
 
 
 class ProgressEventFilterBackend(DRYPermissionFiltersBase):

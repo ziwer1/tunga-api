@@ -1,6 +1,6 @@
 import django_filters
 
-from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, Project, ProgressReport, ProgressEvent
+from tunga_tasks.models import Task, Application, Participation, TaskRequest, TimeEntry, Project, ProgressReport, ProgressEvent
 from tunga_utils.filters import GenericDateFilterSet
 
 
@@ -57,10 +57,15 @@ class TaskRequestFilter(GenericDateFilterSet):
         fields = ('user', 'task', 'type')
 
 
-class SavedTaskFilter(GenericDateFilterSet):
+class TimeEntryFilter(GenericDateFilterSet):
+    min_date = django_filters.IsoDateTimeFilter(name='spent_at', lookup_type='gte')
+    max_date = django_filters.IsoDateTimeFilter(name='spent_at', lookup_type='lte')
+    min_hours = django_filters.IsoDateTimeFilter(name='hours', lookup_type='gte')
+    max_hours = django_filters.IsoDateTimeFilter(name='hours', lookup_type='lte')
+
     class Meta:
-        model = SavedTask
-        fields = ('user', 'task')
+        model = TimeEntry
+        fields = ('user', 'task', 'spent_at', 'hours')
 
 
 class ProgressEventFilter(GenericDateFilterSet):

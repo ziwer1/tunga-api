@@ -13,7 +13,7 @@ from tunga_auth.serializers import UserSerializer
 from tunga_profiles.utils import profile_check
 from tunga_tasks import slugs
 from tunga_tasks.notifications import send_new_task_email
-from tunga_tasks.models import Task, Application, Participation, TaskRequest, SavedTask, ProgressEvent, ProgressReport, \
+from tunga_tasks.models import Task, Application, Participation, TaskRequest, TimeEntry, ProgressEvent, ProgressReport, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
     TaskInvoice
 from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, VISIBILITY_CUSTOM
@@ -418,11 +418,6 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         return False
 
     def get_can_save(self, obj):
-        user = self.get_current_user()
-        if user:
-            if obj.user == user:
-                return False
-            return obj.savedtask_set.filter(user=user).count() == 0
         return False
 
     def get_is_participant(self, obj):
@@ -526,22 +521,22 @@ class TaskRequestSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotated
         details_serializer = TaskRequestDetailsSerializer
 
 
-class SavedTaskDetailsSerializer(serializers.ModelSerializer):
+class TimeEntryDetailsSerializer(serializers.ModelSerializer):
     user = SimpleUserSerializer()
     task = SimpleTaskSerializer()
 
     class Meta:
-        model = SavedTask
+        model = TimeEntry
         fields = ('user', 'task')
 
 
-class SavedTaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
+class TimeEntrySerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
     user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
-        model = SavedTask
-        read_only_fields = ('created_at',)
-        details_serializer = SavedTaskDetailsSerializer
+        model = TimeEntry
+        read_only_fields = ('created_at', 'updated_at')
+        details_serializer = TimeEntryDetailsSerializer
 
 
 class ProgressEventDetailsSerializer(serializers.ModelSerializer):
