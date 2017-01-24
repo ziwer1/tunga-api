@@ -6,13 +6,14 @@ from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.db.models.aggregates import Min, Max
+from django.db.models.query_utils import Q
 from django_rq.decorators import job
 
 from tunga.settings import BITPESA_SENDER
 from tunga_profiles.models import ClientNumber
 from tunga_profiles.utils import get_app_integration
 from tunga_tasks.models import ProgressEvent, Task, ParticipantPayment, \
-    TaskInvoice, Integration, IntegrationMeta
+    TaskInvoice, Integration, IntegrationMeta, Participation
 from tunga_utils import bitcoin_utils, coinbase_utils, bitpesa, harvest_utils
 from tunga_utils.constants import CURRENCY_BTC, PAYMENT_METHOD_BTC_WALLET, \
     PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, \
@@ -49,9 +50,15 @@ def update_task_submit_milestone(task):
 @job
 def update_task_periodic_updates(task):
     task = clean_instance(task, Task)
-    if task.update_interval and task.update_interval_units:
-        periodic_start_date = task.progressevent_set.filter(
-            task=task, type=PROGRESS_EVENT_TYPE_PERIODIC
+
+    target_task = task
+    if task.parent:
+        # for sub-tasks, create all periodic updates on the project
+        target_task = task.parent
+
+    if target_task.update_interval and target_task.update_interval_units:
+        periodic_start_date = ProgressEvent.objects.filter(
+            Q(task=target_task) | Q(task__parent=target_task), type=PROGRESS_EVENT_TYPE_PERIODIC
         ).aggregate(latest_date=Max('due_at'))['latest_date']
 
         now = datetime.datetime.utcnow()
@@ -59,8 +66,8 @@ def update_task_periodic_updates(task):
             return
 
         if not periodic_start_date:
-            periodic_start_date = task.participation_set.filter(
-                task=task, accepted=True
+            periodic_start_date = Participation.objects.filter(
+                Q(task=target_task) | Q(task__parent=target_task), accepted=True
             ).aggregate(start_date=Min('activated_at'))['start_date']
 
         if periodic_start_date:
@@ -72,21 +79,31 @@ def update_task_periodic_updates(task):
                 UPDATE_SCHEDULE_QUATERLY: {'months': 3},
                 UPDATE_SCHEDULE_ANNUALLY: 'years'
             }
-            period_info = period_map.get(task.update_interval_units, None)
+            period_info = period_map.get(target_task.update_interval_units, None)
             if period_info:
                 unit = isinstance(period_info, dict) and period_info.keys()[0] or period_info
                 multiplier = isinstance(period_info, dict) and period_info.values()[0] or 1
-                delta = {unit: multiplier * task.update_interval_units}
+                delta = {unit: multiplier * target_task.update_interval_units}
                 last_update_at = periodic_start_date
                 while True:
                     next_update_at = last_update_at + relativedelta(**delta)
                     if next_update_at.weekday() in [5, 6]:
                         # Don't schedule updates on weekends
                         next_update_at += relativedelta(days=7-next_update_at.weekday())
-                    if not task.deadline or next_update_at < task.deadline:
-                        ProgressEvent.objects.update_or_create(
-                            task=task, type=PROGRESS_EVENT_TYPE_PERIODIC, due_at=next_update_at
-                        )
+                    if not target_task.deadline or next_update_at < target_task.deadline:
+                        min_before_next_update_at = next_update_at - relativedelta(hours=24)
+                        max_after_next_update_at = next_update_at - relativedelta(hours=24)
+
+                        num_updates_within_24hrs = ProgressEvent.objects.filter(
+                            task=target_task, type=PROGRESS_EVENT_TYPE_PERIODIC,
+                            due_at__gt=min_before_next_update_at, due_at__lt=max_after_next_update_at
+                        ).count()
+
+                        if num_updates_within_24hrs == 0:
+                            # Schedule at most one periodic update within any 24 hour period
+                            ProgressEvent.objects.update_or_create(
+                                task=target_task, type=PROGRESS_EVENT_TYPE_PERIODIC, due_at=next_update_at
+                            )
                     if next_update_at > now:
                         break
                     else:
