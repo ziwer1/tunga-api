@@ -407,7 +407,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         return obj.display_fee(amount=amount)
 
     def get_can_apply(self, obj):
-        if obj.is_project or obj.closed or not obj.apply:
+        if obj.closed or not obj.apply:
             return False
         user = self.get_current_user()
         if user:
@@ -428,7 +428,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     def get_is_participant(self, obj):
         user = self.get_current_user()
         if user:
-            return obj.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=user).count() == 1
+            return obj.subtask_participants_inclusive_filter.filter((Q(accepted=True) | Q(responded=False)), user=user).count() == 1
         return False
 
     def get_my_participation(self, obj):

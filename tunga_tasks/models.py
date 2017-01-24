@@ -35,7 +35,7 @@ from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPE
     PROGRESS_REPORT_STATUS_STUCK, INTEGRATION_TYPE_REPO, INTEGRATION_TYPE_ISSUE, PAYMENT_STATUS_PENDING, \
     PAYMENT_STATUS_PROCESSING, PAYMENT_STATUS_COMPLETED, PAYMENT_STATUS_FAILED, PAYMENT_STATUS_INITIATED, \
     APP_INTEGRATION_PROVIDER_SLACK, APP_INTEGRATION_PROVIDER_HARVEST, APP_INTEGRATION_PROVIDER_GITHUB
-from tunga_utils.helpers import round_decimal, get_serialized_id
+from tunga_utils.helpers import round_decimal, get_serialized_id, get_tunga_model
 from tunga_utils.models import Upload, Rating
 from tunga_utils.validators import validate_btc_address
 
@@ -180,6 +180,12 @@ class Task(models.Model):
         ordering = ['-created_at']
         unique_together = ('user', 'title', 'fee')
 
+    @property
+    def subtask_participants_inclusive_filter(self):
+        return get_tunga_model('tunga_tasks.Participation').objects.filter(
+            (Q(task=self) | Q(task__parent=self))
+        )
+
     @staticmethod
     @allow_staff_or_superuser
     def has_read_permission(request):
@@ -198,7 +204,10 @@ class Task(models.Model):
                 ).count()
             )
         elif self.visibility == VISIBILITY_CUSTOM:
-            return self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
+            return self.subtask_participants_inclusive_filter.filter(
+                (Q(accepted=True) | Q(responded=False)),
+                user=request.user
+            ).count()
         return False
 
     @staticmethod

@@ -3,9 +3,23 @@ import json
 from decimal import Decimal
 
 from allauth.socialaccount.models import SocialToken
+from django.apps import apps as django_apps
+from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponseRedirect
 from django.template.defaultfilters import urlizetrunc, safe
 from django.utils.html import strip_tags
+
+
+def get_tunga_model(model):
+    """
+    Returns the Model class.
+    """
+    try:
+        return django_apps.get_model(model)
+    except ValueError:
+        raise ImproperlyConfigured("Model must be of the form 'app_label.model_name'")
+    except LookupError:
+        raise ImproperlyConfigured("Model has not been installed")
 
 
 def clean_instance(instance, model):
