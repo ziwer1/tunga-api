@@ -124,7 +124,7 @@ def activity_handler_progress_report(sender, instance, created, **kwargs):
     if created:
         action.send(instance.user, verb=verbs.REPORT, action_object=instance, target=instance.event)
 
-    notify_new_progress_report.delay(instance.id)
+        notify_new_progress_report.delay(instance.id)
 
 
 @receiver(post_save, sender=Integration)
