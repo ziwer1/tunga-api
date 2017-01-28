@@ -5,7 +5,7 @@ from django.db import models
 
 from tunga_utils import bitcoin_utils, coinbase_utils
 from tunga_utils.constants import PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_BTC_WALLET, BTC_WALLET_PROVIDER_COINBASE, \
-    USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
+    USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER, USER_TYPE_PROJECT_MANAGER
 
 USER_TYPE_CHOICES = (
     (USER_TYPE_DEVELOPER, 'Developer'),
@@ -51,6 +51,10 @@ class TungaUser(AbstractUser):
     @property
     def is_project_owner(self):
         return self.type == USER_TYPE_PROJECT_OWNER
+
+    @property
+    def is_project_manager(self):
+        return self.type == USER_TYPE_PROJECT_MANAGER
 
     @property
     def avatar_url(self):
