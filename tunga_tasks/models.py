@@ -121,7 +121,7 @@ class Task(models.Model):
     remarks = models.TextField(blank=True, null=True)
     url = models.URLField(blank=True, null=True)
     fee = models.DecimalField(
-        max_digits=19, decimal_places=4, validators=[MinValueValidator(15, message='Minimum pledge amount is EUR 15')]
+        max_digits=19, decimal_places=4, blank=True, null=True
     )
     currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
     deadline = models.DateTimeField(blank=True, null=True)
@@ -245,10 +245,16 @@ class Task(models.Model):
     def display_fee(self, amount=None):
         if amount is None:
             amount = self.fee
+        if not amount:
+            return ''
         if self.currency in CURRENCY_SYMBOLS:
             return '%s%s' % (CURRENCY_SYMBOLS[self.currency], floatformat(amount, arg=-2))
         return amount
     display_fee.short_description = 'Fee'
+
+    @property
+    def is_payable(self):
+        return bool(self.fee)
 
     @property
     def amount(self):
@@ -259,15 +265,19 @@ class Task(models.Model):
             processing_share = BITONIC_PAYMENT_COST_PERCENTAGE * 0.01
         elif self.payment_method == TASK_PAYMENT_METHOD_BANK:
             processing_share = BANK_TRANSFER_PAYMENT_COST_PERCENTAGE * 0.01
-        amount_details = {
-            'currency': CURRENCY_SYMBOLS.get(self.currency, ''),
-            'pledge': self.fee,
-            'developer': Decimal(dev_share) * self.fee,
-            'tunga': Decimal(tunga_share) * self.fee,
-            'processing': Decimal(processing_share) * self.fee
-        }
 
-        amount_details['total'] = amount_details['developer'] + amount_details['tunga'] + amount_details['processing']
+        amount_details = None
+        if self.fee:
+            amount_details = dict(
+                dict(
+                    currency=CURRENCY_SYMBOLS.get(self.currency, ''),
+                    pledge=self.fee,
+                    developer=Decimal(dev_share) * self.fee,
+                    tunga=Decimal(tunga_share) * self.fee,
+                    processing=Decimal(processing_share) * self.fee
+                )
+            )
+            amount_details['total'] = amount_details['developer'] + amount_details['tunga'] + amount_details['processing']
         return amount_details
 
     @property

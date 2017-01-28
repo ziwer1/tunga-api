@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
+from django.core.validators import MinValueValidator
 from django.db.models.query_utils import Q
 from django.template.defaultfilters import floatformat
 from rest_framework import serializers
@@ -194,6 +195,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     display_fee = serializers.SerializerMethodField(required=False, read_only=True)
     amount = serializers.JSONField(required=False, read_only=True)
+    is_payable = serializers.BooleanField(required=False, read_only=True)
     excerpt = serializers.CharField(required=False, read_only=True)
     skills = serializers.CharField(
         required=True, error_messages={'blank': 'Please specify the skills required for this task'}
@@ -227,6 +229,10 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         details_serializer = TaskDetailsSerializer
 
     def validate(self, attrs):
+        parent = attrs.get('parent', None)
+        fee = attrs.get('fee', None)
+        if not parent:
+            MinValueValidator(15, message='Minimum pledge amount is EUR 15')(fee)
         visibility = attrs.get('visibility', None)
         if visibility == VISIBILITY_CUSTOM and not (attrs.get('participation', None) or attrs.get('participants', None)):
             raise ValidationError({'visibility': 'Please choose at least one developer for this task'})
