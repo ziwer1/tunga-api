@@ -76,7 +76,7 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
         if request.user.is_staff or request.user.is_superuser:
             return queryset
         if request.user.type == USER_TYPE_PROJECT_OWNER:
-            queryset = queryset.filter(user=request.user)
+            queryset = queryset.filter(Q(user=request.user) | Q(taskaccess__user=request.user))
         elif request.user.type == USER_TYPE_DEVELOPER:
             return queryset.filter(
                 Q(user=request.user) |

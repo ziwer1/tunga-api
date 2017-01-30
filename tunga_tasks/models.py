@@ -231,6 +231,13 @@ class Task(models.Model):
         ordering = ['-created_at']
         unique_together = ('user', 'title', 'fee')
 
+    def has_admin_access(self, user):
+        if user:
+            if user == self.user:
+                return True
+            return self.taskaccess_set.filter(user=user).count() == 1
+        return False
+
     @property
     def subtask_participants_inclusive_filter(self):
         return get_tunga_model('tunga_tasks.Participation').objects.filter(
@@ -244,7 +251,9 @@ class Task(models.Model):
 
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):
-        if request.user == self.user or (self.parent and request.user == self.parent.user):
+        if request.user == self.user or \
+                (self.parent and request.user == self.parent.user) or \
+                self.has_admin_access(request.user):
             return True
         elif self.visibility == VISIBILITY_DEVELOPER:
             return request.user.type == USER_TYPE_DEVELOPER
@@ -273,7 +282,9 @@ class Task(models.Model):
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
-        return request.user == self.user or (self.parent and request.user == self.parent.user)
+        return request.user == self.user or \
+               (self.parent and request.user == self.parent.user) or \
+               self.has_admin_access(request.user)
 
     @allow_staff_or_superuser
     def has_object_update_permission(self, request):
@@ -453,6 +464,19 @@ class Task(models.Model):
         if share:
             return share*(Decimal(100 - TUNGA_SHARE_PERCENTAGE) / Decimal(100))
         return 0
+
+
+class TaskAccess(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='admins_added')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __unicode__(self):
+        return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.summary)
+
+    class Meta:
+        unique_together = ('user', 'task')
 
 
 class Application(models.Model):

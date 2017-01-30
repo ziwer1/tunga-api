@@ -205,6 +205,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     can_apply = serializers.SerializerMethodField(read_only=True, required=False)
     can_save = serializers.SerializerMethodField(read_only=True, required=False)
     is_participant = serializers.SerializerMethodField(read_only=True, required=False)
+    is_admin = serializers.SerializerMethodField(read_only=True, required=False)
     my_participation = serializers.SerializerMethodField(read_only=True, required=False)
     summary = serializers.CharField(read_only=True, required=False)
     assignee = SimpleParticipationSerializer(required=False, read_only=True)
@@ -431,6 +432,10 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         if user:
             return obj.subtask_participants_inclusive_filter.filter((Q(accepted=True) | Q(responded=False)), user=user).count() == 1
         return False
+
+    def get_is_admin(self, obj):
+        user = self.get_current_user()
+        return obj.has_admin_access(user)
 
     def get_my_participation(self, obj):
         user = self.get_current_user()

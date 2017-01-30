@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, TimeEntry, ProgressEvent, ProgressReport, \
-    Project, TaskPayment, ParticipantPayment, TaskInvoice
+    Project, TaskPayment, ParticipantPayment, TaskInvoice, TaskAccess
 from tunga_utils.admin import ReadOnlyModelAdmin
 
 
@@ -10,6 +10,16 @@ class ProjectAdmin(admin.ModelAdmin):
     list_display = ('title', 'deadline', 'closed', 'created_at', 'archived')
     list_filter = ('archived',)
     search_fields = ('title',)
+
+
+class TaskAccessInline(admin.TabularInline):
+    model = TaskAccess
+    exclude = ('created_by',)
+    extra = 1
+
+    def save_model(self, request, obj, form, change):
+        obj.created_by = request.user
+        obj.save()
 
 
 class ParticipationInline(admin.TabularInline):
@@ -27,7 +37,7 @@ class TaskAdmin(admin.ModelAdmin):
     list_display = ('summary', 'user', 'apply', 'closed', 'archived', 'skills_list', 'created_at')
     list_filter = ('closed', 'apply', 'archived')
     search_fields = ('title',)
-    inlines = (ParticipationInline,)
+    inlines = (TaskAccessInline, ParticipationInline)
 
     def save_formset(self, request, form, formset, change):
         instances = formset.save(commit=False)
