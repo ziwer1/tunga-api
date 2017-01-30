@@ -34,7 +34,9 @@ from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPE
     PROGRESS_EVENT_TYPE_SUBMIT, PROGRESS_REPORT_STATUS_ON_SCHEDULE, PROGRESS_REPORT_STATUS_BEHIND, \
     PROGRESS_REPORT_STATUS_STUCK, INTEGRATION_TYPE_REPO, INTEGRATION_TYPE_ISSUE, PAYMENT_STATUS_PENDING, \
     PAYMENT_STATUS_PROCESSING, PAYMENT_STATUS_COMPLETED, PAYMENT_STATUS_FAILED, PAYMENT_STATUS_INITIATED, \
-    APP_INTEGRATION_PROVIDER_SLACK, APP_INTEGRATION_PROVIDER_HARVEST, APP_INTEGRATION_PROVIDER_GITHUB
+    APP_INTEGRATION_PROVIDER_SLACK, APP_INTEGRATION_PROVIDER_HARVEST, APP_INTEGRATION_PROVIDER_GITHUB, TASK_TYPE_WEB, \
+    TASK_TYPE_MOBILE, TASK_TYPE_OTHER, TASK_CODERS_NEEDED_ONE, TASK_CODERS_NEEDED_MULTIPLE, TASK_SCOPE_ONE_TIME, \
+    TASK_SCOPE_ONGOING, TASK_BILLING_METHOD_FIXED, TASK_BILLING_METHOD_HOURLY
 from tunga_utils.helpers import round_decimal, get_serialized_id, get_tunga_model
 from tunga_utils.models import Upload, Rating
 from tunga_utils.validators import validate_btc_address
@@ -104,6 +106,27 @@ class Project(models.Model):
             return None
 
 
+TASK_TYPE_CHOICES = (
+    (TASK_TYPE_WEB, 'Web'),
+    (TASK_TYPE_MOBILE, 'Mobile'),
+    (TASK_TYPE_OTHER, 'Other')
+)
+
+TASK_SCOPE_CHOICES = (
+    (TASK_SCOPE_ONE_TIME, 'One-time'),
+    (TASK_SCOPE_ONGOING, 'Ongoing'),
+)
+
+TASK_BILLING_CHOICES = (
+    (TASK_BILLING_METHOD_FIXED, 'Fixed'),
+    (TASK_BILLING_METHOD_HOURLY, 'Hourly')
+)
+
+TASK_CODERS_NEEDED_CHOICES = (
+    (TASK_CODERS_NEEDED_ONE, 'One coder'),
+    (TASK_CODERS_NEEDED_MULTIPLE, 'Multiple coders')
+)
+
 TASK_PAYMENT_METHOD_CHOICES = (
     (TASK_PAYMENT_METHOD_BITONIC, 'Pay with ideal / mister cash'),
     (TASK_PAYMENT_METHOD_BITCOIN, 'Pay with bitcoin'),
@@ -112,56 +135,84 @@ TASK_PAYMENT_METHOD_CHOICES = (
 
 
 class Task(models.Model):
-    project = models.ForeignKey(Project, related_name='tasks', on_delete=models.SET_NULL, blank=True, null=True)
-    parent = models.ForeignKey('self', related_name='sub_tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
-    is_project = models.BooleanField(default=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='tasks_created', on_delete=models.DO_NOTHING)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
-    remarks = models.TextField(blank=True, null=True)
-    url = models.URLField(blank=True, null=True)
+
+    # Pledge
+    currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
     fee = models.DecimalField(
         max_digits=19, decimal_places=4, blank=True, null=True
     )
-    currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
-    deadline = models.DateTimeField(blank=True, null=True)
+
+    is_project = models.BooleanField(default=False, help_text='True if task will be broken into sub-tasks')
+    # TODO: Replace parent to become project
+    project = models.ForeignKey(Project, related_name='tasks', on_delete=models.SET_NULL, blank=True, null=True)
+    parent = models.ForeignKey('self', related_name='sub_tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
+
+    # Resource details
+    type = models.IntegerField(choices=TASK_TYPE_CHOICES, blank=True, null=True)
+    scope = models.IntegerField(choices=TASK_SCOPE_CHOICES, blank=True, null=True)
+    has_requirements = models.BooleanField(default=False)
+    pm_required = models.BooleanField(default=False)
     skills = tagulous.models.TagField(Skill, blank=True)
-    visibility = models.PositiveSmallIntegerField(choices=VISIBILITY_CHOICES, default=VISIBILITY_CHOICES[0][0])
+    coders_needed = models.IntegerField(choices=TASK_CODERS_NEEDED_CHOICES, blank=True, null=True)
+
+    stack_description = models.TextField(blank=True, null=True)
+    deliverables = models.TextField(blank=True, null=True)
+
+    # Update settings for the task
     update_interval = models.PositiveIntegerField(blank=True, null=True)
     update_interval_units = models.PositiveSmallIntegerField(choices=UPDATE_SCHEDULE_CHOICES, blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
 
-    apply = models.BooleanField(default=True)
-    applicants = models.ManyToManyField(
-            settings.AUTH_USER_MODEL, through='Application', through_fields=('task', 'user'),
-            related_name='task_applications', blank=True
+    # Audience for the task
+    visibility = models.PositiveSmallIntegerField(choices=VISIBILITY_CHOICES, default=VISIBILITY_CHOICES[0][0])
+
+    # Additional task info
+    url = models.URLField(blank=True, null=True)
+    remarks = models.TextField(blank=True, null=True)
+
+    # Task state modifiers
+    apply = models.BooleanField(
+        default=True, help_text='True if developers can apply for this task (visibility can override this)'
     )
-    apply_closed_at = models.DateTimeField(blank=True, null=True)
+    closed = models.BooleanField(default=False, help_text='True if the task is closed')
+    paid = models.BooleanField(default=False, help_text='True if the task is paid')
+    archived = models.BooleanField(default=False)
 
-    participants = models.ManyToManyField(
-            settings.AUTH_USER_MODEL, through='Participation', through_fields=('task', 'user'),
-            related_name='task_participants', blank=True)
-
-    closed = models.BooleanField(default=False)
-    closed_at = models.DateTimeField(blank=True, null=True)
-    satisfaction = models.SmallIntegerField(blank=True, null=True)
-
-    paid = models.BooleanField(default=False)
-    paid_at = models.DateTimeField(blank=True, null=True)
-
+    # Payment related info
+    billing_method = models.IntegerField(choices=TASK_BILLING_CHOICES, default=TASK_BILLING_METHOD_FIXED, blank=True, null=True)
     payment_method = models.CharField(
         max_length=30, choices=TASK_PAYMENT_METHOD_CHOICES,
         help_text=','.join(['%s - %s' % (item[0], item[1]) for item in TASK_PAYMENT_METHOD_CHOICES]),
         blank=True, null=True
     )
-    invoice_date = models.DateTimeField(blank=True, null=True)
     btc_address = models.CharField(max_length=40, blank=True, null=True, validators=[validate_btc_address])
     btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
     pay_distributed = models.BooleanField(default=False)
 
-    archived = models.BooleanField(default=False)
+    # Significant event dates
+    deadline = models.DateTimeField(blank=True, null=True)
+    apply_closed_at = models.DateTimeField(blank=True, null=True)
+    closed_at = models.DateTimeField(blank=True, null=True)
+    paid_at = models.DateTimeField(blank=True, null=True)
     archived_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    invoice_date = models.DateTimeField(blank=True, null=True)
 
+    # Applications and participation info
+    applicants = models.ManyToManyField(
+            settings.AUTH_USER_MODEL, through='Application', through_fields=('task', 'user'),
+            related_name='task_applications', blank=True
+    )
+    participants = models.ManyToManyField(
+            settings.AUTH_USER_MODEL, through='Participation', through_fields=('task', 'user'),
+            related_name='task_participants', blank=True)
+
+    # Developer rating
+    satisfaction = models.SmallIntegerField(blank=True, null=True)
+
+    # Relationships
     comments = GenericRelation(Comment, related_query_name='tasks')
     uploads = GenericRelation(Upload, related_query_name='tasks')
     ratings = GenericRelation(Rating, related_query_name='tasks')
