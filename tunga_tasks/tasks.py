@@ -92,7 +92,7 @@ def update_task_periodic_updates(task):
                         next_update_at += relativedelta(days=7-next_update_at.weekday())
                     if not target_task.deadline or next_update_at < target_task.deadline:
                         min_before_next_update_at = next_update_at - relativedelta(hours=24)
-                        max_after_next_update_at = next_update_at - relativedelta(hours=24)
+                        max_after_next_update_at = next_update_at + relativedelta(hours=24)
 
                         num_updates_within_24hrs = ProgressEvent.objects.filter(
                             task=target_task, type=PROGRESS_EVENT_TYPE_PERIODIC,
