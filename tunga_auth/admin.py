@@ -7,7 +7,7 @@ from django.http.response import StreamingHttpResponse
 from django.utils.translation import ugettext_lazy as _
 
 from tunga_auth.forms import TungaUserChangeForm, TungaUserCreationForm
-from tunga_auth.models import EmailVisitor
+from tunga_auth.models import EmailVisitor, TungaUser
 from tunga_utils.constants import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_profiles.admin import UserProfileInline
 from tunga_utils.helpers import Echo
@@ -31,6 +31,7 @@ class TungaUserAdmin(UserAdmin):
 
     list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'type', 'pending', 'verified')
     list_filter = ('date_joined', 'type', 'pending', 'is_staff', 'is_superuser')
+    list_max_show_all = 1000
 
     inlines = (UserProfileInline,)
 
@@ -55,7 +56,7 @@ class TungaUserAdmin(UserAdmin):
         filter_type = request.GET.get('type__exact', None)
 
         report_header = [
-            "Name", "E-mail", "Phone Number", "User Type",
+            "First Name", "Last Name", "E-mail", "Phone Number", "User Type",
             "Company", "Country", "City", "Street", "Plot Number", "ZIP Code", "Postal Address",
             "VAT Number"
         ]
@@ -67,7 +68,8 @@ class TungaUserAdmin(UserAdmin):
         for user in queryset:
             phone_number = user.profile and user.profile.phone_number or ""
             user_info = [
-                user.display_name and user.display_name.encode('utf-8') or '',
+                user.first_name and user.first_name.encode('utf-8') or '',
+                user.last_name and user.last_name.encode('utf-8') or '',
                 user.email,
                 "=\"%s\"" % phone_number,
                 user.display_type,
@@ -103,3 +105,25 @@ class EmailVisitorAdmin(admin.ModelAdmin):
     list_filter = ('created_at', 'last_login_at')
     search_fields = ('email',)
     readonly_fields = ('email',)
+
+    actions = ['download_csv']
+
+    def download_csv(self, request, queryset):
+        pseudo_buffer = Echo()
+        writer = csv.writer(pseudo_buffer)
+
+        report_header = ["E-mail"]
+
+        report_rows = [report_header]
+        for user in queryset:
+            if TungaUser.objects.filter(email=user.email).count() == 0:
+                user_info = [
+                    user.email
+                ]
+                report_rows.append(user_info)
+
+        response = StreamingHttpResponse((writer.writerow(row) for row in report_rows), content_type="text/csv")
+        response['Content-Disposition'] = 'attachment; filename=tunga_email_visitors.csv'
+        return response
+
+    download_csv.short_description = "Download CSV of selected users"

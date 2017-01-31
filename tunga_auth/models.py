@@ -110,7 +110,7 @@ class EmailVisitor(models.Model):
     email = models.EmailField(unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    last_login_at = models.DateTimeField(auto_now_add=True)
+    last_login_at = models.DateTimeField(auto_now=True)
 
     def __unicode__(self):
         return self.email
