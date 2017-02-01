@@ -1,3 +1,4 @@
+import datetime
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.aggregates import Sum
 from django.db.models.expressions import Case, When
@@ -5,6 +6,7 @@ from django.db.models.fields import IntegerField
 from django.db.models.query_utils import Q
 from dry_rest_permissions.generics import DRYPermissionFiltersBase
 
+from dateutil.relativedelta import relativedelta
 from tunga_profiles.models import UserProfile
 from tunga_utils.constants import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER, VISIBILITY_DEVELOPER, \
     VISIBILITY_MY_TEAM
@@ -30,7 +32,7 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
             if label_filter == 'running':
                 queryset = queryset.filter(closed=False)
             elif label_filter == 'payments':
-                queryset = queryset.filter(closed=True).order_by('paid', 'pay_distributed')
+                queryset = queryset.filter(closed=True).order_by('paid', 'pay_distributed', '-created_at')
             if label_filter != 'payments' or not (request.user.is_staff or request.user.is_superuser):
                 queryset = queryset.filter(
                     Q(user=request.user) |
@@ -146,8 +148,24 @@ class TimeEntryFilterBackend(DRYPermissionFiltersBase):
 
 
 class ProgressEventFilterBackend(DRYPermissionFiltersBase):
-    @dont_filter_staff_or_superuser
+    # @dont_filter_staff_or_superuser
     def filter_list_queryset(self, request, queryset, view):
+        label_filter = request.query_params.get('filter', None)
+        threshold_date = datetime.datetime.utcnow() - relativedelta(hours=24)
+        if label_filter == 'upcoming':
+            queryset = queryset.filter(
+                due_at__gt=threshold_date, progressreport__isnull=False
+            )
+        elif label_filter in ['complete', 'finished']:
+            queryset = queryset.filter(
+                progressreport__isnull=False
+            )
+        elif label_filter == 'missed':
+            queryset = queryset.filter(
+                due_at__lt=threshold_date, progressreport__isnull=True
+            )
+        if request.user.is_staff or request.user.is_superuser:
+            return queryset
         return queryset.filter(
             Q(created_by=request.user) |
             Q(task__user=request.user) |

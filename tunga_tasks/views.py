@@ -613,7 +613,7 @@ class ProgressEventViewSet(viewsets.ModelViewSet):
     filter_class = ProgressEventFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (ProgressEventFilterBackend,)
     search_fields = (
-        'title', 'description', 'task__title', 'task__skills__name',
+        'title', 'description', '^task__title', '^task__skills__name',
         '^created_by__user__username', '^created_by__user__first_name', '^created_by__user__last_name',
     )
 

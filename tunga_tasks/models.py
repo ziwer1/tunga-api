@@ -669,7 +669,7 @@ class ProgressEvent(models.Model):
 
     class Meta:
         unique_together = ('task', 'due_at')
-        ordering = ['due_at']
+        ordering = ['-due_at']
 
     @staticmethod
     @allow_staff_or_superuser
