@@ -136,7 +136,7 @@ TASK_PAYMENT_METHOD_CHOICES = (
 
 class Task(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='tasks_created', on_delete=models.DO_NOTHING)
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=200, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
 
     # Pledge
@@ -171,6 +171,7 @@ class Task(models.Model):
     # Additional task info
     url = models.URLField(blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
+    skype_id = models.CharField(max_length=100, blank=True, null=True)
 
     # Task state modifiers
     apply = models.BooleanField(

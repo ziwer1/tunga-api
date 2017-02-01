@@ -17,7 +17,7 @@ from tunga_tasks.notifications import send_new_task_email
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, TimeEntry, ProgressEvent, ProgressReport, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
     TaskInvoice
-from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, VISIBILITY_CUSTOM
+from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, VISIBILITY_CUSTOM, TASK_SCOPE_ONGOING
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
     task_integration
 from tunga_utils.helpers import clean_meta_value
@@ -232,7 +232,13 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     def validate(self, attrs):
         parent = attrs.get('parent', None)
         fee = attrs.get('fee', None)
-        if not parent:
+        title = attrs.get('title', None)
+        is_project = attrs.get('is_project', None)
+        scope = attrs.get('scope', None)
+
+        if (parent or (not is_project and scope != TASK_SCOPE_ONGOING)) and not title:
+            raise ValidationError({'title': 'This field is required.'})
+        if not parent and not is_project and scope != TASK_SCOPE_ONGOING:
             MinValueValidator(15, message='Minimum pledge amount is EUR 15')(fee)
         visibility = attrs.get('visibility', None)
         if visibility == VISIBILITY_CUSTOM and not (attrs.get('participation', None) or attrs.get('participants', None)):
