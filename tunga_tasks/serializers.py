@@ -415,6 +415,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     def get_display_fee(self, obj):
         user = self.get_current_user()
         amount = None
+        if not obj.fee:
+            return None
         if user and user.is_developer:
             amount = obj.fee * (1 - Decimal(TUNGA_SHARE_PERCENTAGE) * Decimal(0.01))
         return obj.display_fee(amount=amount)
