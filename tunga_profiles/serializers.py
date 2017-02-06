@@ -43,7 +43,7 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
                 raise ValidationError({'btc_address': 'Enter a bitcoin address'})
         return attrs
 
-    def create(self, validated_data):
+    def save_profile(self, validated_data, instance=None):
         user_data = self.get_user_data(validated_data)
         skills = None
         city = None
@@ -51,25 +51,20 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
             skills = validated_data.pop('skills')
         if 'city' in validated_data:
             city = validated_data.pop('city')
-        instance = super(ProfileSerializer, self).create(validated_data)
+        if instance:
+            instance = super(ProfileSerializer, self).update(instance, validated_data)
+        else:
+            instance = super(ProfileSerializer, self).create(validated_data)
         self.save_user_info(instance, user_data)
         self.save_skills(instance, skills)
         self.save_city(instance, city)
         return instance
 
+    def create(self, validated_data):
+        return self.save_profile(validated_data)
+
     def update(self, instance, validated_data):
-        user_data = self.get_user_data(validated_data)
-        skills = None
-        city = None
-        if 'skills' in validated_data:
-            skills = validated_data.pop('skills')
-        if 'city' in validated_data:
-            city = validated_data.pop('city')
-        instance = super(ProfileSerializer, self).update(instance, validated_data)
-        self.save_user_info(instance, user_data)
-        self.save_skills(instance, skills)
-        self.save_city(instance, city)
-        return instance
+        return self.save_profile(validated_data, instance)
 
     def get_user_data(self, validated_data):
         user_data = dict()
