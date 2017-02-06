@@ -139,50 +139,26 @@ class Task(models.Model):
     title = models.CharField(max_length=200, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
 
-    # Pledge
-    currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
-    fee = models.DecimalField(
-        max_digits=19, decimal_places=4, blank=True, null=True
-    )
-
+    # Task structure
     is_project = models.BooleanField(default=False, help_text='True if task will be broken into sub-tasks')
     # TODO: Replace parent to become project
     project = models.ForeignKey(Project, related_name='tasks', on_delete=models.SET_NULL, blank=True, null=True)
     parent = models.ForeignKey('self', related_name='sub_tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
 
-    # Resource details
-    type = models.IntegerField(choices=TASK_TYPE_CHOICES, blank=True, null=True)
-    scope = models.IntegerField(choices=TASK_SCOPE_CHOICES, blank=True, null=True)
-    has_requirements = models.BooleanField(default=False)
-    pm_required = models.BooleanField(default=False)
-    skills = tagulous.models.TagField(Skill, blank=True)
-    coders_needed = models.IntegerField(choices=TASK_CODERS_NEEDED_CHOICES, blank=True, null=True)
+    # Pledge
+    billing_method = models.IntegerField(
+        choices=TASK_BILLING_CHOICES, default=TASK_BILLING_METHOD_FIXED, blank=True, null=True
+    )
+    currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
+    fee = models.DecimalField(
+        max_digits=19, decimal_places=4, blank=True, null=True
+    )
 
-    stack_description = models.TextField(blank=True, null=True)
-    deliverables = models.TextField(blank=True, null=True)
-
-    # Update settings for the task
-    update_interval = models.PositiveIntegerField(blank=True, null=True)
-    update_interval_units = models.PositiveSmallIntegerField(choices=UPDATE_SCHEDULE_CHOICES, blank=True, null=True)
-
-    # Audience for the task
-    visibility = models.PositiveSmallIntegerField(choices=VISIBILITY_CHOICES, default=VISIBILITY_CHOICES[0][0])
-
-    # Additional task info
-    url = models.URLField(blank=True, null=True)
-    remarks = models.TextField(blank=True, null=True)
+    # Contact info
+    email = models.EmailField(blank=True, null=True)
     skype_id = models.CharField(max_length=100, blank=True, null=True)
 
-    # Task state modifiers
-    apply = models.BooleanField(
-        default=True, help_text='True if developers can apply for this task (visibility can override this)'
-    )
-    closed = models.BooleanField(default=False, help_text='True if the task is closed')
-    paid = models.BooleanField(default=False, help_text='True if the task is paid')
-    archived = models.BooleanField(default=False)
-
     # Payment related info
-    billing_method = models.IntegerField(choices=TASK_BILLING_CHOICES, default=TASK_BILLING_METHOD_FIXED, blank=True, null=True)
     payment_method = models.CharField(
         max_length=30, choices=TASK_PAYMENT_METHOD_CHOICES,
         help_text=','.join(['%s - %s' % (item[0], item[1]) for item in TASK_PAYMENT_METHOD_CHOICES]),
@@ -190,7 +166,41 @@ class Task(models.Model):
     )
     btc_address = models.CharField(max_length=40, blank=True, null=True, validators=[validate_btc_address])
     btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
-    pay_distributed = models.BooleanField(default=False)
+
+    # Classification details
+    type = models.IntegerField(choices=TASK_TYPE_CHOICES, blank=True, null=True)  # Web, Mobile ...
+    scope = models.IntegerField(choices=TASK_SCOPE_CHOICES, blank=True, null=True)  # One-time or ongoing project
+    has_requirements = models.BooleanField(default=False)
+    pm_required = models.BooleanField(default=False)
+    contact_required = models.BooleanField(default=False)
+    skills = tagulous.models.TagField(Skill, blank=True)
+    coders_needed = models.IntegerField(choices=TASK_CODERS_NEEDED_CHOICES, blank=True, null=True)
+
+    # Update settings
+    update_interval = models.PositiveIntegerField(blank=True, null=True)
+    update_interval_units = models.PositiveSmallIntegerField(choices=UPDATE_SCHEDULE_CHOICES, blank=True, null=True)
+
+    # Audience for the task
+    visibility = models.PositiveSmallIntegerField(choices=VISIBILITY_CHOICES, default=VISIBILITY_CHOICES[0][0])
+
+    # Additional task info
+    stack_description = models.TextField(blank=True, null=True)
+    deliverables = models.TextField(blank=True, null=True)
+    url = models.URLField(blank=True, null=True)
+    remarks = models.TextField(blank=True, null=True)
+    satisfaction = models.SmallIntegerField(blank=True, null=True, help_text="Client's rating of task developers")
+
+    # Task state modifiers
+    apply = models.BooleanField(
+        default=True, help_text='True if developers can apply for this task (visibility can override this)'
+    )
+    closed = models.BooleanField(default=False, help_text='True if the task is closed')
+    paid = models.BooleanField(default=False, help_text='True if the task is paid')
+    pay_distributed = models.BooleanField(
+        default=False,
+        help_text='True if task has been paid and entire payment has been distributed tp participating developers'
+    )
+    archived = models.BooleanField(default=False)
 
     # Significant event dates
     deadline = models.DateTimeField(blank=True, null=True)
@@ -209,9 +219,6 @@ class Task(models.Model):
     participants = models.ManyToManyField(
             settings.AUTH_USER_MODEL, through='Participation', through_fields=('task', 'user'),
             related_name='task_participants', blank=True)
-
-    # Developer rating
-    satisfaction = models.SmallIntegerField(blank=True, null=True)
 
     # Relationships
     comments = GenericRelation(Comment, related_query_name='tasks')
@@ -254,7 +261,7 @@ class Task(models.Model):
     def has_object_read_permission(self, request):
         if request.user == self.user or \
                 (self.parent and request.user == self.parent.user) or \
-                self.has_admin_access(request.user):
+                self.has_admin_access(request.user) or request.user.email == self.email:
             return True
         elif self.visibility == VISIBILITY_DEVELOPER:
             return request.user.type == USER_TYPE_DEVELOPER
@@ -275,6 +282,11 @@ class Task(models.Model):
     @allow_staff_or_superuser
     def has_write_permission(request):
         return request.user.type == USER_TYPE_PROJECT_OWNER
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_create_permission(request):
+        return request.user.type == USER_TYPE_PROJECT_OWNER or not request.user.is_authenticated()
 
     @staticmethod
     @allow_staff_or_superuser
@@ -318,6 +330,13 @@ class Task(models.Model):
     @property
     def is_payable(self):
         return bool(self.fee)
+
+    @property
+    def is_developer_ready(self):
+        return self.is_payable and \
+               (self.parent or
+                (not self.is_project and self.scope == TASK_SCOPE_ONE_TIME) or
+                (self.is_project and self.has_requirements))
 
     @property
     def amount(self):

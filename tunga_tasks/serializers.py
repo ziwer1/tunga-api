@@ -230,68 +230,34 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         details_serializer = TaskDetailsSerializer
 
     def validate(self, attrs):
-        parent = attrs.get('parent', None)
+        has_parent = attrs.get('parent', None) or (self.instance and self.instance.parent)
         fee = attrs.get('fee', None)
         title = attrs.get('title', None)
-        is_project = attrs.get('is_project', None)
+        is_project = attrs.get('is_project', None) or (self.instance and self.instance.is_project)
+        has_requirements = attrs.get('is_project', None) or (self.instance and self.instance.has_requirements)
         scope = attrs.get('scope', None)
-
-        if (parent or (not is_project and scope != TASK_SCOPE_ONGOING)) and not title:
-            raise ValidationError({'title': 'This field is required.'})
-        if not parent and not is_project and scope != TASK_SCOPE_ONGOING:
-            MinValueValidator(15, message='Minimum pledge amount is EUR 15')(fee)
         visibility = attrs.get('visibility', None)
+
+        if (has_parent or (not is_project and scope != TASK_SCOPE_ONGOING) or (is_project and has_requirements)) and not title:
+            raise ValidationError({'title': 'This field is required.'})
+
+        if not has_parent and scope != TASK_SCOPE_ONGOING and not (is_project and has_requirements):
+            MinValueValidator(15, message='Minimum pledge amount is EUR 15')(fee)
+
         if visibility == VISIBILITY_CUSTOM and not (attrs.get('participation', None) or attrs.get('participants', None)):
             raise ValidationError({'visibility': 'Please choose at least one developer for this task'})
         return attrs
 
-    def create(self, validated_data):
-
+    def save_task(self, validated_data, instance=None):
         current_user = self.get_current_user()
-        if not profile_check(current_user):
+        if (not instance) and (not profile_check(current_user)):
             ValidationError('You need complete your profile before you can post tasks')
 
-        skills = None
-        participation = None
-        milestones = None
-        participants = None
-        ratings = None
-        if 'skills' in validated_data:
-            skills = validated_data.pop('skills')
-        if 'participation' in validated_data:
-            participation = validated_data.pop('participation')
-        if 'milestones' in validated_data:
-            milestones = validated_data.pop('milestones')
-        if 'participants' in validated_data:
-            participants = validated_data.pop('participants')
-        if 'ratings' in validated_data:
-            ratings = validated_data.pop('ratings')
-
-        if participation or participants:
-            # close applications if paticipants are provided
-            validated_data['apply'] = False
-        instance = super(TaskSerializer, self).create(validated_data)
-        self.save_skills(instance, skills)
-        self.save_participants(instance, participants)
-        self.save_participation(instance, participation)
-        self.save_milestones(instance, milestones)
-        self.save_ratings(instance, ratings)
-
-        # Triggered here instead of in the post_save signal to allow skills to be attached first
-        # TODO: Consider moving this trigger
-        send_new_task_email.delay(instance.id)
-        return instance
-
-    def update(self, instance, validated_data):
-
-        if 'fee' in validated_data and validated_data['fee'] < instance.fee:
+        if instance and 'fee' in validated_data and validated_data['fee'] < instance.fee:
             raise ValidationError({
                 'fee': 'You cannot reduce the fee for the task, Please contact support@tunga.io for assistance'
             })
 
-        initial_apply = instance.apply
-        initial_closed = instance.closed
-
         skills = None
         participation = None
         milestones = None
@@ -308,25 +274,50 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         if 'ratings' in validated_data:
             ratings = validated_data.pop('ratings')
 
-        if not instance.closed and validated_data.get('closed'):
-            validated_data['closed_at'] = datetime.datetime.utcnow()
+        initial_apply = True
+        initial_closed = False
 
-        if not instance.paid and validated_data.get('paid'):
-            validated_data['paid_at'] = datetime.datetime.utcnow()
+        if instance:
+            initial_apply = instance.apply
+            initial_closed = instance.closed
 
-        instance = super(TaskSerializer, self).update(instance, validated_data)
+            if not instance.closed and validated_data.get('closed'):
+                validated_data['closed_at'] = datetime.datetime.utcnow()
+
+            if not instance.paid and validated_data.get('paid'):
+                validated_data['paid_at'] = datetime.datetime.utcnow()
+            instance = super(TaskSerializer, self).update(instance, validated_data)
+        else:
+            if participation or participants:
+                # Close applications if paticipants are provided when creating task
+                validated_data['apply'] = False
+                validated_data['apply_closed_at'] = datetime.datetime.utcnow()
+
+            instance = super(TaskSerializer, self).create(validated_data)
+
         self.save_skills(instance, skills)
         self.save_participants(instance, participants)
         self.save_participation(instance, participation)
         self.save_milestones(instance, milestones)
         self.save_ratings(instance, ratings)
 
-        if initial_apply and not instance.apply:
-            task_applications_closed.send(sender=Task, task=instance)
+        if instance:
+            if initial_apply and not instance.apply:
+                task_applications_closed.send(sender=Task, task=instance)
 
-        if not initial_closed and instance.closed:
-            task_closed.send(sender=Task, task=instance)
+            if not initial_closed and instance.closed:
+                task_closed.send(sender=Task, task=instance)
+        else:
+            # Triggered here instead of in the post_save signal to allow skills to be attached first
+            # TODO: Consider moving this trigger
+            send_new_task_email.delay(instance.id)
         return instance
+
+    def create(self, validated_data):
+        return self.save_task(validated_data)
+
+    def update(self, instance, validated_data):
+        return self.save_task(validated_data, instance=instance)
 
     def save_skills(self, task, skills):
         if skills is not None:
@@ -341,7 +332,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                     item['activated_at'] = datetime.datetime.utcnow()
                 defaults = item
                 if isinstance(defaults, dict):
-                    defaults['created_by'] = task.user
+                    defaults['created_by'] = self.get_current_user() or task.user
 
                 try:
                     participation_obj, created = Participation.objects.update_or_create(
@@ -385,7 +376,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             assignee = self.initial_data.get('assignee', None)
             confirmed_participants = self.initial_data.get('confirmed_participants', None)
             rejected_participants = self.initial_data.get('rejected_participants', None)
-            created_by = task.user
+            created_by = self.get_current_user() or task.user
 
             changed_assignee = False
             for user in participants:

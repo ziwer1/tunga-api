@@ -24,7 +24,7 @@ def send_new_task_email(instance):
     instance = clean_instance(instance, Task)
 
     developers = None
-    if instance.visibility in [VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM]:
+    if instance.is_developer_ready and instance.visibility in [VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM]:
         queryset = get_user_model().objects.filter(type=USER_TYPE_DEVELOPER)
         if instance.visibility == VISIBILITY_MY_TEAM:
             queryset = queryset.filter(
@@ -81,10 +81,10 @@ def send_new_task_email(instance):
 @job
 def send_new_task_invitation_email(instance):
     instance = clean_instance(instance, Participation)
-    subject = "%s Task invitation from %s" % (EMAIL_SUBJECT_PREFIX, instance.task.user.first_name)
+    subject = "%s Task invitation from %s" % (EMAIL_SUBJECT_PREFIX, instance.created_by.first_name)
     to = [instance.user.email]
     ctx = {
-        'inviter': instance.task.user,
+        'inviter': instance.created_by,
         'invitee': instance.user,
         'task': instance.task,
         'task_url': '%s/task/%s/' % (TUNGA_URL, instance.task.id)
@@ -103,9 +103,9 @@ def notify_task_invitation_response_email(instance):
     instance = clean_instance(instance, Participation)
     subject = "%s Task invitation %s by %s" % (
         EMAIL_SUBJECT_PREFIX, instance.accepted and 'accepted' or 'rejected', instance.user.first_name)
-    to = [instance.task.user.email]
+    to = list({instance.task.user.email, instance.created_by.email})
     ctx = {
-        'inviter': instance.task.user,
+        'inviter': instance.created_by,
         'invitee': instance.user,
         'accepted': instance.accepted,
         'task': instance.task,
