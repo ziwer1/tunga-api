@@ -388,6 +388,10 @@ HARVEST_API_URL = 'https://api.harvestapp.com'
 
 HUBSPOT_API_KEY = None
 
+MAILCHIMP_USERNAME = None
+MAILCHIMP_API_KEY = None
+MAILCHIMP_NEW_USER_LIST = None
+
 try:
     from .env.dev import *
 except ImportError:

@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django_rq.decorators import job
 
+from tunga_utils import mailchimp_utils
 from tunga_utils.constants import USER_TYPE_PROJECT_OWNER
 from tunga_utils.helpers import clean_instance
 from tunga_utils.hubspot_utils import create_hubspot_contact
@@ -30,3 +31,9 @@ def sync_hubspot_contact(user):
 @job
 def sync_hubspot_email(email):
     create_hubspot_contact(email)
+
+
+@job
+def subscribe_new_user_to_mailing_list(user):
+    user = clean_instance(user, get_user_model())
+    mailchimp_utils.subscribe_new_user(user.email, **dict(FNAME=user.first_name, LNAME=user.last_name))
