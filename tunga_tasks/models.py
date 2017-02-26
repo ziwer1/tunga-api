@@ -364,7 +364,7 @@ class Task(models.Model):
 
     @property
     def summary(self):
-        return self.title
+        return self.title or 'Task #{}'.format(self.id)
 
     @property
     def excerpt(self):
