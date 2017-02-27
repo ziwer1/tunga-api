@@ -6,7 +6,7 @@ from django.dispatch.dispatcher import receiver
 
 from tunga_auth.models import EmailVisitor
 from tunga_auth.notifications import send_new_user_email
-from tunga_auth.tasks import sync_hubspot_contact, sync_hubspot_email
+from tunga_auth.tasks import sync_hubspot_contact, sync_hubspot_email, subscribe_new_user_to_mailing_list
 from tunga_utils.constants import USER_TYPE_PROJECT_OWNER
 
 
@@ -27,6 +27,8 @@ def new_user_signup_handler(request, user, **kwargs):
 
     if user.type == USER_TYPE_PROJECT_OWNER:
         sync_hubspot_contact.delay(user.id)
+
+    subscribe_new_user_to_mailing_list.delay(user.id)
 
 
 @receiver(post_save, sender=EmailVisitor)
