@@ -3,12 +3,15 @@
 {% user_display user as user_display %}
 {% load i18n %}
 {% block email_content %}
-    <p>Hello from {{ current_site.name }}!</p>
+    <p>Hi {{ user.first_name }},</p>
 
-    <p>You're receiving this e-mail because user {{ user_display }} at {{ current_site.domain }} has given yours as an e-mail address to connect their account.</p>
+    <p>You're receiving this e-mail because {{ user.email }} has be given as an e-mail address for your Tunga account.</p>
 
     <p>
-        To confirm this is correct, simply by click the following link:<br/>
+        To confirm this is correct, simply click the following link:<br/>
         <a href="{{ activate_url }}">{{ activate_url }}</a>
+    </p>
+    <p>
+        If this is not correct, please ignore this email.
     </p>
 {% endblock %}

@@ -12,7 +12,7 @@ class SkillViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = Skill.objects.all()
     serializer_class = SkillSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     search_fields = ('name', )
 
 

@@ -90,7 +90,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
     """
     queryset = Task.objects.exclude(archived=True)
     serializer_class = TaskSerializer
-    permission_classes = [IsAuthenticated, DRYPermissions]
+    permission_classes = [DRYPermissions]
     filter_class = TaskFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (TaskFilterBackend,)
     search_fields = ('title', 'description', 'skills__name')

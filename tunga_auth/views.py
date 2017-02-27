@@ -10,6 +10,7 @@ from allauth.socialaccount.providers.slack.provider import SlackProvider
 from django.contrib.auth import get_user_model
 from django.core.urlresolvers import reverse
 from django.shortcuts import redirect
+from dry_rest_permissions.generics import DRYPermissions
 from rest_framework import views, status, generics, viewsets
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -65,7 +66,7 @@ class AccountInfoView(generics.RetrieveUpdateAPIView):
     """
     queryset = get_user_model().objects.all()
     serializer_class = AccountInfoSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DRYPermissions]
 
     def get_object(self):
         user = self.request.user
@@ -81,7 +82,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = get_user_model().objects.order_by('first_name', 'last_name')
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticatedOrEmailVisitorReadOnly]
+    permission_classes = [DRYPermissions]
     lookup_url_kwarg = 'user_id'
     lookup_field = 'id'
     lookup_value_regex = '[^/]+'
