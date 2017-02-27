@@ -7,7 +7,6 @@ from decimal import Decimal
 
 import tagulous.models
 from actstream.models import Action
-from allauth.socialaccount import providers
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -35,8 +34,8 @@ from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPE
     PROGRESS_REPORT_STATUS_STUCK, INTEGRATION_TYPE_REPO, INTEGRATION_TYPE_ISSUE, PAYMENT_STATUS_PENDING, \
     PAYMENT_STATUS_PROCESSING, PAYMENT_STATUS_COMPLETED, PAYMENT_STATUS_FAILED, PAYMENT_STATUS_INITIATED, \
     APP_INTEGRATION_PROVIDER_SLACK, APP_INTEGRATION_PROVIDER_HARVEST, APP_INTEGRATION_PROVIDER_GITHUB, TASK_TYPE_WEB, \
-    TASK_TYPE_MOBILE, TASK_TYPE_OTHER, TASK_CODERS_NEEDED_ONE, TASK_CODERS_NEEDED_MULTIPLE, TASK_SCOPE_ONE_TIME, \
-    TASK_SCOPE_ONGOING, TASK_BILLING_METHOD_FIXED, TASK_BILLING_METHOD_HOURLY
+    TASK_TYPE_MOBILE, TASK_TYPE_OTHER, TASK_CODERS_NEEDED_ONE, TASK_CODERS_NEEDED_MULTIPLE, TASK_SCOPE_TASK, \
+    TASK_SCOPE_ONGOING, TASK_BILLING_METHOD_FIXED, TASK_BILLING_METHOD_HOURLY, TASK_SCOPE_PROJECT
 from tunga_utils.helpers import round_decimal, get_serialized_id, get_tunga_model
 from tunga_utils.models import Upload, Rating
 from tunga_utils.validators import validate_btc_address
@@ -113,8 +112,9 @@ TASK_TYPE_CHOICES = (
 )
 
 TASK_SCOPE_CHOICES = (
-    (TASK_SCOPE_ONE_TIME, 'One-time'),
-    (TASK_SCOPE_ONGOING, 'Ongoing'),
+    (TASK_SCOPE_TASK, 'Task'),
+    (TASK_SCOPE_PROJECT, 'Project'),
+    (TASK_SCOPE_ONGOING, 'Ongoing')
 )
 
 TASK_BILLING_CHOICES = (
@@ -136,7 +136,7 @@ TASK_PAYMENT_METHOD_CHOICES = (
 
 class Task(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='tasks_created', on_delete=models.DO_NOTHING)
-    title = models.CharField(max_length=200, blank=True, null=True)
+    title = models.CharField(max_length=200, blank=True, null=True, default='')
     description = models.TextField(blank=True, null=True)
 
     # Task structure
@@ -151,11 +151,10 @@ class Task(models.Model):
     )
     currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
     fee = models.DecimalField(
-        max_digits=19, decimal_places=4, blank=True, null=True
+        max_digits=19, decimal_places=4, blank=True, null=True, default=None
     )
 
     # Contact info
-    email = models.EmailField(blank=True, null=True)
     skype_id = models.CharField(max_length=100, blank=True, null=True)
 
     # Payment related info
@@ -286,7 +285,7 @@ class Task(models.Model):
     @staticmethod
     @allow_staff_or_superuser
     def has_create_permission(request):
-        return request.user.type == USER_TYPE_PROJECT_OWNER or not request.user.is_authenticated()
+        return not request.user.is_authenticated() or request.user.type == USER_TYPE_PROJECT_OWNER
 
     @staticmethod
     @allow_staff_or_superuser
@@ -333,10 +332,7 @@ class Task(models.Model):
 
     @property
     def is_developer_ready(self):
-        return self.is_payable and \
-               (self.parent or
-                (not self.is_project and self.scope == TASK_SCOPE_ONE_TIME) or
-                (self.is_project and self.has_requirements))
+        return self.is_payable and (self.parent or self.scope == TASK_SCOPE_TASK)
 
     @property
     def amount(self):

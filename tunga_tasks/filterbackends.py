@@ -75,31 +75,34 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                 )
             )
 
-        if request.user.is_staff or request.user.is_superuser:
-            return queryset
-        if request.user.type == USER_TYPE_PROJECT_OWNER:
-            queryset = queryset.filter(Q(user=request.user) | Q(taskaccess__user=request.user))
-        elif request.user.type == USER_TYPE_DEVELOPER:
-            return queryset.filter(
-                Q(user=request.user) |
-                Q(participation__user=request.user) |
-                (
-                    Q(visibility=VISIBILITY_DEVELOPER) |
+        if request.user.is_authenticated():
+            if request.user.is_staff or request.user.is_superuser:
+                return queryset
+            if request.user.is_project_owner:
+                queryset = queryset.filter(Q(user=request.user) | Q(taskaccess__user=request.user))
+            elif request.user.is_developer:
+                return queryset.filter(
+                    Q(user=request.user) |
+                    Q(participation__user=request.user) |
                     (
-                        Q(visibility=VISIBILITY_MY_TEAM) &
+                        Q(visibility=VISIBILITY_DEVELOPER) |
                         (
+                            Q(visibility=VISIBILITY_MY_TEAM) &
                             (
-                                Q(user__connections_initiated__to_user=request.user) &
-                                Q(user__connections_initiated__accepted=True)
-                            ) |
-                            (
-                                Q(user__connection_requests__from_user=request.user) &
-                                Q(user__connection_requests__accepted=True)
+                                (
+                                    Q(user__connections_initiated__to_user=request.user) &
+                                    Q(user__connections_initiated__accepted=True)
+                                ) |
+                                (
+                                    Q(user__connection_requests__from_user=request.user) &
+                                    Q(user__connection_requests__accepted=True)
+                                )
                             )
                         )
                     )
-                )
-            ).distinct()
+                ).distinct()
+            else:
+                return queryset.none()
         else:
             return queryset.none()
         return queryset

@@ -2,14 +2,21 @@ from __future__ import unicode_literals
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga_utils import bitcoin_utils, coinbase_utils
 from tunga_utils.constants import PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_BTC_WALLET, BTC_WALLET_PROVIDER_COINBASE, \
-    USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER, USER_TYPE_PROJECT_MANAGER
+    USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER, USER_TYPE_PROJECT_MANAGER, USER_SOURCE_DEFAULT, \
+    USER_SOURCE_TASK_WIZARD
 
 USER_TYPE_CHOICES = (
     (USER_TYPE_DEVELOPER, 'Developer'),
     (USER_TYPE_PROJECT_OWNER, 'Project Owner')
+)
+
+USER_SOURCE_CHOICES = (
+    (USER_SOURCE_DEFAULT, 'Default'),
+    (USER_SOURCE_TASK_WIZARD, 'Task Wizard')
 )
 
 
@@ -19,6 +26,7 @@ class TungaUser(AbstractUser):
     last_activity = models.DateTimeField(blank=True, null=True)
     verified = models.BooleanField(default=False)
     pending = models.BooleanField(default=True)
+    source = models.IntegerField(choices=USER_SOURCE_CHOICES, default=USER_SOURCE_DEFAULT)
 
     class Meta(AbstractUser.Meta):
         unique_together = ('email',)
@@ -27,6 +35,16 @@ class TungaUser(AbstractUser):
         if self.type == USER_TYPE_PROJECT_OWNER:
             self.pending = False
         super(TungaUser, self).save(*args, **kwargs)
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return True
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.is_authenticated()
 
     @property
     def display_name(self):

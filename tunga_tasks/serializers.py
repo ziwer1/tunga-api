@@ -1,6 +1,7 @@
 import datetime
 from decimal import Decimal
 
+from allauth.account.signals import user_signed_up
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MinValueValidator
@@ -13,13 +14,14 @@ from tunga.settings import TUNGA_SHARE_PERCENTAGE
 from tunga_auth.serializers import UserSerializer
 from tunga_profiles.utils import profile_check
 from tunga_tasks import slugs
-from tunga_tasks.notifications import send_new_task_email
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, TimeEntry, ProgressEvent, ProgressReport, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
     TaskInvoice
-from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, VISIBILITY_CUSTOM, TASK_SCOPE_ONGOING
+from tunga_tasks.notifications import send_new_task_email
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
     task_integration
+from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, USER_TYPE_PROJECT_OWNER, USER_SOURCE_TASK_WIZARD, \
+    TASK_SCOPE_ONGOING, VISIBILITY_CUSTOM, TASK_SCOPE_TASK, TASK_SCOPE_PROJECT
 from tunga_utils.helpers import clean_meta_value
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.models import Rating
@@ -198,7 +200,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     is_payable = serializers.BooleanField(required=False, read_only=True)
     excerpt = serializers.CharField(required=False, read_only=True)
     skills = serializers.CharField(
-        required=True, error_messages={'blank': 'Please specify the skills required for this task'}
+        required=False, error_messages={'blank': 'Please specify the skills required for this task'}
     )
     payment_status = serializers.CharField(required=False, read_only=True)
     deadline = serializers.DateTimeField(required=False, allow_null=True)
@@ -227,30 +229,87 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         read_only_fields = (
             'created_at', 'paid', 'paid_at', 'invoice_date', 'btc_address', 'btc_price', 'pay_distributed'
         )
+        extra_kwargs = {
+            'type': {'required': True, 'allow_blank': False, 'allow_null': False},
+            'scope': {'required': True, 'allow_blank': False, 'allow_null': False}
+        }
         details_serializer = TaskDetailsSerializer
 
     def validate(self, attrs):
         has_parent = attrs.get('parent', None) or (self.instance and self.instance.parent)
-        fee = attrs.get('fee', None)
-        title = attrs.get('title', None)
+        scope = attrs.get('scope', None) or (self.instance and self.instance.scope)
         is_project = attrs.get('is_project', None) or (self.instance and self.instance.is_project)
         has_requirements = attrs.get('is_project', None) or (self.instance and self.instance.has_requirements)
-        scope = attrs.get('scope', None)
+        coders_needed = attrs.get('coders_needed', None)
+        pm_required = attrs.get('pm_required', None)
+
+        fee = attrs.get('fee', None)
+        title = attrs.get('title', None)
+        skills = attrs.get('skills', None)
         visibility = attrs.get('visibility', None)
 
-        if (has_parent or (not is_project and scope != TASK_SCOPE_ONGOING) or (is_project and has_requirements)) and not title:
-            raise ValidationError({'title': 'This field is required.'})
+        description = attrs.get('description', None)
+        email = self.initial_data.get('email', None)
+        first_name = self.initial_data.get('first_name', None)
+        last_name = self.initial_data.get('last_name', None)
 
-        if not has_parent and scope != TASK_SCOPE_ONGOING and not (is_project and has_requirements):
-            MinValueValidator(15, message='Minimum pledge amount is EUR 15')(fee)
+        current_user = self.get_current_user()
 
-        if visibility == VISIBILITY_CUSTOM and not (attrs.get('participation', None) or attrs.get('participants', None)):
-            raise ValidationError({'visibility': 'Please choose at least one developer for this task'})
+        errors = dict()
+
+        if current_user and current_user.is_authenticated():
+            if scope == TASK_SCOPE_TASK or has_parent:
+                if not has_parent:
+                    MinValueValidator(15, message='Minimum pledge amount is EUR 15')(fee)
+                if not title:
+                    errors.update({'title': 'This field is required.'})
+                if not description:
+                    errors.update({'description': 'This field is required.'})
+                if not skills:
+                    errors.update({'skills': 'This field is required.'})
+                if visibility == VISIBILITY_CUSTOM and not (
+                            attrs.get('participation', None) or attrs.get('participants', None)
+                ):
+                    errors.update({'visibility': 'Please choose at least one developer for this task'})
+            if scope == TASK_SCOPE_ONGOING:
+                if not skills:
+                    errors.update({'skills': 'This field is required.'})
+                if not coders_needed:
+                    errors.update({'coders_needed': 'This field is required.'})
+            if scope == TASK_SCOPE_PROJECT:
+                if not title:
+                    errors.update({'title': 'This field is required.'})
+                if not skills:
+                    errors.update({'skills': 'This field is required.'})
+                if not pm_required:
+                    errors.update({'pm_required': 'This field is required.'})
+        else:
+            if not description:
+                errors.update({'description': 'This field is required.'})
+            if email:
+                try:
+                    get_user_model().objects.get(email=email)
+                    errors.update({
+                        'form': 'Looks like you already have a Tunga account. Please login to create new tasks.',
+                        'email': 'This email address is already attached to an account on Tunga'
+                    })
+                except get_user_model().DoesNotExist:
+                    pass
+            else:
+                errors.update({'email': 'This field is required.'})
+            if not first_name:
+                errors.update({'first_name': 'This field is required.'})
+            if not last_name:
+                errors.update({'last_name': 'This field is required.'})
+
+        if errors:
+            raise ValidationError(errors)
+
         return attrs
 
     def save_task(self, validated_data, instance=None):
         current_user = self.get_current_user()
-        if (not instance) and (not profile_check(current_user)):
+        if current_user and current_user.is_authenticated() and not instance and not profile_check(current_user):
             ValidationError('You need complete your profile before you can post tasks')
 
         if instance and 'fee' in validated_data and validated_data['fee'] < instance.fee:
@@ -276,6 +335,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
 
         initial_apply = True
         initial_closed = False
+        new_user = None
+        is_update = bool(instance)
 
         if instance:
             initial_apply = instance.apply
@@ -293,6 +354,21 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                 validated_data['apply'] = False
                 validated_data['apply_closed_at'] = datetime.datetime.utcnow()
 
+            if not current_user or not current_user.is_authenticated():
+                # Create user and add them as the creator or task, indicate if task was unauthenticated
+                email = self.initial_data.get('email', None)
+                first_name = self.initial_data.get('first_name', None)
+                last_name = self.initial_data.get('last_name', None)
+
+                new_user = get_user_model().objects.create_user(
+                    username=email, email=email, password=get_user_model().objects.make_random_password(),
+                    first_name=first_name, last_name=last_name,
+                    type=USER_TYPE_PROJECT_OWNER, source=USER_SOURCE_TASK_WIZARD
+                )
+                if new_user:
+                    validated_data.update({'user': new_user})
+                    user_signed_up.send(sender=get_user_model(), request=None, user=new_user)
+
             instance = super(TaskSerializer, self).create(validated_data)
 
         self.save_skills(instance, skills)
@@ -301,7 +377,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         self.save_milestones(instance, milestones)
         self.save_ratings(instance, ratings)
 
-        if instance:
+        if is_update:
             if initial_apply and not instance.apply:
                 task_applications_closed.send(sender=Task, task=instance)
 
@@ -310,7 +386,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         else:
             # Triggered here instead of in the post_save signal to allow skills to be attached first
             # TODO: Consider moving this trigger
-            send_new_task_email.delay(instance.id)
+            send_new_task_email.delay(instance.id, new_user=bool(new_user))
         return instance
 
     def create(self, validated_data):
@@ -470,7 +546,7 @@ class ApplicationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotated
         details_serializer = ApplicationDetailsSerializer
         extra_kwargs = {
             'pitch': {'required': True, 'allow_blank': False, 'allow_null': False},
-            #'hours_needed': {'required': True, 'allow_null': False},
+            'hours_needed': {'required': True, 'allow_null': False},
             #'hours_available': {'required': True, 'allow_null': False},
             'deliver_at': {'required': True, 'allow_null': False}
         }

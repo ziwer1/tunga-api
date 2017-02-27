@@ -14,8 +14,11 @@ from tunga_utils.constants import USER_TYPE_PROJECT_OWNER
 def user_add_email_to_all_auth_handler(sender, instance, created, **kwargs):
     if created:
         if instance.email:
-            if instance.is_superuser or instance.is_staff:
-                email_address = EmailAddress.objects.add_email(None, instance, instance.email)
+            is_admin = instance.is_superuser or instance.is_staff
+            email_address = EmailAddress.objects.add_email(
+                None, instance, instance.email
+            )
+            if is_admin:
                 email_address.verified = True
                 email_address.primary = True
                 email_address.save()

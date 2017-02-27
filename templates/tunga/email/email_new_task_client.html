@@ -1,0 +1,33 @@
+{% extends "tunga/email/base.html" %}
+{% load i18n %}
+{% block email_content %}
+    <p>Hello {{ owner.first_name }},</p>
+
+    <p>Thanks for using Tunga!</p>
+
+    <p>
+        {% if user.scope == 1 %}
+            Your task has now been shared with our community of awesome developers and you will receive an email when a developer applies for it.
+        {% else %}
+            We've received the information about your project and we'll get back to you within 48 hours with the next steps to complete your project.
+        {% endif %}
+    </p>
+
+    <p>
+        {% if task.title %}Title: {{ task.title }}{% endif %}<br/>
+
+        {% if task.deadline %}Deadline: {{ task.deadline | date:'jS F Y \a\t H:i' }} GMT{% endif %}<br/>
+
+        {% if task.skills %}Skills: {{ task.skills }}{% endif %}<br/>
+
+        {% if task.description %}
+            Description:<br/>
+            {{ task.description | safe }}{% endif %}
+    </p>
+
+    <p>
+        Click the link below to view the {% if user.scope == 1 %}task{% else %}project{% endif %} on Tunga:<br/>
+        <a href="{{ task_url }}">{{ task_url }}</a>
+    </p>
+
+{% endblock %}
