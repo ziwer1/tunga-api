@@ -284,8 +284,6 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                 if not pm_required:
                     errors.update({'pm_required': 'This field is required.'})
         else:
-            if not description:
-                errors.update({'description': 'This field is required.'})
             if email:
                 try:
                     get_user_model().objects.get(email=email)

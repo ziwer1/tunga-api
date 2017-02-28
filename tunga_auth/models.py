@@ -41,10 +41,18 @@ class TungaUser(AbstractUser):
     def has_read_permission(request):
         return True
 
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return True
+
     @staticmethod
     @allow_staff_or_superuser
     def has_write_permission(request):
         return request.user.is_authenticated()
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user.is_authenticated() and request.user.id == self.id
 
     @property
     def display_name(self):

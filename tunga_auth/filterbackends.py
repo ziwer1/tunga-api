@@ -46,13 +46,26 @@ class UserFilterBackend(DRYPermissionFiltersBase):
                     output_field=IntegerField()
                 )
             ).annotate(
+                task_count=Count('task_participants')
+            ).annotate(
+                task_rank=Case(
+                    When(
+                        task_count__gt=3,
+                        then=3
+                    ),
+                    default='task_count',
+                    output_field=IntegerField()
+                )
+            ).annotate(
+                total_rank=F('skills_rank') + F('task_rank')
+            ).annotate(
                 profile_rank=Case(
                     When(
                         ~Q(userprofile__bio='') &
                         Q(userprofile__bio__isnull=False),
-                        then=2 + F('skills_rank')
+                        then=2 + F('total_rank')
                     ),
-                    default='skills_rank',
+                    default='total_rank',
                     output_field=IntegerField()
                 )
             ).order_by('-profile_rank', 'first_name', 'last_name')

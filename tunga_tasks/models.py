@@ -260,7 +260,7 @@ class Task(models.Model):
     def has_object_read_permission(self, request):
         if request.user == self.user or \
                 (self.parent and request.user == self.parent.user) or \
-                self.has_admin_access(request.user) or request.user.email == self.email:
+                self.has_admin_access(request.user):
             return True
         elif self.visibility == VISIBILITY_DEVELOPER:
             return request.user.type == USER_TYPE_DEVELOPER
