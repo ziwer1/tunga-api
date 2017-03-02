@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from tunga_profiles.notifications import send_developer_accepted_email
 from tunga_profiles.models import Education, Work, Connection, \
-    DeveloperApplication, BTCWallet, UserProfile, AppIntegration, Inquirer
+    DeveloperApplication, BTCWallet, UserProfile, AppIntegration, Inquirer, DeveloperInvitation
 from tunga_utils.constants import REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED
 
 
@@ -41,8 +41,8 @@ class ConnectionAdmin(admin.ModelAdmin):
 
 @admin.register(DeveloperApplication)
 class DeveloperApplicationAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'email', 'phone_number', 'country_name', 'city', 'status')
-    list_filter = ('status', 'created_at')
+    list_display = ('first_name', 'last_name', 'email', 'phone_number', 'country_name', 'city', 'status', 'used')
+    list_filter = ('status', 'used', 'created_at')
     readonly_fields = (
         'first_name', 'last_name',
         'email', 'phone_number', 'country', 'city',
@@ -70,6 +70,18 @@ class DeveloperApplicationAdmin(admin.ModelAdmin):
         self.message_user(
             request, "%s developer%s successfully marked as rejected." % (rows_updated, (rows_updated > 1 and 's' or '')))
     reject_users.short_description = "Reject selected developers"
+
+
+@admin.register(DeveloperInvitation)
+class DeveloperInvitationAdmin(admin.ModelAdmin):
+    list_display = ('first_name', 'last_name', 'email', 'type', 'used', 'created_at', 'created_by')
+    list_filter = ('used', 'created_at')
+    readonly_fields = (
+        'first_name', 'last_name', 'email', 'type',
+        'invitation_sent_at', 'used', 'used_at',
+    )
+
+    search_fields = ('first_name', 'last_name', 'email')
 
 
 @admin.register(Inquirer)

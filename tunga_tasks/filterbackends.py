@@ -1,4 +1,6 @@
 import datetime
+
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.aggregates import Sum
 from django.db.models.expressions import Case, When
@@ -26,7 +28,7 @@ class ProjectFilterBackend(DRYPermissionFiltersBase):
 class TaskFilterBackend(DRYPermissionFiltersBase):
     # @dont_filter_staff_or_superuser
     def filter_list_queryset(self, request, queryset, view):
-        queryset = queryset.exclude(archived=True)
+        queryset = queryset.exclude(archived=True).filter(user__in=get_user_model().objects.all())
         label_filter = request.query_params.get('filter', None)
         if label_filter in ['running', 'my-tasks', 'payments']:
             if label_filter == 'running':

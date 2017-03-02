@@ -63,39 +63,54 @@ def send_new_skill_email(instance):
 
 
 @job
-def send_developer_invited_email(instance):
+def send_developer_invited_email(instance, resend=False):
     instance = clean_instance(instance, DeveloperInvitation)
-    subject = "%s You have been invited to become a Tunga developer" % EMAIL_SUBJECT_PREFIX
+    subject = "{} You have been invited to become a Tunga {}".format(
+        EMAIL_SUBJECT_PREFIX,
+        instance.get_type_display().lower()
+    )
     to = [instance.email]
     ctx = {
         'invite': instance,
-        'invite_url': '%s/signup/developer/invite/%s/' % (TUNGA_URL, instance.invitation_key)
+        'invite_url': '%s/signup/developer/invite/%s/' % (TUNGA_URL, instance.invitation_key, )
     }
-    if send_mail(subject, 'tunga/email/email_developer_invitation', to, ctx):
-        instance.invitation_sent_at = datetime.datetime.utcnow()
+    if send_mail(subject, 'tunga/email/email_user_invitation', to, ctx):
+        if resend:
+            instance.used = False
+            instance.resent = True
+            instance.resent_at = datetime.datetime.utcnow()
+        else:
+            instance.invitation_sent_at = datetime.datetime.utcnow()
         instance.save()
 
-        send_new_developer_invitation_sent_email(instance)
+        if not resend:
+            send_new_developer_invitation_sent_email(instance)
 
 
 @job
 def send_new_developer_invitation_sent_email(instance):
     instance = clean_instance(instance, DeveloperInvitation)
-    subject = "%s %s has been invited to become a Tunga developer" % (EMAIL_SUBJECT_PREFIX, instance.first_name)
+    subject = "{} {} has been invited to become a Tunga {}".format(
+        EMAIL_SUBJECT_PREFIX, instance.first_name,
+        instance.get_type_display().lower())
     to = [instance.created_by.email]
     to.extend(TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS)
     ctx = {
         'invite': instance
     }
-    send_mail(subject, 'tunga/email/email_developer_invitation_sent', to, ctx)
+    send_mail(subject, 'tunga/email/email_user_invitation_sent', to, ctx)
 
 
 @job
 def send_developer_invitation_accepted_email(instance):
     instance = clean_instance(instance, DeveloperInvitation)
-    subject = "%s %s has accepted your invitation to become a Tunga developer" % (EMAIL_SUBJECT_PREFIX, instance.first_name)
+    subject = "{} {} has accepted your invitation to become a Tunga {}".format(
+        EMAIL_SUBJECT_PREFIX,
+        instance.first_name,
+        instance.get_type_display().lower()
+    )
     to = [instance.created_by.email]
     ctx = {
         'invite': instance
     }
-    send_mail(subject, 'tunga/email/email_developer_invitation_accepted', to, ctx)
+    send_mail(subject, 'tunga/email/email_user_invitation_accepted', to, ctx)

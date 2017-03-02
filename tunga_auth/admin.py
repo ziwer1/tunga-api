@@ -25,11 +25,11 @@ class TungaUserAdmin(UserAdmin):
     )
 
     add_fieldsets = UserAdmin.add_fieldsets + (
-        (_('Account Type'), {'fields': ('is_superuser', 'is_staff', 'type')}),
+        (_('Account Type'), {'fields': ('is_superuser', 'is_staff', 'type', 'source')}),
         (_('Profile'), {'fields': ('email', 'first_name', 'last_name')})
     )
 
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'type', 'pending', 'verified')
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'type', 'source', 'pending', 'verified')
     list_filter = ('date_joined', 'type', 'pending', 'is_staff', 'is_superuser')
     list_max_show_all = 1000
 

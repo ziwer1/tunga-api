@@ -12,7 +12,7 @@ from tunga_profiles.validators import validate_email
 from tunga_utils.constants import REQUEST_STATUS_INITIAL, REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED, \
     BTC_WALLET_PROVIDER_COINBASE, PAYMENT_METHOD_BTC_WALLET, PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, \
     COUNTRY_CODE_UGANDA, COUNTRY_CODE_TANZANIA, COUNTRY_CODE_NIGERIA, APP_INTEGRATION_PROVIDER_SLACK, \
-    APP_INTEGRATION_PROVIDER_HARVEST
+    APP_INTEGRATION_PROVIDER_HARVEST, USER_TYPE_PROJECT_MANAGER, USER_TYPE_DEVELOPER
 from tunga_utils.helpers import get_serialized_id
 from tunga_utils.models import AbstractExperience
 from tunga_utils.validators import validate_btc_address
@@ -250,16 +250,28 @@ class DeveloperApplication(models.Model):
     country_name.fget.short_description = 'country'
 
 
+USER_TYPE_CHOICES = (
+    (USER_TYPE_DEVELOPER, 'Developer'),
+    (USER_TYPE_PROJECT_MANAGER, 'Project Manager')
+)
+
+
 class DeveloperInvitation(models.Model):
     first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30)
     email = models.EmailField(unique=True, validators=[validate_email])
+    type = models.IntegerField(choices=USER_TYPE_CHOICES, default=USER_TYPE_DEVELOPER)
     invitation_key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     invitation_sent_at = models.DateTimeField(blank=True, null=True, editable=False)
     used = models.BooleanField(default=False)
     used_at = models.DateTimeField(blank=True, null=True, editable=False)
+    resent = models.BooleanField(default=False)
+    resent_at = models.DateTimeField(blank=True, null=True, editable=False)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'user invitation'
 
     def __unicode__(self):
         return self.display_name

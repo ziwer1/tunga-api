@@ -1,8 +1,10 @@
+from django.core.validators import validate_email
 from django_countries.serializer_fields import CountryField
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from tunga_profiles.models import UserProfile, Education, Work, Connection, DeveloperApplication, DeveloperInvitation
+from tunga_profiles.notifications import send_developer_invited_email
 from tunga_utils.constants import PAYMENT_METHOD_MOBILE_MONEY, PAYMENT_METHOD_BTC_ADDRESS
 from tunga_utils.serializers import SimpleProfileSerializer, CreateOnlyCurrentUserDefault, SimpleUserSerializer, AbstractExperienceSerializer, \
     DetailAnnotatedModelSerializer, SimpleBTCWalletSerializer
@@ -135,7 +137,39 @@ class DeveloperApplicationSerializer(serializers.ModelSerializer):
 class DeveloperInvitationSerializer(serializers.ModelSerializer):
     created_by = serializers.PrimaryKeyRelatedField(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     display_name = serializers.CharField(required=False, read_only=True)
+    # resend = serializers.BooleanField(required=False, write_only=True, default=False)
 
     class Meta:
         model = DeveloperInvitation
         exclude = ('invitation_key', 'used', 'used_at')
+
+    def is_valid(self, raise_exception=False):
+        resend = self.initial_data.get('resend', False)
+        email = self.initial_data.get('email', False)
+        is_valid = super(DeveloperInvitationSerializer, self).is_valid(raise_exception=raise_exception and not resend)
+        if resend and email:
+            try:
+                invite = DeveloperInvitation.objects.get(email=email)
+                self.instance = invite
+                if invite:
+                    self._errors = {}
+
+                    invite.first_name = self.initial_data.get('first_name', invite.first_name)
+                    invite.last_name = self.initial_data.get('last_name', invite.last_name)
+                    invite.type = self.initial_data.get('type', invite.type)
+                    invite.save()
+
+                    send_developer_invited_email.delay(invite.id, resend=True)
+                    return True
+            except:
+                pass
+        if self._errors and raise_exception:
+            raise ValidationError(self.errors)
+        return is_valid
+
+    def create(self, validated_data):
+        resend = self.initial_data.get('resend', False)
+        if resend and self.instance:
+            return self.instance
+        return super(DeveloperInvitationSerializer, self).create(validated_data)
+

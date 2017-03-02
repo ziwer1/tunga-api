@@ -7,6 +7,7 @@ from dry_rest_permissions.generics import DRYPermissionFiltersBase
 
 from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_profiles.models import UserProfile
+from tunga_utils.constants import USER_TYPE_PROJECT_MANAGER
 
 
 def my_connections_q_filter(user):
@@ -29,9 +30,11 @@ class UserFilterBackend(DRYPermissionFiltersBase):
             queryset = queryset.exclude(id=request.user.id)
         queryset = queryset.exclude(pending=True)
         user_filter = request.query_params.get('filter', None)
-        if user_filter in ['developers', 'project-owners', 'clients']:
+        if user_filter in ['developers', 'project-owners', 'clients', 'project-managers', 'pms']:
             if user_filter == 'developers':
                 queryset = queryset.filter(type=USER_TYPE_DEVELOPER)
+            elif user_filter in ['project-managers', 'pms']:
+                queryset = queryset.filter(type=USER_TYPE_PROJECT_MANAGER)
             else:
                 queryset = queryset.filter(type=USER_TYPE_PROJECT_OWNER)
             queryset = queryset.annotate(

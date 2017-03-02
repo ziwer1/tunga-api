@@ -7,14 +7,14 @@ from django.dispatch.dispatcher import receiver
 from tunga_auth.models import EmailVisitor
 from tunga_auth.notifications import send_new_user_email
 from tunga_auth.tasks import sync_hubspot_contact, sync_hubspot_email, subscribe_new_user_to_mailing_list
-from tunga_utils.constants import USER_TYPE_PROJECT_OWNER
+from tunga_utils.constants import USER_TYPE_PROJECT_OWNER, USER_SOURCE_TASK_WIZARD
 
 
 @receiver(post_save, sender=get_user_model())
 def user_add_email_to_all_auth_handler(sender, instance, created, **kwargs):
     if created:
-        if instance.email:
-            is_admin = instance.is_superuser or instance.is_staff
+        is_admin = instance.is_superuser or instance.is_staff
+        if instance.email and is_admin or instance.source == USER_SOURCE_TASK_WIZARD:
             email_address = EmailAddress.objects.add_email(
                 None, instance, instance.email
             )

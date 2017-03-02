@@ -144,17 +144,19 @@ class TungaRegisterSerializer(RegisterSerializer):
         invite_key = self.initial_data.get('invite_key', None)
         application = None
         invitation = None
-        if user_type == USER_TYPE_DEVELOPER:
-            if confirm_key:
-                try:
-                    application = DeveloperApplication.objects.get(confirmation_key=confirm_key, used=False)
-                except:
-                    raise ValidationError({'key': 'Invalid or expired key'})
-            elif invite_key:
-                try:
-                    invitation = DeveloperInvitation.objects.get(invitation_key=invite_key, used=False)
-                except:
-                    raise ValidationError({'invite_key': 'Invalid or expired key'})
+
+        if confirm_key:
+            try:
+                application = DeveloperApplication.objects.get(confirmation_key=confirm_key, used=False)
+                user_type = USER_TYPE_DEVELOPER
+            except:
+                raise ValidationError({'key': 'Invalid or expired key'})
+        elif invite_key:
+            try:
+                invitation = DeveloperInvitation.objects.get(invitation_key=invite_key, used=False)
+                user_type = invitation.type
+            except:
+                raise ValidationError({'invite_key': 'Invalid or expired key'})
 
         if application or invitation:
             # Skip email activation for developer applications and invitations
