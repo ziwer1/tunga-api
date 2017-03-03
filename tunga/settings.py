@@ -304,6 +304,7 @@ REST_AUTH_SERIALIZERS = {
     'TOKEN_SERIALIZER': 'tunga_auth.serializers.TungaTokenSerializer',
     'USER_DETAILS_SERIALIZER': 'tunga_auth.serializers.UserSerializer',
     'PASSWORD_RESET_SERIALIZER': 'tunga_auth.serializers.TungaPasswordResetSerializer',
+    'PASSWORD_RESET_CONFIRM_SERIALIZER': 'tunga_auth.serializers.TungaPasswordResetConfirmSerializer',
 }
 
 REST_AUTH_REGISTER_SERIALIZERS = {
@@ -320,7 +321,9 @@ SWAGGER_SETTINGS = {
 # Local
 TUNGA_NAME = 'Tunga'
 TUNGA_CONTACT_REQUEST_EMAIL_RECIPIENTS = ['bart@tunga.io']
-TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS = ['bart@tunga.io', 'david@tunga.io', 'domieck@tunga.io']
+TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS = [
+    'bart@tunga.io', 'david@tunga.io', 'domieck@tunga.io', 'ernesto@tunga.io', 'eric@tunga.io'
+]
 TUNGA_SHARE_EMAIL = 'admin@tunga.io'
 TUNGA_SHARE_PERCENTAGE = 13
 TUNGA_URL = 'https://tunga.io'

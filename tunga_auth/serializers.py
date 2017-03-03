@@ -1,12 +1,15 @@
 import datetime
 
 from allauth.account.adapter import get_adapter
-from django.contrib.auth import get_user_model
+from allauth.account.models import EmailAddress
+from django.contrib.auth import get_user_model, login
 from django.core.validators import EmailValidator
 from django.db.models.aggregates import Avg
 from django.db.models.query_utils import Q
+from django.utils.encoding import force_text
+from django.utils.http import urlsafe_base64_decode
 from rest_auth.registration.serializers import RegisterSerializer
-from rest_auth.serializers import TokenSerializer, PasswordResetSerializer
+from rest_auth.serializers import TokenSerializer, PasswordResetSerializer, PasswordResetConfirmSerializer
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -204,6 +207,28 @@ class TungaPasswordResetSerializer(PasswordResetSerializer):
             "email_template_name": "registration/password_reset_email.txt",
             "html_email_template_name": "registration/password_reset_email.html"
         }
+
+
+class TungaPasswordResetConfirmSerializer(PasswordResetConfirmSerializer):
+
+    def save(self):
+        super(TungaPasswordResetConfirmSerializer, self).save()
+        try:
+            uid = force_text(urlsafe_base64_decode(self.initial_data.get('uid', None)))
+            user = get_user_model().objects.get(pk=uid)
+            email_address = EmailAddress.objects.add_email(
+                None, user, user.email
+            )
+            email_address.verified = True
+            email_address.primary = True
+            email_address.save()
+
+            request = self.context.get("request", None)
+            if request:
+                user.backend = 'django.contrib.auth.backends.ModelBackend'
+                login(request, user)
+        except:
+            pass
 
 
 class EmailVisitorSerializer(serializers.ModelSerializer):
