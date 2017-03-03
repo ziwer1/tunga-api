@@ -259,7 +259,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
 
         if current_user and current_user.is_authenticated():
             if scope == TASK_SCOPE_TASK or has_parent:
-                if not has_parent:
+                if not has_parent and fee:
                     MinValueValidator(15, message='Minimum pledge amount is EUR 15')(fee)
                 if not title and not self.partial:
                     errors.update({'title': 'This field is required.'})
