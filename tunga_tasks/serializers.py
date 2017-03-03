@@ -261,27 +261,27 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             if scope == TASK_SCOPE_TASK or has_parent:
                 if not has_parent:
                     MinValueValidator(15, message='Minimum pledge amount is EUR 15')(fee)
-                if not title:
+                if not title and not self.partial:
                     errors.update({'title': 'This field is required.'})
-                if not description:
+                if not description and not self.partial:
                     errors.update({'description': 'This field is required.'})
-                if not skills:
+                if not skills and not self.partial:
                     errors.update({'skills': 'This field is required.'})
                 if visibility == VISIBILITY_CUSTOM and not (
                             attrs.get('participation', None) or attrs.get('participants', None)
                 ):
                     errors.update({'visibility': 'Please choose at least one developer for this task'})
             if scope == TASK_SCOPE_ONGOING:
-                if not skills:
+                if not skills and not self.partial:
                     errors.update({'skills': 'This field is required.'})
-                if not coders_needed:
+                if not coders_needed and not self.partial:
                     errors.update({'coders_needed': 'This field is required.'})
             if scope == TASK_SCOPE_PROJECT:
-                if not title:
+                if not title and not self.partial:
                     errors.update({'title': 'This field is required.'})
-                if not skills:
+                if not skills and not self.partial:
                     errors.update({'skills': 'This field is required.'})
-                if not pm_required:
+                if not pm_required and not self.partial:
                     errors.update({'pm_required': 'This field is required.'})
         else:
             if email:
