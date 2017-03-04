@@ -35,7 +35,8 @@ from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPE
     PAYMENT_STATUS_PROCESSING, PAYMENT_STATUS_COMPLETED, PAYMENT_STATUS_FAILED, PAYMENT_STATUS_INITIATED, \
     APP_INTEGRATION_PROVIDER_SLACK, APP_INTEGRATION_PROVIDER_HARVEST, APP_INTEGRATION_PROVIDER_GITHUB, TASK_TYPE_WEB, \
     TASK_TYPE_MOBILE, TASK_TYPE_OTHER, TASK_CODERS_NEEDED_ONE, TASK_CODERS_NEEDED_MULTIPLE, TASK_SCOPE_TASK, \
-    TASK_SCOPE_ONGOING, TASK_BILLING_METHOD_FIXED, TASK_BILLING_METHOD_HOURLY, TASK_SCOPE_PROJECT
+    TASK_SCOPE_ONGOING, TASK_BILLING_METHOD_FIXED, TASK_BILLING_METHOD_HOURLY, TASK_SCOPE_PROJECT, TASK_SOURCE_DEFAULT, \
+    TASK_SOURCE_NEW_USER
 from tunga_utils.helpers import round_decimal, get_serialized_id, get_tunga_model
 from tunga_utils.models import Upload, Rating
 from tunga_utils.validators import validate_btc_address
@@ -133,6 +134,11 @@ TASK_PAYMENT_METHOD_CHOICES = (
     (TASK_PAYMENT_METHOD_BANK, 'Pay by bank transfer')
 )
 
+TASK_SOURCE_CHOICES = (
+    (TASK_SOURCE_DEFAULT, 'Default'),
+    (TASK_SOURCE_NEW_USER, 'New Wizard User')
+)
+
 
 class Task(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='tasks_created', on_delete=models.DO_NOTHING)
@@ -140,10 +146,11 @@ class Task(models.Model):
     description = models.TextField(blank=True, null=True)
 
     # Task structure
-    is_project = models.BooleanField(default=False, help_text='True if task will be broken into sub-tasks')
+    # is_project = models.BooleanField(default=False, help_text='True if task will be broken into sub-tasks')
     # TODO: Replace parent to become project
     project = models.ForeignKey(Project, related_name='tasks', on_delete=models.SET_NULL, blank=True, null=True)
     parent = models.ForeignKey('self', related_name='sub_tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
+    source = models.IntegerField(choices=TASK_SOURCE_CHOICES, default=TASK_SOURCE_DEFAULT)
 
     # Pledge
     billing_method = models.IntegerField(
@@ -168,7 +175,7 @@ class Task(models.Model):
 
     # Classification details
     type = models.IntegerField(choices=TASK_TYPE_CHOICES, blank=True, null=True)  # Web, Mobile ...
-    scope = models.IntegerField(choices=TASK_SCOPE_CHOICES, blank=True, null=True)  # One-time or ongoing project
+    scope = models.IntegerField(choices=TASK_SCOPE_CHOICES, default=TASK_SCOPE_TASK)  # One-time or ongoing project
     has_requirements = models.BooleanField(default=False)
     pm_required = models.BooleanField(default=False)
     contact_required = models.BooleanField(default=False)
@@ -331,8 +338,22 @@ class Task(models.Model):
         return bool(self.fee)
 
     @property
+    def is_task(self):
+        return self.scope == TASK_SCOPE_TASK
+
+    @property
+    def is_project(self):
+        return not self.is_task
+
+    @property
     def is_developer_ready(self):
-        return self.is_payable and (self.parent or self.scope == TASK_SCOPE_TASK)
+        if self.scope == TASK_SCOPE_TASK:
+            return True
+        if self.scope == TASK_SCOPE_ONGOING:
+            return False
+        if self.scope == TASK_SCOPE_PROJECT and not self.pm_required and self.source != TASK_SOURCE_NEW_USER:
+            return True
+        return False
 
     @property
     def amount(self):

@@ -11,7 +11,7 @@ from dry_rest_permissions.generics import DRYPermissionFiltersBase
 from dateutil.relativedelta import relativedelta
 from tunga_profiles.models import UserProfile
 from tunga_utils.constants import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER, VISIBILITY_DEVELOPER, \
-    VISIBILITY_MY_TEAM
+    VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, TASK_SCOPE_ONGOING, TASK_SCOPE_PROJECT, TASK_SOURCE_NEW_USER
 from tunga_utils.filterbackends import dont_filter_staff_or_superuser
 
 
@@ -78,12 +78,19 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
             )
 
         if request.user.is_authenticated():
-            if request.user.is_staff or request.user.is_superuser:
+            if request.user.is_staff or request.user.is_superuser or request.user.is_project_manager:
                 return queryset
             if request.user.is_project_owner:
                 queryset = queryset.filter(Q(user=request.user) | Q(taskaccess__user=request.user))
             elif request.user.is_developer:
-                return queryset.filter(
+                return queryset.exclude(
+                    scope=TASK_SCOPE_ONGOING
+                ).filter(
+                    Q(scope=TASK_SCOPE_TASK) |
+                    (
+                        Q(scope=TASK_SCOPE_PROJECT) & Q(pm_required=False) & ~Q(source=TASK_SOURCE_NEW_USER)
+                    )
+                ).filter(
                     Q(user=request.user) |
                     Q(participation__user=request.user) |
                     (

@@ -21,7 +21,7 @@ from tunga_tasks.notifications import send_new_task_email
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
     task_integration
 from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, USER_TYPE_PROJECT_OWNER, USER_SOURCE_TASK_WIZARD, \
-    TASK_SCOPE_ONGOING, VISIBILITY_CUSTOM, TASK_SCOPE_TASK, TASK_SCOPE_PROJECT
+    TASK_SCOPE_ONGOING, VISIBILITY_CUSTOM, TASK_SCOPE_TASK, TASK_SCOPE_PROJECT, TASK_SOURCE_NEW_USER
 from tunga_utils.helpers import clean_meta_value
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.models import Rating
@@ -42,7 +42,10 @@ class SimpleTaskSerializer(ContentTypeAnnotatedModelSerializer):
 
     class Meta:
         model = Task
-        fields = ('id', 'user', 'title', 'currency', 'fee', 'closed', 'paid', 'display_fee')
+        fields = (
+            'id', 'user', 'title', 'currency', 'fee', 'closed', 'paid', 'display_fee',
+            'type', 'scope', 'is_project', 'is_task'
+        )
 
 
 class SimpleApplicationSerializer(ContentTypeAnnotatedModelSerializer):
@@ -198,6 +201,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     display_fee = serializers.SerializerMethodField(required=False, read_only=True)
     amount = serializers.JSONField(required=False, read_only=True)
     is_payable = serializers.BooleanField(required=False, read_only=True)
+    is_project = serializers.BooleanField(required=False, read_only=True)
+    is_task = serializers.BooleanField(required=False, read_only=True)
     excerpt = serializers.CharField(required=False, read_only=True)
     skills = serializers.CharField(
         required=False, error_messages={'blank': 'Please specify the skills required for this task'}
@@ -347,6 +352,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                 validated_data['paid_at'] = datetime.datetime.utcnow()
             instance = super(TaskSerializer, self).update(instance, validated_data)
         else:
+            if not current_user or not current_user.is_authenticated():
+                validated_data['source'] = TASK_SOURCE_NEW_USER
             if participation or participants:
                 # Close applications if paticipants are provided when creating task
                 validated_data['apply'] = False
