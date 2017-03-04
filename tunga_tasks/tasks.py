@@ -19,7 +19,7 @@ from tunga_utils.constants import CURRENCY_BTC, PAYMENT_METHOD_BTC_WALLET, \
     PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, \
     UPDATE_SCHEDULE_WEEKLY, UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, UPDATE_SCHEDULE_ANNUALLY, \
     PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_SUBMIT, PAYMENT_STATUS_PENDING, PAYMENT_STATUS_PROCESSING, \
-    PAYMENT_STATUS_INITIATED, APP_INTEGRATION_PROVIDER_HARVEST
+    PAYMENT_STATUS_INITIATED, APP_INTEGRATION_PROVIDER_HARVEST, PROGRESS_EVENT_TYPE_COMPLETE
 from tunga_utils.helpers import clean_instance
 
 
@@ -37,15 +37,17 @@ def update_task_submit_milestone(task):
         task_period = (task.deadline - task.created_at).days
         if task.parent:
             # task is part of a bigger project
-            submission_date = task.deadline
+            draft_submission_date = task.deadline
         else:
             # standalone task needs a milestone before the deadline
             days_before = (task.fee > 150 and task_period >= 7) and 2 or 1
-            submission_date = task.deadline - datetime.timedelta(days=days_before)
+            draft_submission_date = task.deadline - datetime.timedelta(days=days_before)
 
-        defaults = {'due_at': submission_date, 'title': 'Submit {}'.format(task.parent and 'work' or 'final draft')}
-        ProgressEvent.objects.update_or_create(task=task, type=PROGRESS_EVENT_TYPE_SUBMIT, defaults=defaults)
+        draft_defaults = {'due_at': draft_submission_date, 'title': 'Final draft'}
+        ProgressEvent.objects.update_or_create(task=task, type=PROGRESS_EVENT_TYPE_SUBMIT, defaults=draft_defaults)
 
+        submit_defaults = {'due_at': task.deadline, 'title': 'Submit work'}
+        ProgressEvent.objects.update_or_create(task=task, type=PROGRESS_EVENT_TYPE_COMPLETE, defaults=submit_defaults)
 
 @job
 def update_task_periodic_updates(task):

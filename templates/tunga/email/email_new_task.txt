@@ -5,26 +5,20 @@ Hello,
 
 {{ task.summary }}
 
-{% if task.deadline %}Deadline: {{ task.deadline | date:'jS F Y \a\t H:i' }} GMT{% endif %}
-
+{% if task.type %}Type: {{ task.get_type_display | safe }}{% endif %}
+{% if task.scope %}Scope{{ task.get_scope_display | safe }}{% endif %}
 {% if task.skills %}Skills: {{ task.skills }}{% endif %}
-
+{% if task.deadline %}Deadline: {{ task.deadline | date:'jS F Y \a\t H:i' }} GMT{% endif %}
 {% if task.excerpt %}{{ task.excerpt }}{% endif %}
 
 {% for event in task.milestones %}
-
-
 {% if forloop.first %}Milestones:{% endif %}
-
 {{ forloop.counter }}: {{ event.title }} at {{ event.due_at | date:'jS F Y \a\t H:i' }} GMT
-
 {% endfor %}
 
 {% if task.update_schedule_display %}<p>Update schedule: {{ task.update_schedule_display }}</p>{% endif %}
 
-
 Click the link below to view the task's details:
 
 {{ task_url }}
-
 {% endblock %}{% endautoescape %}

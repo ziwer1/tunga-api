@@ -6,7 +6,7 @@
     <p>Thanks for using Tunga!</p>
 
     <p>
-        {% if user.scope == 1 %}
+        {% if task.scope == 1 %}
             Your task has now been shared with our community of awesome developers and you will receive an email when a developer applies for it.
         {% else %}
             We've received the information about your project and we'll get back to you within 48 hours with the next steps to complete your project.
@@ -14,11 +14,15 @@
     </p>
 
     <p>
-        {% if task.title %}Title: {{ task.title }}{% endif %}<br/>
+        {% if task.title %}Title: {{ task.title }}<br/>{% endif %}
 
-        {% if task.deadline %}Deadline: {{ task.deadline | date:'jS F Y \a\t H:i' }} GMT{% endif %}<br/>
+        {% if task.type %}Type: {{ task.get_type_display | safe }}<br/>{% endif %}
 
-        {% if task.skills %}Skills: {{ task.skills }}{% endif %}<br/>
+        {% if task.scope %}Scope: {{ task.get_scope_display | safe }}<br/>{% endif %}
+
+        {% if task.skills %}Skills: {{ task.skills }}<br/>{% endif %}
+
+        {% if task.deadline %}Deadline: {{ task.deadline | date:'jS F Y \a\t H:i' }} GMT<br/>{% endif %}
 
         {% if task.description %}
             Description:<br/>
@@ -26,7 +30,7 @@
     </p>
 
     <p>
-        Click the link below to view the {% if user.scope == 1 %}task{% else %}project{% endif %} on Tunga:<br/>
+        Click the link below to view the {% if task.is_task %}task{% else %}project{% endif %} on Tunga:<br/>
         <a href="{{ task_url }}">{{ task_url }}</a>
     </p>
 

@@ -14,24 +14,39 @@ from tunga_auth.filterbackends import my_connections_q_filter
 from tunga_tasks import slugs
 from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport
 from tunga_utils import slack_utils
-from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, TASK_SCOPE_TASK
+from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, \
+    USER_TYPE_PROJECT_MANAGER
 from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance, convert_to_text
 
 
 @job
+def notify_new_task(instance, new_user=False):
+    send_new_task_email(instance, new_user=new_user)
+    send_new_task_client_receipt_email(instance)
+
+@job
 def send_new_task_email(instance, new_user=False):
     instance = clean_instance(instance, Task)
 
-    # Notify Tunga and Devs
-    developers = None
-    if instance.is_developer_ready and instance.visibility in [VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM]:
-        queryset = get_user_model().objects.filter(type=USER_TYPE_DEVELOPER)
-        if instance.visibility == VISIBILITY_MY_TEAM:
+    # Notify Tunga and Devs or PMs
+    community_receivers = None
+    if not instance.is_developer_ready or instance.visibility in [VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM]:
+
+        # Filter users based on nature of work
+        queryset = get_user_model().objects.filter(
+            type=instance.is_developer_ready and USER_TYPE_DEVELOPER or USER_TYPE_PROJECT_MANAGER
+        )
+
+        # Only developers on client's team
+        if instance.is_developer_ready and instance.visibility == VISIBILITY_MY_TEAM:
             queryset = queryset.filter(
                 my_connections_q_filter(instance.user)
             )
+
         ordering = []
+
+        # Order by matching skills
         task_skills = instance.skills.all()
         if task_skills:
             when = []
@@ -49,30 +64,35 @@ def send_new_task_email(instance, new_user=False):
                 )
             ))
             ordering.append('-matches')
-        ordering.append('-tasks_completed')
-        queryset = queryset.annotate(
-            tasks_completed=Sum(
-                Case(
-                    When(
-                        participation__task__closed=True,
-                        participation__user__id=F('id'),
-                        participation__accepted=True,
-                        then=1
-                    ),
-                    default=0,
-                    output_field=IntegerField()
+
+        # Order developers by tasks completed
+        if instance.is_developer_ready:
+            queryset = queryset.annotate(
+                tasks_completed=Sum(
+                    Case(
+                        When(
+                            participation__task__closed=True,
+                            participation__user__id=F('id'),
+                            participation__accepted=True,
+                            then=1
+                        ),
+                        default=0,
+                        output_field=IntegerField()
+                    )
                 )
             )
-        )
-        queryset = queryset.order_by(*ordering)
+            ordering.append('-tasks_completed')
+
+        if ordering:
+            queryset = queryset.order_by(*ordering)
         if queryset:
-            developers = queryset[:15]
+            community_receivers = queryset[:15]
 
     subject = "{} New task created by {}{}".format(
         EMAIL_SUBJECT_PREFIX, instance.user.first_name, new_user and ' (New user)' or ''
     )
     to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
-    bcc = [dev.email for dev in developers] if developers else None
+    bcc = [user.email for user in community_receivers] if community_receivers else None
     ctx = {
         'owner': instance.user,
         'task': instance,
@@ -80,7 +100,10 @@ def send_new_task_email(instance, new_user=False):
     }
     send_mail(subject, 'tunga/email/email_new_task', to, ctx, bcc=bcc)
 
-    # Confirm receipt to client
+
+@job
+def send_new_task_client_receipt_email(instance):
+    instance = clean_instance(instance, Task)
     subject = "{} Your {} has been received".format(
         EMAIL_SUBJECT_PREFIX, instance.scope == TASK_SCOPE_TASK and 'task' or 'project'
     )

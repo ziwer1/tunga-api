@@ -8,11 +8,15 @@
     <p>{{ task.summary }}</p>
 
     <p>
-        {% if task.deadline %}Deadline: {{ task.deadline | date:'jS F Y \a\t H:i' }} GMT{% endif %}<br/>
+        {% if task.type %}Type: {{ task.get_type_display | safe }}<br/>{% endif %}
 
-        {% if task.skills %}Skills: {{ task.skills }}{% endif %}<br/>
+        {% if task.scope %}Scope: {{ task.get_scope_display | safe }}<br/>{% endif %}
 
-        {% if task.description %}{{ task.description | safe }}{% endif %}<br/>
+        {% if task.skills %}Skills: {{ task.skills }}<br/>{% endif %}
+
+        {% if task.deadline %}Deadline: {{ task.deadline | date:'jS F Y \a\t H:i' }} GMT<br/>{% endif %}
+
+        {% if task.description %}{{ task.description | safe }}<br/>{% endif %}
     </p>
 
     <p>

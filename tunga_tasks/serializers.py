@@ -17,7 +17,7 @@ from tunga_tasks import slugs
 from tunga_tasks.models import Task, Application, Participation, TaskRequest, TimeEntry, ProgressEvent, ProgressReport, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
     TaskInvoice
-from tunga_tasks.notifications import send_new_task_email
+from tunga_tasks.notifications import notify_new_task
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
     task_integration
 from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, USER_TYPE_PROJECT_OWNER, USER_SOURCE_TASK_WIZARD, \
@@ -391,7 +391,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         else:
             # Triggered here instead of in the post_save signal to allow skills to be attached first
             # TODO: Consider moving this trigger
-            send_new_task_email.delay(instance.id, new_user=bool(new_user))
+            notify_new_task.delay(instance.id, new_user=bool(new_user))
         return instance
 
     def create(self, validated_data):

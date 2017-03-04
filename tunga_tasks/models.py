@@ -36,7 +36,7 @@ from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPE
     APP_INTEGRATION_PROVIDER_SLACK, APP_INTEGRATION_PROVIDER_HARVEST, APP_INTEGRATION_PROVIDER_GITHUB, TASK_TYPE_WEB, \
     TASK_TYPE_MOBILE, TASK_TYPE_OTHER, TASK_CODERS_NEEDED_ONE, TASK_CODERS_NEEDED_MULTIPLE, TASK_SCOPE_TASK, \
     TASK_SCOPE_ONGOING, TASK_BILLING_METHOD_FIXED, TASK_BILLING_METHOD_HOURLY, TASK_SCOPE_PROJECT, TASK_SOURCE_DEFAULT, \
-    TASK_SOURCE_NEW_USER
+    TASK_SOURCE_NEW_USER, PROGRESS_EVENT_TYPE_COMPLETE
 from tunga_utils.helpers import round_decimal, get_serialized_id, get_tunga_model
 from tunga_utils.models import Upload, Rating
 from tunga_utils.validators import validate_btc_address
@@ -146,7 +146,6 @@ class Task(models.Model):
     description = models.TextField(blank=True, null=True)
 
     # Task structure
-    # is_project = models.BooleanField(default=False, help_text='True if task will be broken into sub-tasks')
     # TODO: Replace parent to become project
     project = models.ForeignKey(Project, related_name='tasks', on_delete=models.SET_NULL, blank=True, null=True)
     parent = models.ForeignKey('self', related_name='sub_tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
@@ -174,8 +173,8 @@ class Task(models.Model):
     btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
 
     # Classification details
-    type = models.IntegerField(choices=TASK_TYPE_CHOICES, blank=True, null=True)  # Web, Mobile ...
-    scope = models.IntegerField(choices=TASK_SCOPE_CHOICES, default=TASK_SCOPE_TASK)  # One-time or ongoing project
+    type = models.IntegerField(choices=TASK_TYPE_CHOICES, default=TASK_TYPE_OTHER)  # Web, Mobile ...
+    scope = models.IntegerField(choices=TASK_SCOPE_CHOICES, default=TASK_SCOPE_TASK)  # task, project or ongoing project
     has_requirements = models.BooleanField(default=False)
     pm_required = models.BooleanField(default=False)
     contact_required = models.BooleanField(default=False)
@@ -676,7 +675,8 @@ PROGRESS_EVENT_TYPE_CHOICES = (
     (PROGRESS_EVENT_TYPE_DEFAULT, 'Update'),
     (PROGRESS_EVENT_TYPE_PERIODIC, 'Periodic Update'),
     (PROGRESS_EVENT_TYPE_MILESTONE, 'Milestone'),
-    (PROGRESS_EVENT_TYPE_SUBMIT, 'Submission')
+    (PROGRESS_EVENT_TYPE_SUBMIT, 'Final Draft'),
+    (PROGRESS_EVENT_TYPE_COMPLETE, 'Submission')
 )
 
 
