@@ -36,6 +36,14 @@ class SupportChannelSerializer(serializers.Serializer, GetCurrentUserAnnotatedSe
             raise ValidationError('Please enter your name')
         return value
 
+    def validate_email(self, value):
+        current_user = self.get_current_user()
+        if current_user and current_user.is_authenticated():
+            return value
+        if not value:
+            raise ValidationError('Please enter your email')
+        return value
+
 
 class DeveloperChannelSerializer(serializers.Serializer, GetCurrentUserAnnotatedSerializerMixin):
     subject = serializers.CharField(required=True)
