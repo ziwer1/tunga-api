@@ -14,7 +14,7 @@ from tunga.settings import TUNGA_SHARE_PERCENTAGE
 from tunga_auth.serializers import UserSerializer
 from tunga_profiles.utils import profile_check
 from tunga_tasks import slugs
-from tunga_tasks.models import Task, Application, Participation, TaskRequest, TimeEntry, ProgressEvent, ProgressReport, \
+from tunga_tasks.models import Task, Application, Participation, TimeEntry, ProgressEvent, ProgressReport, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
     TaskInvoice
 from tunga_tasks.notifications import notify_new_task
@@ -592,24 +592,6 @@ class ParticipationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotat
         if not initial_responded and instance.accepted or instance.responded:
             participation_response.send(sender=Participation, participation=instance)
         return instance
-
-
-class TaskRequestDetailsSerializer(serializers.ModelSerializer):
-    user = SimpleUserSerializer()
-    task = SimpleTaskSerializer()
-
-    class Meta:
-        model = TaskRequest
-        fields = ('user', 'task')
-
-
-class TaskRequestSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
-    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
-
-    class Meta:
-        model = TaskRequest
-        read_only_fields = ('created_at',)
-        details_serializer = TaskRequestDetailsSerializer
 
 
 class TimeEntryDetailsSerializer(serializers.ModelSerializer):

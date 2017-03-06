@@ -138,21 +138,6 @@ class ParticipationFilterBackend(DRYPermissionFiltersBase):
         )
 
 
-class TaskRequestFilterBackend(DRYPermissionFiltersBase):
-    @dont_filter_staff_or_superuser
-    def filter_list_queryset(self, request, queryset, view):
-        return queryset.filter(
-            Q(user=request.user) |
-            Q(task__user=request.user) |
-            (
-                Q(task__participation__user=request.user) &
-                (
-                    Q(task__participation__accepted=True) | Q(task__participation__responded=False)
-                )
-            )
-        )
-
-
 class TimeEntryFilterBackend(DRYPermissionFiltersBase):
     @dont_filter_staff_or_superuser
     def filter_list_queryset(self, request, queryset, view):

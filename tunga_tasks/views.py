@@ -31,16 +31,16 @@ from tunga_activity.serializers import SimpleActivitySerializer, LastReadActivit
 from tunga_profiles.models import DeveloperNumber
 from tunga_tasks import slugs
 from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBackend, ParticipationFilterBackend, \
-    TaskRequestFilterBackend, TimeEntryFilterBackend, ProjectFilterBackend, ProgressReportFilterBackend, \
+    TimeEntryFilterBackend, ProjectFilterBackend, ProgressReportFilterBackend, \
     ProgressEventFilterBackend
-from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TaskRequestFilter, TimeEntryFilter, \
+from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TimeEntryFilter, \
     ProjectFilter, ProgressReportFilter, ProgressEventFilter
-from tunga_tasks.models import Task, Application, Participation, TaskRequest, TimeEntry, Project, ProgressReport, ProgressEvent, \
+from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent, \
     Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice
 from tunga_tasks.notifications import send_task_invoice_request_email
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
-    TaskRequestSerializer, TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
+    TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
     IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
@@ -576,18 +576,6 @@ class ParticipationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, DRYObjectPermissions]
     filter_class = ParticipationFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (ParticipationFilterBackend,)
-    search_fields = ('task__title', 'task__skills__name', '^user__username', '^user__first_name', '^user__last_name')
-
-
-class TaskRequestViewSet(viewsets.ModelViewSet):
-    """
-    Task Request Resource
-    """
-    queryset = TaskRequest.objects.all()
-    serializer_class = TaskRequestSerializer
-    permission_classes = [IsAuthenticated, DRYPermissions]
-    filter_class = TaskRequestFilter
-    filter_backends = DEFAULT_FILTER_BACKENDS + (TaskRequestFilterBackend,)
     search_fields = ('task__title', 'task__skills__name', '^user__username', '^user__first_name', '^user__last_name')
 
 

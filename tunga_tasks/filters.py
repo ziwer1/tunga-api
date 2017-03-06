@@ -1,6 +1,6 @@
 import django_filters
 
-from tunga_tasks.models import Task, Application, Participation, TaskRequest, TimeEntry, Project, ProgressReport, ProgressEvent
+from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent
 from tunga_utils.filters import GenericDateFilterSet
 
 
@@ -49,12 +49,6 @@ class ParticipationFilter(GenericDateFilterSet):
     class Meta:
         model = Participation
         fields = ('user', 'task', 'accepted')
-
-
-class TaskRequestFilter(GenericDateFilterSet):
-    class Meta:
-        model = TaskRequest
-        fields = ('user', 'task', 'type')
 
 
 class TimeEntryFilter(GenericDateFilterSet):

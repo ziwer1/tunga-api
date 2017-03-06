@@ -28,8 +28,8 @@ from tunga_settings.models import VISIBILITY_CHOICES
 from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER, \
     VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, \
     UPDATE_SCHEDULE_WEEKLY, UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, UPDATE_SCHEDULE_ANNUALLY, \
-    TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BITCOIN, TASK_PAYMENT_METHOD_BANK, TASK_REQUEST_CLOSE, \
-    TASK_REQUEST_PAY, PROGRESS_EVENT_TYPE_DEFAULT, PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_MILESTONE, \
+    TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BITCOIN, TASK_PAYMENT_METHOD_BANK, \
+    PROGRESS_EVENT_TYPE_DEFAULT, PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_MILESTONE, \
     PROGRESS_EVENT_TYPE_SUBMIT, PROGRESS_REPORT_STATUS_ON_SCHEDULE, PROGRESS_REPORT_STATUS_BEHIND, \
     PROGRESS_REPORT_STATUS_STUCK, INTEGRATION_TYPE_REPO, INTEGRATION_TYPE_ISSUE, PAYMENT_STATUS_PENDING, \
     PAYMENT_STATUS_PROCESSING, PAYMENT_STATUS_COMPLETED, PAYMENT_STATUS_FAILED, PAYMENT_STATUS_INITIATED, \
@@ -598,43 +598,6 @@ class Participation(models.Model):
     @property
     def payment_share(self):
         return self.task.get_user_payment_share(participation_id=self.id) or 0
-
-
-TASK_REQUEST_CHOICES = (
-    (TASK_REQUEST_CLOSE, 'Close Request'),
-    (TASK_REQUEST_PAY, 'Payment Request')
-)
-
-
-class TaskRequest(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
-    task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    type = models.PositiveSmallIntegerField(
-        choices=TASK_REQUEST_CHOICES,
-        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in TASK_REQUEST_CHOICES])
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __unicode__(self):
-        return '%s - %s' % (self.get_type_display(), self.task.summary)
-
-    @staticmethod
-    @allow_staff_or_superuser
-    def has_read_permission(request):
-        return True
-
-    @allow_staff_or_superuser
-    def has_object_read_permission(self, request):
-        return self.task.has_object_read_permission(request)
-
-    @staticmethod
-    @allow_staff_or_superuser
-    def has_write_permission(request):
-        return request.user.type == USER_TYPE_DEVELOPER
-
-    @allow_staff_or_superuser
-    def has_object_write_permission(self, request):
-        return request.user == self.user
 
 
 class TimeEntry(models.Model):

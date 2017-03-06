@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from tunga_tasks.models import Task, Application, Participation, TaskRequest, TimeEntry, ProgressEvent, ProgressReport, \
+from tunga_tasks.models import Task, Application, Participation, TimeEntry, ProgressEvent, ProgressReport, \
     Project, TaskPayment, ParticipantPayment, TaskInvoice, TaskAccess
 from tunga_utils.admin import ReadOnlyModelAdmin
 
@@ -59,11 +59,6 @@ class ApplicationAdmin(admin.ModelAdmin):
 class ParticipationAdmin(admin.ModelAdmin):
     list_display = ('task', 'user', 'responded', 'accepted', 'share', 'created_at')
     list_filter = ('accepted', 'created_at')
-
-
-@admin.register(TaskRequest)
-class TaskRequestAdmin(admin.ModelAdmin):
-    list_display = ('task', 'user', 'type', 'created_at')
 
 
 @admin.register(TimeEntry)
