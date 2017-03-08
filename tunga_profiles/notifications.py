@@ -72,7 +72,7 @@ def send_developer_invited_email(instance, resend=False):
     to = [instance.email]
     ctx = {
         'invite': instance,
-        'invite_url': '%s/signup/developer/invite/%s/' % (TUNGA_URL, instance.invitation_key, )
+        'invite_url': '%s/signup/invite/%s/' % (TUNGA_URL, instance.invitation_key, )
     }
     if send_mail(subject, 'tunga/email/email_user_invitation', to, ctx):
         if resend:
