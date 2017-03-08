@@ -12,7 +12,7 @@ from tunga_profiles.validators import validate_email
 from tunga_utils.constants import REQUEST_STATUS_INITIAL, REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED, \
     BTC_WALLET_PROVIDER_COINBASE, PAYMENT_METHOD_BTC_WALLET, PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, \
     COUNTRY_CODE_UGANDA, COUNTRY_CODE_TANZANIA, COUNTRY_CODE_NIGERIA, APP_INTEGRATION_PROVIDER_SLACK, \
-    APP_INTEGRATION_PROVIDER_HARVEST, USER_TYPE_PROJECT_MANAGER, USER_TYPE_DEVELOPER
+    APP_INTEGRATION_PROVIDER_HARVEST, USER_TYPE_PROJECT_MANAGER, USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_utils.helpers import get_serialized_id
 from tunga_utils.models import AbstractExperience
 from tunga_utils.validators import validate_btc_address
@@ -252,6 +252,7 @@ class DeveloperApplication(models.Model):
 
 USER_TYPE_CHOICES = (
     (USER_TYPE_DEVELOPER, 'Developer'),
+    (USER_TYPE_PROJECT_OWNER, 'Project Owner'),
     (USER_TYPE_PROJECT_MANAGER, 'Project Manager')
 )
 
