@@ -413,7 +413,11 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                     item['activated_at'] = datetime.datetime.utcnow()
                 defaults = item
                 if isinstance(defaults, dict):
-                    defaults['created_by'] = self.get_current_user() or task.user
+                    current_user = self.get_current_user()
+                    participation_creator = task.user
+                    if current_user and current_user.is_authenticated() and current_user != item.get('user', None):
+                        participation_creator = current_user
+                    defaults['created_by'] = participation_creator
 
                 try:
                     participation_obj, created = Participation.objects.update_or_create(
