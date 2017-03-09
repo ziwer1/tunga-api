@@ -135,17 +135,10 @@ class ProjectSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedMode
         details_serializer = ProjectDetailsSerializer
 
 
-class TaskPaymentSerializer(serializers.ModelSerializer):
+class TaskPaymentSerializer(serializers.Serializer):
     user = InvoiceUserSerializer(required=False, read_only=True)
     payment_method = serializers.ChoiceField(choices=TASK_PAYMENT_METHOD_CHOICES, required=True)
-
-    class Meta:
-        model = Task
-        fields = (
-            'id', 'user', 'title', 'summary', 'currency', 'fee', 'payment_method', 'btc_address', 'btc_price'
-        )
-        read_only_fields = ('title', 'summary', 'currency', 'btc_address', 'btc_price')
-        extra_kwargs = {'fee': {'required': True}}
+    fee = serializers.DecimalField(max_digits=19, decimal_places=4)
 
 
 class TaskInvoiceSerializer(serializers.ModelSerializer, GetCurrentUserAnnotatedSerializerMixin):

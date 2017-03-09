@@ -175,7 +175,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         invoice = task.invoice
 
         if request.method == 'POST':
-            serializer = self.get_serializer(task, data=request.data)
+            serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
 
             fee = serializer.validated_data['fee']
