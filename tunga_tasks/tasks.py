@@ -18,8 +18,8 @@ from tunga_utils import bitcoin_utils, coinbase_utils, bitpesa, harvest_utils
 from tunga_utils.constants import CURRENCY_BTC, PAYMENT_METHOD_BTC_WALLET, \
     PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, \
     UPDATE_SCHEDULE_WEEKLY, UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, UPDATE_SCHEDULE_ANNUALLY, \
-    PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_SUBMIT, PAYMENT_STATUS_PENDING, PAYMENT_STATUS_PROCESSING, \
-    PAYMENT_STATUS_INITIATED, APP_INTEGRATION_PROVIDER_HARVEST, PROGRESS_EVENT_TYPE_COMPLETE
+    PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_SUBMIT, STATUS_PENDING, STATUS_PROCESSING, \
+    STATUS_INITIATED, APP_INTEGRATION_PROVIDER_HARVEST, PROGRESS_EVENT_TYPE_COMPLETE
 from tunga_utils.helpers import clean_instance
 
 
@@ -140,7 +140,7 @@ def distribute_task_payment(task):
                 source=payment, participant=participant
             )
             payment_method = participant.user.payment_method
-            if created or (participant_pay and participant_pay.status == PAYMENT_STATUS_PENDING):
+            if created or (participant_pay and participant_pay.status == STATUS_PENDING):
                 if payment_method in [PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_BTC_WALLET]:
                     if not (participant_pay.destination and bitcoin_utils.is_valid_btc_address(
                             participant_pay.destination)):
@@ -157,7 +157,7 @@ def distribute_task_payment(task):
                     ]:
                         participant_pay.ref = transaction.id
                         participant_pay.btc_sent = abs(Decimal(transaction.amount.amount))
-                        participant_pay.status = PAYMENT_STATUS_PROCESSING
+                        participant_pay.status = STATUS_PROCESSING
                         participant_pay.save()
                         portion_sent = True
                 elif payment_method == PAYMENT_METHOD_MOBILE_MONEY:
@@ -185,14 +185,14 @@ def distribute_task_payment(task):
                     )
                     if transaction:
                         participant_pay.ref = transaction.get(bitpesa.KEY_ID, None)
-                        participant_pay.status = PAYMENT_STATUS_INITIATED
+                        participant_pay.status = STATUS_INITIATED
                         participant_pay.extra = bitpesa_nonce
                         participant_pay.save()
 
                         if complete_bitpesa_payment(transaction):
                             portion_sent = True
             elif participant_pay and payment_method == PAYMENT_METHOD_MOBILE_MONEY and \
-                            participant_pay.status == PAYMENT_STATUS_INITIATED:
+                            participant_pay.status == STATUS_INITIATED:
                 transaction_details = bitpesa.call_api(
                     bitpesa.get_endpoint_url('transactions/%s' % participant_pay.ref),
                     'GET', str(uuid4()), data={}
@@ -237,7 +237,7 @@ def complete_bitpesa_payment(transaction):
     if destination_address:
         try:
             payment = ParticipantPayment.objects.get(
-                id=reference, ref=bp_transaction_id, extra=bp_idem_key, status=PAYMENT_STATUS_INITIATED
+                id=reference, ref=bp_transaction_id, extra=bp_idem_key, status=STATUS_INITIATED
             )
         except:
             payment = None
@@ -246,9 +246,9 @@ def complete_bitpesa_payment(transaction):
 
             if transaction.get(bitpesa.KEY_STATE, None) == bitpesa.VALUE_CANCELED:
                 # Fail for canceled BitPesa transactions
-                if payment.status == PAYMENT_STATUS_INITIATED:
+                if payment.status == STATUS_INITIATED:
                     # Switch status to pending if BTC hasn't already been sent
-                    payment.status = PAYMENT_STATUS_PENDING
+                    payment.status = STATUS_PENDING
                     payment.save()
                 return False
 
@@ -274,7 +274,7 @@ def complete_bitpesa_payment(transaction):
                     payment.btc_sent = input_amount
                     payment.destination = destination_address
                     payment.ref = cb_transaction.id
-                    payment.status = PAYMENT_STATUS_PROCESSING
+                    payment.status = STATUS_PROCESSING
                     payment.extra = json.dumps(dict(bitpesa=bp_transaction_id))
                     payment.save()
                     return True

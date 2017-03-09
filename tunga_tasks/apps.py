@@ -13,6 +13,7 @@ class TungaTasksConfig(AppConfig):
 
         registry.register(
                 self.get_model('Task'), self.get_model('Application'), self.get_model('Participation'),
+                self.get_model('Estimate'), self.get_model('Quote'), self.get_model('WorkActivity'),
                 self.get_model('ProgressEvent'), self.get_model('ProgressReport'),
                 self.get_model('Integration'), self.get_model('IntegrationEvent'),
                 self.get_model('IntegrationMeta'), self.get_model('IntegrationActivity'))

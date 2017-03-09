@@ -55,12 +55,18 @@ TASK_PAYMENT_METHOD_BITONIC = 'bitonic'
 TASK_PAYMENT_METHOD_BITCOIN = 'bitcoin'
 TASK_PAYMENT_METHOD_BANK = 'bank'
 
-# Paymnent Statuses
-PAYMENT_STATUS_PENDING = 'pending'
-PAYMENT_STATUS_INITIATED = 'initiated'
-PAYMENT_STATUS_PROCESSING = 'processing'
-PAYMENT_STATUS_COMPLETED = 'completed'
-PAYMENT_STATUS_FAILED = 'failed'
+# Transaction and Action Statuses
+STATUS_INITIAL = 'initial'
+STATUS_PENDING = 'pending'
+STATUS_INITIATED = 'initiated'
+STATUS_SUBMITTED = 'submitted'
+STATUS_PROCESSING = 'processing'
+STATUS_COMPLETED = 'completed'
+STATUS_FAILED = 'failed'
+STATUS_ACCEPTED = 'accepted'
+STATUS_REJECTED = 'rejected'
+STATUS_APPROVED = 'approved'
+STATUS_DECLINED = 'declined'
 
 # Request Statuses
 REQUEST_STATUS_INITIAL = 0

@@ -33,7 +33,7 @@ from tunga_settings.views import UserSettingsView
 from tunga_support.views import SupportPageViewSet, SupportSectionViewSet
 from tunga_tasks.views import TaskViewSet, ApplicationViewSet, ParticipationViewSet, TimeEntryViewSet, ProjectViewSet, \
     ProgressReportViewSet, ProgressEventViewSet, \
-    coinbase_notification, bitpesa_notification
+    coinbase_notification, bitpesa_notification, EstimateViewSet, QuoteViewSet
 from tunga_utils.views import SkillViewSet, ContactRequestView
 
 router = DefaultRouter()
@@ -44,6 +44,8 @@ router.register(r'project', ProjectViewSet)
 router.register(r'task', TaskViewSet)
 router.register(r'application', ApplicationViewSet)
 router.register(r'participation', ParticipationViewSet)
+router.register(r'estimate', EstimateViewSet)
+router.register(r'quote', QuoteViewSet)
 router.register(r'time-entry', TimeEntryViewSet)
 router.register(r'progress-event', ProgressEventViewSet)
 router.register(r'progress-report', ProgressReportViewSet)

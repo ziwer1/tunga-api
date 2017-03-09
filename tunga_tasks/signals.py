@@ -8,19 +8,30 @@ from tunga_tasks.notifications import notify_new_task_application, send_new_task
     send_new_task_invitation_email, send_new_task_application_response_email, notify_task_invitation_response, \
     send_task_application_not_selected_email, notify_new_progress_report
 from tunga_tasks.models import Task, Application, Participation, ProgressEvent, ProgressReport, \
-    IntegrationActivity, Integration
+    IntegrationActivity, Integration, Estimate, Quote
 from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates, \
     complete_harvest_integration
 from tunga_utils.constants import APP_INTEGRATION_PROVIDER_HARVEST
 
+# Task
 task_applications_closed = Signal(providing_args=["task"])
-
 task_closed = Signal(providing_args=["task"])
 
+# Applications
 application_response = Signal(providing_args=["application"])
 
+# Participation
 participation_response = Signal(providing_args=["participation"])
 
+# Estimates
+estimate_created = Signal(providing_args=["estimate"])
+estimate_status_changed = Signal(providing_args=["estimate"])
+
+# Quotes
+quote_created = Signal(providing_args=["quote"])
+quote_status_changed = Signal(providing_args=["quote"])
+
+# Integrations
 task_integration = Signal(providing_args=["integration"])
 
 
@@ -100,6 +111,24 @@ def activity_handler_participation_response(sender, participation, **kwargs):
 
         if participation.accepted:
             update_task_periodic_updates.delay(participation.task.id)
+
+
+@receiver(post_save, sender=Estimate)
+def activity_handler_estimate(sender, instance, created, **kwargs):
+    if created:
+        action.send(
+                instance.user, verb=verbs.CREATE,
+                action_object=instance, target=instance.task
+        )
+
+
+@receiver(post_save, sender=Quote)
+def activity_handler_quote(sender, instance, created, **kwargs):
+    if created:
+        action.send(
+                instance.user, verb=verbs.CREATE,
+                action_object=instance, target=instance.task
+        )
 
 
 @receiver(post_save, sender=ProgressEvent)

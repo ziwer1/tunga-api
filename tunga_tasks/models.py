@@ -7,7 +7,7 @@ from decimal import Decimal
 
 import tagulous.models
 from actstream.models import Action
-from django.contrib.contenttypes.fields import GenericRelation
+from django.contrib.contenttypes.fields import GenericRelation, GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -15,6 +15,7 @@ from django.db.models.query_utils import Q
 from django.template.defaultfilters import floatformat
 from django.utils.crypto import get_random_string
 from django.utils.html import strip_tags
+from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
@@ -31,12 +32,13 @@ from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPE
     TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BITCOIN, TASK_PAYMENT_METHOD_BANK, \
     PROGRESS_EVENT_TYPE_DEFAULT, PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_MILESTONE, \
     PROGRESS_EVENT_TYPE_SUBMIT, PROGRESS_REPORT_STATUS_ON_SCHEDULE, PROGRESS_REPORT_STATUS_BEHIND, \
-    PROGRESS_REPORT_STATUS_STUCK, INTEGRATION_TYPE_REPO, INTEGRATION_TYPE_ISSUE, PAYMENT_STATUS_PENDING, \
-    PAYMENT_STATUS_PROCESSING, PAYMENT_STATUS_COMPLETED, PAYMENT_STATUS_FAILED, PAYMENT_STATUS_INITIATED, \
+    PROGRESS_REPORT_STATUS_STUCK, INTEGRATION_TYPE_REPO, INTEGRATION_TYPE_ISSUE, STATUS_PENDING, \
+    STATUS_PROCESSING, STATUS_COMPLETED, STATUS_FAILED, STATUS_INITIATED, \
     APP_INTEGRATION_PROVIDER_SLACK, APP_INTEGRATION_PROVIDER_HARVEST, APP_INTEGRATION_PROVIDER_GITHUB, TASK_TYPE_WEB, \
     TASK_TYPE_MOBILE, TASK_TYPE_OTHER, TASK_CODERS_NEEDED_ONE, TASK_CODERS_NEEDED_MULTIPLE, TASK_SCOPE_TASK, \
     TASK_SCOPE_ONGOING, TASK_BILLING_METHOD_FIXED, TASK_BILLING_METHOD_HOURLY, TASK_SCOPE_PROJECT, TASK_SOURCE_DEFAULT, \
-    TASK_SOURCE_NEW_USER, PROGRESS_EVENT_TYPE_COMPLETE
+    TASK_SOURCE_NEW_USER, PROGRESS_EVENT_TYPE_COMPLETE, STATUS_INITIAL, STATUS_APPROVED, STATUS_DECLINED, \
+    STATUS_ACCEPTED, STATUS_REJECTED, STATUS_SUBMITTED
 from tunga_utils.helpers import round_decimal, get_serialized_id, get_tunga_model
 from tunga_utils.models import Upload, Rating
 from tunga_utils.validators import validate_btc_address
@@ -217,6 +219,9 @@ class Task(models.Model):
     invoice_date = models.DateTimeField(blank=True, null=True)
 
     # Applications and participation info
+    pm = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='tasks_managed', on_delete=models.DO_NOTHING, blank=True, null=True
+    )
     applicants = models.ManyToManyField(
             settings.AUTH_USER_MODEL, through='Application', through_fields=('task', 'user'),
             related_name='task_applications', blank=True
@@ -266,7 +271,8 @@ class Task(models.Model):
     def has_object_read_permission(self, request):
         if request.user == self.user or \
                 (self.parent and request.user == self.parent.user) or \
-                self.has_admin_access(request.user):
+                self.has_admin_access(request.user) or \
+                (request.user.is_project_manager and (self.pm == request.user or not self.pm)):
             return True
         elif self.visibility == VISIBILITY_DEVELOPER:
             return request.user.type == USER_TYPE_DEVELOPER
@@ -328,7 +334,7 @@ class Task(models.Model):
         if not amount:
             return ''
         if self.currency in CURRENCY_SYMBOLS:
-            return '%s%s' % (CURRENCY_SYMBOLS[self.currency], floatformat(amount, arg=-2))
+            return '{}{}'.format(CURRENCY_SYMBOLS[self.currency], floatformat(amount, arg=-2))
         return amount
     display_fee.short_description = 'Fee'
 
@@ -353,6 +359,10 @@ class Task(models.Model):
         if self.scope == TASK_SCOPE_PROJECT and not self.pm_required and self.source != TASK_SOURCE_NEW_USER:
             return True
         return False
+
+    @property
+    def requires_estimate(self):
+        return not self.is_developer_ready
 
     @property
     def amount(self):
@@ -380,7 +390,7 @@ class Task(models.Model):
 
     @property
     def summary(self):
-        return self.title or 'Task #{}'.format(self.id)
+        return self.title or '{} #{}'.format(self.is_task and 'Task' or 'Project', self.id)
 
     @property
     def excerpt(self):
@@ -419,6 +429,20 @@ class Task(models.Model):
     def invoice(self):
         try:
             return self.taskinvoice_set.all().order_by('-id', '-created_at').first()
+        except:
+            return None
+
+    @property
+    def estimate(self):
+        try:
+            return self.estimate_set.all().order_by('-id', '-created_at').first()
+        except:
+            return None
+
+    @property
+    def quote(self):
+        try:
+            return self.quote_set.all().order_by('-id', '-created_at').first()
         except:
             return None
 
@@ -598,6 +622,163 @@ class Participation(models.Model):
     @property
     def payment_share(self):
         return self.task.get_user_payment_share(participation_id=self.id) or 0
+
+
+class WorkActivity(models.Model):
+    # The target of the activity (estimate or quote)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name=_('content type'))
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    hours = models.FloatField()
+    due_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __unicode__(self):
+        return 'Activity | {}'.format(self.content_object)
+
+
+class WorkPlan(models.Model):
+    # The target of the activity (estimate or quote)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name=_('content type'))
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __unicode__(self):
+        return 'WorkPlan | {}'.format(self.content_object)
+
+
+ESTIMATE_STATUS_CHOICES = (
+    (STATUS_INITIAL, 'Initial'),
+    (STATUS_SUBMITTED, 'Submitted'),
+    # Admins
+    (STATUS_APPROVED, 'Approved'),
+    (STATUS_DECLINED, 'Declined'),
+    # Clients
+    (STATUS_ACCEPTED, 'Accepted'),
+    (STATUS_REJECTED, 'Rejected'),
+)
+
+
+class Estimate(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    introduction = models.TextField()
+    # Status
+    status = models.CharField(
+        max_length=30, choices=ESTIMATE_STATUS_CHOICES, default=STATUS_INITIAL,
+        help_text=', '.join(['%s - %s' % (item[0], item[1]) for item in ESTIMATE_STATUS_CHOICES])
+    )
+    moderated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='estimates_moderated', on_delete=models.DO_NOTHING, blank=True, null=True
+    )
+    submitted_at = models.DateTimeField(blank=True, null=True)
+    moderated_at = models.DateTimeField(blank=True, null=True)
+    responded_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    # Relationships
+    activity_objects = GenericRelation(
+        Action,
+        object_id_field='action_object_object_id',
+        content_type_field='action_object_content_type',
+        related_query_name='estimates'
+    )
+    activities = GenericRelation(WorkActivity, related_query_name='estimates')
+
+    def __unicode__(self):
+        return 'Estimate | {}'.format(self.task.summary)
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return request.user.is_project_owner or request.user.is_project_manager
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return self.task.has_object_read_permission(request)
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.is_project_manager
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user
+
+
+QUOTE_STATUS_CHOICES = ESTIMATE_STATUS_CHOICES
+
+
+class Quote(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    introduction = models.TextField()
+    # Scope
+    in_scope = models.TextField()
+    out_scope = models.TextField()
+    assumptions = models.TextField()
+    deliverables = models.TextField()
+    # Solution
+    architecture = models.TextField()
+    technology = models.TextField()
+    # Methodology
+    process = models.TextField()
+    reporting = models.TextField()
+    # Status
+    status = models.CharField(
+        max_length=30, choices=QUOTE_STATUS_CHOICES, default=STATUS_INITIAL,
+        help_text=', '.join(['%s - %s' % (item[0], item[1]) for item in QUOTE_STATUS_CHOICES])
+    )
+    moderated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='quotes_moderated', on_delete=models.DO_NOTHING, blank=True, null=True
+    )
+    moderated_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    # Relationships
+    activity_objects = GenericRelation(
+        Action,
+        object_id_field='action_object_object_id',
+        content_type_field='action_object_content_type',
+        related_query_name='estimates'
+    )
+    activities = GenericRelation(WorkActivity, related_query_name='quotes')
+    plan = GenericRelation(WorkPlan, related_query_name='quotes')
+
+    def __unicode__(self):
+        return 'Quote | {}'.format(self.task.summary)
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return request.user.is_project_owner or request.user.is_project_manager
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return self.task.has_object_read_permission(request)
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.is_project_manager
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user
 
 
 class TimeEntry(models.Model):
@@ -939,11 +1120,11 @@ class TaskPayment(models.Model):
 
 
 PAYMENT_STATUS_CHOICES = (
-    (PAYMENT_STATUS_PENDING, 'Pending'),
-    (PAYMENT_STATUS_INITIATED, 'Initiated'),
-    (PAYMENT_STATUS_PROCESSING, 'Processing'),
-    (PAYMENT_STATUS_COMPLETED, 'Completed'),
-    (PAYMENT_STATUS_FAILED, 'Failed'),
+    (STATUS_PENDING, 'Pending'),
+    (STATUS_INITIATED, 'Initiated'),
+    (STATUS_PROCESSING, 'Processing'),
+    (STATUS_COMPLETED, 'Completed'),
+    (STATUS_FAILED, 'Failed'),
 )
 
 
@@ -956,7 +1137,7 @@ class ParticipantPayment(models.Model):
     btc_sent = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
     btc_received = models.DecimalField(max_digits=18, decimal_places=8, default=0)
     status = models.CharField(
-        max_length=30, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING,
+        max_length=30, choices=PAYMENT_STATUS_CHOICES, default=STATUS_PENDING,
         help_text=', '.join(['%s - %s' % (item[0], item[1]) for item in PAYMENT_STATUS_CHOICES])
     )
     created_at = models.DateTimeField(auto_now_add=True)

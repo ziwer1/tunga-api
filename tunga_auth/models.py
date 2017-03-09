@@ -11,7 +11,8 @@ from tunga_utils.constants import PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_BTC
 
 USER_TYPE_CHOICES = (
     (USER_TYPE_DEVELOPER, 'Developer'),
-    (USER_TYPE_PROJECT_OWNER, 'Project Owner')
+    (USER_TYPE_PROJECT_OWNER, 'Project Owner'),
+    (USER_TYPE_PROJECT_MANAGER, 'Project Manager')
 )
 
 USER_SOURCE_CHOICES = (

@@ -34,14 +34,14 @@ from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBacke
     TimeEntryFilterBackend, ProjectFilterBackend, ProgressReportFilterBackend, \
     ProgressEventFilterBackend
 from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TimeEntryFilter, \
-    ProjectFilter, ProgressReportFilter, ProgressEventFilter
+    ProjectFilter, ProgressReportFilter, ProgressEventFilter, EstimateFilter, QuoteFilter
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent, \
-    Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice
+    Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice, Estimate, Quote
 from tunga_tasks.notifications import send_task_invoice_request_email
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
-    IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer
+    IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
 from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa
@@ -121,6 +121,50 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                 content_type=ContentType.objects.get_for_model(task), object_id=task.id,
                 defaults={'last_read': last_read}
             )
+            response_serializer = TaskSerializer(task, context={'request': request})
+            return Response(response_serializer.data)
+        return Response(
+            {'status': 'Unauthorized', 'message': 'No access to this task'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    @detail_route(
+        methods=['post'], url_path='claim',
+        permission_classes=[IsAuthenticated], serializer_class=None
+    )
+    def claim(self, request, pk=None):
+        """
+        Claim a project
+        ---
+        request_serializer: None
+        response_serializer: TaskSerializer
+        """
+        task = get_object_or_404(self.get_queryset(), pk=pk)
+        if task.has_object_read_permission(request):
+            task.pm = request.user
+            task.save()
+            response_serializer = TaskSerializer(task, context={'request': request})
+            return Response(response_serializer.data)
+        return Response(
+            {'status': 'Unauthorized', 'message': 'No access to this task'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    @detail_route(
+        methods=['post'], url_path='return',
+        permission_classes=[IsAuthenticated], serializer_class=None
+    )
+    def return_project(self, request, pk=None):
+        """
+        Return a project
+        ---
+        request_serializer: None
+        response_serializer: TaskSerializer
+        """
+        task = get_object_or_404(self.get_queryset(), pk=pk)
+        if task.has_object_read_permission(request):
+            task.pm = None
+            task.save()
             response_serializer = TaskSerializer(task, context={'request': request})
             return Response(response_serializer.data)
         return Response(
@@ -577,6 +621,30 @@ class ParticipationViewSet(viewsets.ModelViewSet):
     filter_class = ParticipationFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (ParticipationFilterBackend,)
     search_fields = ('task__title', 'task__skills__name', '^user__username', '^user__first_name', '^user__last_name')
+
+
+class EstimateViewSet(viewsets.ModelViewSet):
+    """
+    Estimate Resource
+    """
+    queryset = Estimate.objects.all()
+    serializer_class = EstimateSerializer
+    permission_classes = [IsAuthenticated, DRYPermissions]
+    filter_class = EstimateFilter
+    #filter_backends = DEFAULT_FILTER_BACKENDS + (TimeEntryFilterBackend,)
+    search_fields = ('introduction', '^task__title')
+
+
+class QuoteViewSet(viewsets.ModelViewSet):
+    """
+    Quote Resource
+    """
+    queryset = Quote.objects.all()
+    serializer_class = QuoteSerializer
+    permission_classes = [IsAuthenticated, DRYPermissions]
+    filter_class = QuoteFilter
+    #filter_backends = DEFAULT_FILTER_BACKENDS + (TimeEntryFilterBackend,)
+    search_fields = ('introduction', '^task__title')
 
 
 class TimeEntryViewSet(viewsets.ModelViewSet):

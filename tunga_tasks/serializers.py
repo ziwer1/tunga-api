@@ -16,12 +16,13 @@ from tunga_profiles.utils import profile_check
 from tunga_tasks import slugs
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, ProgressEvent, ProgressReport, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
-    TaskInvoice
+    TaskInvoice, Estimate, Quote, WorkActivity, WorkPlan
 from tunga_tasks.notifications import notify_new_task
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
-    task_integration
+    task_integration, estimate_created, estimate_status_changed, quote_status_changed, quote_created
 from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, USER_TYPE_PROJECT_OWNER, USER_SOURCE_TASK_WIZARD, \
-    TASK_SCOPE_ONGOING, VISIBILITY_CUSTOM, TASK_SCOPE_TASK, TASK_SCOPE_PROJECT, TASK_SOURCE_NEW_USER
+    TASK_SCOPE_ONGOING, VISIBILITY_CUSTOM, TASK_SCOPE_TASK, TASK_SCOPE_PROJECT, TASK_SOURCE_NEW_USER, STATUS_INITIAL, \
+    STATUS_ACCEPTED, STATUS_APPROVED, STATUS_DECLINED, STATUS_REJECTED, STATUS_SUBMITTED
 from tunga_utils.helpers import clean_meta_value
 from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.models import Rating
@@ -43,7 +44,7 @@ class SimpleTaskSerializer(ContentTypeAnnotatedModelSerializer):
     class Meta:
         model = Task
         fields = (
-            'id', 'user', 'title', 'currency', 'fee', 'closed', 'paid', 'display_fee',
+            'id', 'user', 'title', 'summary', 'currency', 'fee', 'closed', 'paid', 'display_fee',
             'type', 'scope', 'is_project', 'is_task'
         )
 
@@ -62,6 +63,51 @@ class SimpleParticipationSerializer(ContentTypeAnnotatedModelSerializer):
     class Meta:
         model = Participation
         exclude = ('created_at',)
+
+
+class NestedWorkActivitySerializer(serializers.ModelSerializer):
+    user = SimpleUserSerializer(
+        required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
+    )
+
+    class Meta:
+        model = WorkActivity
+        exclude = ('object_id', 'content_type')
+
+
+class NestedWorkPlanSerializer(serializers.ModelSerializer):
+    user = SimpleUserSerializer(
+        required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
+    )
+
+    class Meta:
+        model = WorkPlan
+        exclude = ('object_id', 'content_type')
+
+
+class SimpleEstimateSerializer(ContentTypeAnnotatedModelSerializer):
+    user = SimpleUserSerializer()
+    moderated_by = SimpleUserSerializer()
+    activities = NestedWorkActivitySerializer(many=True)
+
+    class Meta:
+        model = Estimate
+        fields = (
+            'id', 'user', 'task', 'status', 'introduction', 'moderated_by', 'activities'
+        )
+
+
+class SimpleQuoteSerializer(ContentTypeAnnotatedModelSerializer):
+    user = SimpleUserSerializer()
+    moderated_by = SimpleUserSerializer()
+    activities = NestedWorkActivitySerializer(many=True)
+    plan = NestedWorkPlanSerializer(many=True)
+
+    class Meta:
+        model = Quote
+        fields = (
+            'id', 'user', 'task', 'status', 'introduction', 'moderated_by', 'activities', 'plan'
+        )
 
 
 class BasicProgressEventSerializer(ContentTypeAnnotatedModelSerializer):
@@ -203,6 +249,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     is_payable = serializers.BooleanField(required=False, read_only=True)
     is_project = serializers.BooleanField(required=False, read_only=True)
     is_task = serializers.BooleanField(required=False, read_only=True)
+    is_developer_ready = serializers.BooleanField(required=False, read_only=True)
+    requires_estimate = serializers.BooleanField(required=False, read_only=True)
     excerpt = serializers.CharField(required=False, read_only=True)
     skills = serializers.CharField(
         required=False, error_messages={'blank': 'Please specify the skills required for this task'}
@@ -210,6 +258,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     payment_status = serializers.CharField(required=False, read_only=True)
     deadline = serializers.DateTimeField(required=False, allow_null=True)
     can_apply = serializers.SerializerMethodField(read_only=True, required=False)
+    can_claim = serializers.SerializerMethodField(read_only=True, required=False)
+    can_return = serializers.SerializerMethodField(read_only=True, required=False)
     can_save = serializers.SerializerMethodField(read_only=True, required=False)
     is_participant = serializers.SerializerMethodField(read_only=True, required=False)
     is_admin = serializers.SerializerMethodField(read_only=True, required=False)
@@ -227,6 +277,9 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     uploads = UploadSerializer(required=False, read_only=True, many=True)
     all_uploads = UploadSerializer(required=False, read_only=True, many=True)
     invoice = TaskInvoiceSerializer(required=False, read_only=True)
+    estimate = SimpleEstimateSerializer(required=False, read_only=True)
+    quote = SimpleQuoteSerializer(required=False, read_only=True)
+    pm = SimpleUserSerializer(required=False, read_only=True)
 
     class Meta:
         model = Task
@@ -504,6 +557,22 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                    obj.participation_set.filter(user=user).count() == 0
         return False
 
+    def get_can_claim(self, obj):
+        if obj.closed:
+            return False
+        user = self.get_current_user()
+        if user and user.is_authenticated() and (user.is_project_manager or user.is_staff or user.is_admin) and not obj.pm:
+            return True
+        return False
+
+    def get_can_return(self, obj):
+        if obj.closed or obj.estimate:
+            return False
+        user = self.get_current_user()
+        if user and user.is_authenticated() and obj.pm == user:
+            return True
+        return False
+
     def get_can_save(self, obj):
         return False
 
@@ -592,6 +661,185 @@ class ParticipationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotat
         if not initial_responded and instance.accepted or instance.responded:
             participation_response.send(sender=Participation, participation=instance)
         return instance
+
+
+class EstimateDetailsSerializer(serializers.ModelSerializer):
+    user = SimpleUserSerializer()
+    task = SimpleTaskSerializer()
+    moderated_by = SimpleUserSerializer()
+
+    class Meta:
+        model = Estimate
+        fields = ('user', 'task', 'moderated_by')
+
+
+class EstimateSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
+    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    moderated_by = SimpleUserSerializer(required=False, read_only=True)
+    activities = NestedWorkActivitySerializer(required=True, read_only=False, many=True)
+
+    class Meta:
+        model = Estimate
+        read_only_fields = ('moderated_at', 'created_at', 'updated_at')
+        details_serializer = EstimateDetailsSerializer
+
+    def validate_activities(self, value):
+        if not value:
+            raise ValidationError('This field is required')
+        return value
+
+    def save_estimate(self, validated_data, instance=None):
+        activities = None
+        if 'activities' in validated_data:
+            activities = validated_data.pop('activities')
+
+        initial_status = STATUS_INITIAL
+        is_update = bool(instance)
+
+        if instance:
+            initial_status = instance.status
+
+            if initial_status != validated_data.get('status'):
+                if validated_data.get('status') == STATUS_SUBMITTED:
+                    validated_data['submitted_at'] = datetime.datetime.utcnow()
+                if validated_data.get('status') in [STATUS_APPROVED, STATUS_DECLINED]:
+                    validated_data['moderated_at'] = datetime.datetime.utcnow()
+                if validated_data.get('status') in [STATUS_ACCEPTED, STATUS_REJECTED]:
+                    validated_data['responded_at'] = datetime.datetime.utcnow()
+
+            instance = super(EstimateSerializer, self).update(instance, validated_data)
+        else:
+            instance = super(EstimateSerializer, self).create(validated_data)
+
+        self.save_activities(instance, activities)
+
+        if is_update:
+            if initial_status != instance.status:
+                estimate_status_changed.send(sender=Estimate, estimate=instance)
+        else:
+            # Triggered here instead of in the post_save signal to allow activities to be attached first
+            estimate_created.send(sender=Estimate, estimate=instance)
+        return instance
+
+    def create(self, validated_data):
+        return self.save_estimate(validated_data)
+
+    def update(self, instance, validated_data):
+        return self.save_estimate(validated_data, instance=instance)
+
+    def save_activities(self, estimate, activities):
+        if activities:
+            c_type = ContentType.objects.get_for_model(Estimate)
+            # Delete existing
+            WorkActivity.objects.filter(content_type=c_type, object_id=estimate.id).delete()
+            for item in activities:
+                try:
+                    item['content_type'] = c_type
+                    item['object_id'] = estimate.id
+                    WorkActivity.objects.create(**item)
+                except:
+                    pass
+
+
+class QuoteDetailsSerializer(serializers.ModelSerializer):
+    user = SimpleUserSerializer()
+    task = SimpleTaskSerializer()
+    moderated_by = SimpleUserSerializer()
+
+    class Meta:
+        model = Quote
+        fields = ('user', 'task', 'moderated_by')
+
+
+class QuoteSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
+    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    moderated_by = SimpleUserSerializer(required=False, read_only=True)
+    activities = NestedWorkActivitySerializer(required=True, read_only=False, many=True)
+    plan = NestedWorkPlanSerializer(required=True, read_only=False, many=True)
+
+    class Meta:
+        model = Quote
+        read_only_fields = ('moderated_at', 'created_at', 'updated_at')
+        details_serializer = QuoteDetailsSerializer
+
+    def validate_activities(self, value):
+        if not value:
+            raise ValidationError('This field is required')
+        return value
+
+    def validate_plan(self, value):
+        if not value:
+            raise ValidationError('This field is required')
+        return value
+
+    def save_quote(self, validated_data, instance=None):
+        activities = None
+        plan = None
+        if 'activities' in validated_data:
+            activities = validated_data.pop('activities')
+        if 'plan' in validated_data:
+            plan = validated_data.pop('plan')
+
+        initial_status = STATUS_INITIAL
+        is_update = bool(instance)
+
+        if instance:
+            initial_status = instance.status
+
+            if initial_status != validated_data.get('status'):
+                if validated_data.get('status') == STATUS_SUBMITTED:
+                    validated_data['submitted_at'] = datetime.datetime.utcnow()
+                if validated_data.get('status') in [STATUS_APPROVED, STATUS_DECLINED]:
+                    validated_data['moderated_at'] = datetime.datetime.utcnow()
+                if validated_data.get('status') in [STATUS_ACCEPTED, STATUS_REJECTED]:
+                    validated_data['responded_at'] = datetime.datetime.utcnow()
+
+            instance = super(QuoteSerializer, self).update(instance, validated_data)
+        else:
+            instance = super(QuoteSerializer, self).create(validated_data)
+
+        self.save_activities(instance, activities)
+        self.save_plan(instance, plan)
+
+        if is_update:
+            if initial_status != instance.status:
+                quote_status_changed.send(sender=Estimate, estimate=instance)
+        else:
+            # Triggered here instead of in the post_save signal to allow activities to be attached first
+            quote_created.send(sender=Estimate, estimate=instance)
+        return instance
+
+    def create(self, validated_data):
+        return self.save_quote(validated_data)
+
+    def update(self, instance, validated_data):
+        return self.save_quote(validated_data, instance=instance)
+
+    def save_activities(self, quote, activities):
+        if activities:
+            c_type = ContentType.objects.get_for_model(Quote)
+            # Delete existing
+            WorkActivity.objects.filter(content_type=c_type, object_id=quote.id).delete()
+            for item in activities:
+                try:
+                    item['content_type'] = c_type
+                    item['object_id'] = quote.id
+                    WorkActivity.objects.create(**item)
+                except:
+                    pass
+
+    def save_plan(self, quote, plan):
+        if plan:
+            c_type = ContentType.objects.get_for_model(Quote)
+            # Delete existing
+            WorkPlan.objects.filter(content_type=c_type, object_id=quote.id).delete()
+            for item in plan:
+                try:
+                    item['content_type'] = c_type
+                    item['object_id'] = quote.id
+                    WorkPlan.objects.create(**item)
+                except:
+                    pass
 
 
 class TimeEntryDetailsSerializer(serializers.ModelSerializer):

@@ -1,17 +1,18 @@
 import datetime
 
+from dateutil.relativedelta import relativedelta
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.aggregates import Sum
-from django.db.models.expressions import Case, When
+from django.db.models.expressions import Case, When, F
 from django.db.models.fields import IntegerField
 from django.db.models.query_utils import Q
 from dry_rest_permissions.generics import DRYPermissionFiltersBase
 
-from dateutil.relativedelta import relativedelta
 from tunga_profiles.models import UserProfile
-from tunga_utils.constants import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER, VISIBILITY_DEVELOPER, \
-    VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, TASK_SCOPE_ONGOING, TASK_SCOPE_PROJECT, TASK_SOURCE_NEW_USER
+from tunga_utils.constants import VISIBILITY_DEVELOPER, \
+    VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, TASK_SCOPE_ONGOING, TASK_SCOPE_PROJECT, TASK_SOURCE_NEW_USER, STATUS_APPROVED, \
+    STATUS_ACCEPTED
 from tunga_utils.filterbackends import dont_filter_staff_or_superuser
 
 
@@ -45,6 +46,16 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                         )
                     )
                 )
+        elif label_filter in ['new-projects', 'estimates', 'quotes']:
+            queryset = queryset.exclude(scope=TASK_SCOPE_TASK)
+            if label_filter == 'new-projects':
+                queryset = queryset.filter(pm__isnull=True)
+            elif label_filter in ['estimates', 'quotes']:
+                queryset = queryset.filter(pm=request.user)
+                if label_filter == 'estimates':
+                    queryset = queryset.exclude(estimate__status=STATUS_ACCEPTED)
+                if label_filter == 'quotes':
+                    queryset = queryset.filter(estimate__status=STATUS_ACCEPTED).exclude(quote__status=STATUS_ACCEPTED)
         elif label_filter == 'skills':
             try:
                 user_skills = request.user.userprofile.skills.all()
@@ -78,7 +89,7 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
             )
 
         if request.user.is_authenticated():
-            if request.user.is_staff or request.user.is_superuser or request.user.is_project_manager:
+            if request.user.is_staff or request.user.is_superuser:
                 return queryset
             if request.user.is_project_owner:
                 queryset = queryset.filter(Q(user=request.user) | Q(taskaccess__user=request.user))
@@ -110,6 +121,18 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                         )
                     )
                 ).distinct()
+            elif request.user.is_project_manager:
+                queryset = queryset.filter(
+                    Q(user=request.user) |
+                    Q(taskaccess__user=request.user) | (
+                        Q(scope=TASK_SCOPE_ONGOING) |
+                        (
+                            Q(scope=TASK_SCOPE_PROJECT) & (
+                                Q(pm_required=True) | Q(source=TASK_SOURCE_NEW_USER)
+                            )
+                        )
+                    )
+                )
             else:
                 return queryset.none()
         else:
