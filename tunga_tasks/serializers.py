@@ -673,7 +673,8 @@ class EstimateDetailsSerializer(serializers.ModelSerializer):
         fields = ('user', 'task', 'moderated_by')
 
 
-class EstimateSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
+class EstimateSerializer(
+    ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
     user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     moderated_by = SimpleUserSerializer(required=False, read_only=True)
     activities = NestedWorkActivitySerializer(required=True, read_only=False, many=True)
@@ -703,6 +704,7 @@ class EstimateSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedMod
                 if validated_data.get('status') == STATUS_SUBMITTED:
                     validated_data['submitted_at'] = datetime.datetime.utcnow()
                 if validated_data.get('status') in [STATUS_APPROVED, STATUS_DECLINED]:
+                    validated_data['moderated_by'] = self.get_current_user() or None
                     validated_data['moderated_at'] = datetime.datetime.utcnow()
                 if validated_data.get('status') in [STATUS_ACCEPTED, STATUS_REJECTED]:
                     validated_data['responded_at'] = datetime.datetime.utcnow()
@@ -751,7 +753,8 @@ class QuoteDetailsSerializer(serializers.ModelSerializer):
         fields = ('user', 'task', 'moderated_by')
 
 
-class QuoteSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
+class QuoteSerializer(
+    ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
     user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     moderated_by = SimpleUserSerializer(required=False, read_only=True)
     activities = NestedWorkActivitySerializer(required=True, read_only=False, many=True)
@@ -790,6 +793,7 @@ class QuoteSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelS
                 if validated_data.get('status') == STATUS_SUBMITTED:
                     validated_data['submitted_at'] = datetime.datetime.utcnow()
                 if validated_data.get('status') in [STATUS_APPROVED, STATUS_DECLINED]:
+                    validated_data['moderated_by'] = self.get_current_user() or None
                     validated_data['moderated_at'] = datetime.datetime.utcnow()
                 if validated_data.get('status') in [STATUS_ACCEPTED, STATUS_REJECTED]:
                     validated_data['responded_at'] = datetime.datetime.utcnow()

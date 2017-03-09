@@ -681,6 +681,8 @@ class Estimate(models.Model):
         max_length=30, choices=ESTIMATE_STATUS_CHOICES, default=STATUS_INITIAL,
         help_text=', '.join(['%s - %s' % (item[0], item[1]) for item in ESTIMATE_STATUS_CHOICES])
     )
+    start_date = models.DateTimeField(blank=True, null=True)
+    end_date = models.DateTimeField(blank=True, null=True)
     moderated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, related_name='estimates_moderated', on_delete=models.DO_NOTHING, blank=True, null=True
     )
