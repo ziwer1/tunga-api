@@ -181,17 +181,10 @@ class ProjectSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedMode
         details_serializer = ProjectDetailsSerializer
 
 
-class TaskPaymentSerializer(serializers.ModelSerializer):
+class TaskPaymentSerializer(serializers.Serializer):
     user = InvoiceUserSerializer(required=False, read_only=True)
     payment_method = serializers.ChoiceField(choices=TASK_PAYMENT_METHOD_CHOICES, required=True)
-
-    class Meta:
-        model = Task
-        fields = (
-            'id', 'user', 'title', 'summary', 'currency', 'fee', 'payment_method', 'btc_address', 'btc_price'
-        )
-        read_only_fields = ('title', 'summary', 'currency', 'btc_address', 'btc_price')
-        extra_kwargs = {'fee': {'required': True}}
+    fee = serializers.DecimalField(max_digits=19, decimal_places=4)
 
 
 class TaskInvoiceSerializer(serializers.ModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
@@ -466,7 +459,11 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                     item['activated_at'] = datetime.datetime.utcnow()
                 defaults = item
                 if isinstance(defaults, dict):
-                    defaults['created_by'] = self.get_current_user() or task.user
+                    current_user = self.get_current_user()
+                    participation_creator = task.user
+                    if current_user and current_user.is_authenticated() and current_user != item.get('user', None):
+                        participation_creator = current_user
+                    defaults['created_by'] = participation_creator
 
                 try:
                     participation_obj, created = Participation.objects.update_or_create(
@@ -579,7 +576,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     def get_is_participant(self, obj):
         user = self.get_current_user()
         if user:
-            return obj.subtask_participants_inclusive_filter.filter((Q(accepted=True) | Q(responded=False)), user=user).count() > 1
+            return obj.subtask_participants_inclusive_filter.filter((Q(accepted=True) | Q(responded=False)), user=user).count() > 0
         return False
 
     def get_is_admin(self, obj):
