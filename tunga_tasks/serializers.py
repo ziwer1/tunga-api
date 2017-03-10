@@ -558,7 +558,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         if obj.closed:
             return False
         user = self.get_current_user()
-        if user and user.is_authenticated() and (user.is_project_manager or user.is_staff or user.is_admin) and not obj.pm:
+        if user and user.is_authenticated() and (user.is_project_manager or user.is_admin) and not obj.pm:
             return True
         return False
 

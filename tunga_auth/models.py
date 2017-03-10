@@ -72,6 +72,10 @@ class TungaUser(AbstractUser):
         return self.get_type_display()
 
     @property
+    def is_admin(self):
+        return self.is_staff or self.is_superuser
+
+    @property
     def is_developer(self):
         return self.type == USER_TYPE_DEVELOPER
 

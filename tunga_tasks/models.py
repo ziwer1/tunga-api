@@ -247,7 +247,6 @@ class Task(models.Model):
 
     class Meta:
         ordering = ['-created_at']
-        unique_together = ('user', 'title', 'fee')
 
     def has_admin_access(self, user):
         if user:
