@@ -36,7 +36,7 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                 queryset = queryset.filter(closed=False)
             elif label_filter == 'payments':
                 queryset = queryset.filter(closed=True).order_by('paid', 'pay_distributed', '-created_at')
-            if label_filter != 'payments' or not (request.user.is_staff or request.user.is_superuser):
+            if label_filter != 'payments' or not request.user.is_admin:
                 queryset = queryset.filter(
                     Q(user=request.user) |
                     (
@@ -51,7 +51,10 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
             if label_filter == 'new-projects':
                 queryset = queryset.filter(pm__isnull=True)
             elif label_filter in ['estimates', 'quotes']:
-                queryset = queryset.filter(pm=request.user)
+                if request.user.is_admin:
+                    queryset = queryset.filter(pm__isnull=False)
+                else:
+                    queryset = queryset.filter(pm=request.user)
                 if label_filter == 'estimates':
                     queryset = queryset.exclude(estimate__status=STATUS_ACCEPTED)
                 if label_filter == 'quotes':
