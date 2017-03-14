@@ -12,10 +12,10 @@ from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL, TUNGA_STAFF_UPDATE_E
     SLACK_ATTACHMENT_COLOR_BLUE
 from tunga_auth.filterbackends import my_connections_q_filter
 from tunga_tasks import slugs
-from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport
+from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport, Estimate
 from tunga_utils import slack_utils
 from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, \
-    USER_TYPE_PROJECT_MANAGER
+    USER_TYPE_PROJECT_MANAGER, STATUS_APPROVED
 from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance, convert_to_text
 

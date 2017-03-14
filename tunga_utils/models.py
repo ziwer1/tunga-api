@@ -45,7 +45,7 @@ class AbstractExperience(models.Model):
     @staticmethod
     @allow_staff_or_superuser
     def has_write_permission(request):
-        return request.user.type == USER_TYPE_DEVELOPER
+        return request.user.is_developer
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):

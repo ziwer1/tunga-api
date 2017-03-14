@@ -20,10 +20,12 @@ from tunga_profiles.filters import EducationFilter, WorkFilter, ConnectionFilter
 from tunga_profiles.models import UserProfile, Education, Work, Connection, DeveloperApplication, DeveloperInvitation
 from tunga_profiles.serializers import ProfileSerializer, EducationSerializer, WorkSerializer, ConnectionSerializer, \
     DeveloperApplicationSerializer, DeveloperInvitationSerializer
+from tunga_tasks.models import Task
 from tunga_tasks.utils import get_integration_token
 from tunga_utils import github, harvest_utils, slack_utils
 from tunga_utils.constants import USER_TYPE_PROJECT_OWNER, APP_INTEGRATION_PROVIDER_SLACK, CHANNEL_TYPE_SUPPORT, \
-    CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_DEVELOPER, APP_INTEGRATION_PROVIDER_HARVEST
+    CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_DEVELOPER, APP_INTEGRATION_PROVIDER_HARVEST, \
+    TASK_SCOPE_ONGOING, TASK_SCOPE_PROJECT, TASK_SOURCE_NEW_USER, STATUS_ACCEPTED
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 
 
@@ -209,7 +211,20 @@ class NotificationView(views.APIView):
         requests = user.connection_requests.filter(responded=False, from_user__pending=False).count()
         tasks = user.tasks_created.filter(closed=False).count() + user.participation_set.filter(
             (Q(accepted=True) | Q(responded=False)), task__closed=False, user=user
-        ).count()
+        ).count() + user.tasks_managed.filter(closed=False).count()
+        pm_tasks = Task.objects.filter(
+            Q(scope=TASK_SCOPE_ONGOING) |
+            (
+                Q(scope=TASK_SCOPE_PROJECT) & (
+                    Q(pm_required=True) | Q(source=TASK_SOURCE_NEW_USER)
+                )
+            )
+        )
+        if request.user.is_project_manager:
+            pm_tasks.filter(pm=request.user)
+        estimates = pm_tasks.exclude(estimate__status=STATUS_ACCEPTED).distinct().count()
+        quotes = pm_tasks.filter(estimate__status=STATUS_ACCEPTED).exclude(quote__status=STATUS_ACCEPTED).distinct().count()
+
         profile = None
         profile_notifications = {'count': 0, 'missing': [], 'improve': [], 'more': [], 'section': None}
         try:
@@ -253,6 +268,8 @@ class NotificationView(views.APIView):
                 'messages': channel_type_summary_updates['direct'] + channel_type_summary_updates['topic'] + channel_type_summary_updates['developer'],
                 'requests': requests,
                 'tasks': tasks,
+                'estimates': estimates,
+                'quotes': quotes,
                 'profile': profile_notifications,
                 'channels': channel_updates,
                 'channel_summary': channel_type_summary_updates

@@ -63,12 +63,12 @@ class ParticipationAdmin(admin.ModelAdmin):
 
 @admin.register(Estimate)
 class EstimateAdmin(admin.ModelAdmin):
-    list_display = ('task', 'user', 'status', 'moderated_by', 'created_at')
+    list_display = ('task', 'user', 'status', 'moderated_by', 'reviewed_by', 'created_at')
 
 
 @admin.register(Quote)
 class QuoteAdmin(admin.ModelAdmin):
-    list_display = ('task', 'user', 'status', 'moderated_by', 'created_at')
+    list_display = ('task', 'user', 'status', 'moderated_by', 'reviewed_by', 'created_at')
 
 
 @admin.register(WorkActivity)

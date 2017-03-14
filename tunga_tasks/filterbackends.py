@@ -51,9 +51,7 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
             if label_filter == 'new-projects':
                 queryset = queryset.filter(pm__isnull=True)
             elif label_filter in ['estimates', 'quotes']:
-                if request.user.is_admin:
-                    queryset = queryset.filter(pm__isnull=False)
-                else:
+                if request.user.is_project_manager:
                     queryset = queryset.filter(pm=request.user)
                 if label_filter == 'estimates':
                     queryset = queryset.exclude(estimate__status=STATUS_ACCEPTED)
@@ -97,13 +95,11 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
             if request.user.is_project_owner:
                 queryset = queryset.filter(Q(user=request.user) | Q(taskaccess__user=request.user))
             elif request.user.is_developer:
-                return queryset.exclude(
-                    scope=TASK_SCOPE_ONGOING
-                ).filter(
+                return queryset.filter(
                     Q(scope=TASK_SCOPE_TASK) |
                     (
                         Q(scope=TASK_SCOPE_PROJECT) & Q(pm_required=False) & ~Q(source=TASK_SOURCE_NEW_USER)
-                    )
+                    ) | Q(quote__status=STATUS_ACCEPTED)
                 ).filter(
                     Q(user=request.user) |
                     Q(participation__user=request.user) |

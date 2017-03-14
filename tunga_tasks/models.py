@@ -12,7 +12,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.query_utils import Q
-from django.template.defaultfilters import floatformat
+from django.template.defaultfilters import floatformat, truncatewords
 from django.utils.crypto import get_random_string
 from django.utils.html import strip_tags
 from django.utils.translation import ugettext_lazy as _
@@ -320,7 +320,7 @@ class Task(models.Model):
                 'confirmed_participants', 'rejected_participants'
             ]
             if not [x for x in request.data.keys() if not (x in allowed_keys or re.match(r'^file\d*$', x))]:
-                return self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
+                return self.pm.id == request.user.id or self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
         return False
 
     @property
@@ -353,9 +353,9 @@ class Task(models.Model):
     def is_developer_ready(self):
         if self.scope == TASK_SCOPE_TASK:
             return True
-        if self.scope == TASK_SCOPE_ONGOING:
-            return False
         if self.scope == TASK_SCOPE_PROJECT and not self.pm_required and self.source != TASK_SOURCE_NEW_USER:
+            return True
+        if self.quote and self.quote.status == STATUS_ACCEPTED:
             return True
         return False
 
@@ -389,12 +389,12 @@ class Task(models.Model):
 
     @property
     def summary(self):
-        return self.title or '{} #{}'.format(self.is_task and 'Task' or 'Project', self.id)
+        return self.title or self.excerpt or '{} #{}'.format(self.is_task and 'Task' or 'Project', self.id)
 
     @property
     def excerpt(self):
         try:
-            return strip_tags(self.description).strip()
+            return truncatewords(strip_tags(self.description).strip(), 20)
         except:
             return None
 
@@ -671,7 +671,7 @@ ESTIMATE_STATUS_CHOICES = (
 )
 
 
-class Estimate(models.Model):
+class AbstractEstimate(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     introduction = models.TextField()
@@ -682,25 +682,39 @@ class Estimate(models.Model):
     )
     start_date = models.DateTimeField(blank=True, null=True)
     end_date = models.DateTimeField(blank=True, null=True)
-    moderated_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, related_name='estimates_moderated', on_delete=models.DO_NOTHING, blank=True, null=True
-    )
     submitted_at = models.DateTimeField(blank=True, null=True)
-    moderated_at = models.DateTimeField(blank=True, null=True)
-    responded_at = models.DateTimeField(blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # Moderation
+    moderated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='%(class)s_moderated', on_delete=models.DO_NOTHING, blank=True, null=True
+    )
+    moderator_comment = models.TextField(blank=True, null=True)
+    moderated_at = models.DateTimeField(blank=True, null=True)
+
+    # Review
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='%(class)s_reviewed', on_delete=models.DO_NOTHING, blank=True, null=True
+    )
+    reviewer_comment = models.TextField(blank=True, null=True)
+    reviewed_at = models.DateTimeField(blank=True, null=True)
+
     # Relationships
     activity_objects = GenericRelation(
         Action,
         object_id_field='action_object_object_id',
         content_type_field='action_object_content_type',
-        related_query_name='estimates'
+        related_query_name='%(class)s'
     )
-    activities = GenericRelation(WorkActivity, related_query_name='estimates')
+    activities = GenericRelation(WorkActivity, related_query_name='%(class)s')
 
     def __unicode__(self):
-        return 'Estimate | {}'.format(self.task.summary)
+        return '{} | {}'.format('%(class)'.title(), self.task.summary)
+
+    class Meta:
+        abstract = True
 
     @staticmethod
     @allow_staff_or_superuser
@@ -721,13 +735,13 @@ class Estimate(models.Model):
         return request.user == self.user
 
 
+class Estimate(AbstractEstimate):
+    pass
+
 QUOTE_STATUS_CHOICES = ESTIMATE_STATUS_CHOICES
 
 
-class Quote(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
-    task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    introduction = models.TextField()
+class Quote(AbstractEstimate):
     # Scope
     in_scope = models.TextField()
     out_scope = models.TextField()
@@ -739,47 +753,9 @@ class Quote(models.Model):
     # Methodology
     process = models.TextField()
     reporting = models.TextField()
-    # Status
-    status = models.CharField(
-        max_length=30, choices=QUOTE_STATUS_CHOICES, default=STATUS_INITIAL,
-        help_text=', '.join(['%s - %s' % (item[0], item[1]) for item in QUOTE_STATUS_CHOICES])
-    )
-    moderated_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, related_name='quotes_moderated', on_delete=models.DO_NOTHING, blank=True, null=True
-    )
-    moderated_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+
     # Relationships
-    activity_objects = GenericRelation(
-        Action,
-        object_id_field='action_object_object_id',
-        content_type_field='action_object_content_type',
-        related_query_name='estimates'
-    )
-    activities = GenericRelation(WorkActivity, related_query_name='quotes')
     plan = GenericRelation(WorkPlan, related_query_name='quotes')
-
-    def __unicode__(self):
-        return 'Quote | {}'.format(self.task.summary)
-
-    @staticmethod
-    @allow_staff_or_superuser
-    def has_read_permission(request):
-        return request.user.is_project_owner or request.user.is_project_manager
-
-    @allow_staff_or_superuser
-    def has_object_read_permission(self, request):
-        return self.task.has_object_read_permission(request)
-
-    @staticmethod
-    @allow_staff_or_superuser
-    def has_write_permission(request):
-        return request.user.is_project_manager
-
-    @allow_staff_or_superuser
-    def has_object_write_permission(self, request):
-        return request.user == self.user
 
 
 class TimeEntry(models.Model):

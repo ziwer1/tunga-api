@@ -11,7 +11,8 @@ from tunga_tasks.models import Task, Application, Participation, ProgressEvent, 
     IntegrationActivity, Integration, Estimate, Quote
 from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates, \
     complete_harvest_integration
-from tunga_utils.constants import APP_INTEGRATION_PROVIDER_HARVEST
+from tunga_utils.constants import APP_INTEGRATION_PROVIDER_HARVEST, STATUS_SUBMITTED, STATUS_APPROVED, STATUS_DECLINED, \
+    STATUS_ACCEPTED, STATUS_REJECTED
 
 # Task
 task_applications_closed = Signal(providing_args=["task"])
@@ -164,3 +165,40 @@ def activity_handler_integration_activity(sender, instance, created, **kwargs):
 def activity_handler_task_integration(sender, integration, **kwargs):
     if integration.provider == APP_INTEGRATION_PROVIDER_HARVEST:
         complete_harvest_integration.delay(integration.id)
+
+
+VERB_MAP_STATUS_CHANGE = {
+    STATUS_SUBMITTED: verbs.SUBMIT,
+    STATUS_APPROVED: verbs.APPROVE,
+    STATUS_DECLINED: verbs.DECLINE,
+    STATUS_ACCEPTED: verbs.ACCEPT,
+    STATUS_REJECTED: verbs.REJECT,
+}
+
+
+@receiver(estimate_status_changed, sender=Estimate)
+def activity_handler_estimate_status_changed(sender, estimate, **kwargs):
+    action_verb = VERB_MAP_STATUS_CHANGE.get(estimate.status, None)
+    if action_verb:
+        action_user = estimate
+        if estimate.status == STATUS_SUBMITTED:
+            action_user = estimate.user
+        elif estimate.status in [STATUS_APPROVED, STATUS_DECLINED]:
+            action_user = estimate.moderated_by
+        elif estimate.status in [STATUS_ACCEPTED, STATUS_REJECTED]:
+            action_user = estimate.reviewed_by
+        action.send(action_user or estimate, verb=action_verb, action_object=estimate, target=estimate.task)
+
+
+@receiver(quote_status_changed, sender=Quote)
+def activity_handler_quote_status_changed(sender, quote, **kwargs):
+    action_verb = VERB_MAP_STATUS_CHANGE.get(quote.status, None)
+    if action_verb:
+        action_user = quote
+        if quote.status == STATUS_SUBMITTED:
+            action_user = quote.user
+        elif quote.status in [STATUS_APPROVED, STATUS_DECLINED]:
+            action_user = quote.moderated_by
+        elif quote.status in [STATUS_ACCEPTED, STATUS_REJECTED]:
+            action_user = quote.reviewed_by
+        action.send(action_user or quote, verb=action_verb, action_object=quote, target=quote.task)
