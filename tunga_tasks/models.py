@@ -26,8 +26,7 @@ from tunga_comments.models import Comment
 from tunga_messages.models import Channel
 from tunga_profiles.models import Skill, Connection
 from tunga_settings.models import VISIBILITY_CHOICES
-from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER, \
-    VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, \
+from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, \
     UPDATE_SCHEDULE_WEEKLY, UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, UPDATE_SCHEDULE_ANNUALLY, \
     TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BITCOIN, TASK_PAYMENT_METHOD_BANK, \
     PROGRESS_EVENT_TYPE_DEFAULT, PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_MILESTONE, \
@@ -85,7 +84,7 @@ class Project(models.Model):
     @staticmethod
     @allow_staff_or_superuser
     def has_read_permission(request):
-        return request.user.type == USER_TYPE_PROJECT_OWNER
+        return request.user.is_project_owner or request.user.is_project_manager
 
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):
@@ -94,7 +93,7 @@ class Project(models.Model):
     @staticmethod
     @allow_staff_or_superuser
     def has_write_permission(request):
-        return request.user.type == USER_TYPE_PROJECT_OWNER
+        return request.user.is_project_owner or request.user.is_project_manager
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
@@ -291,12 +290,12 @@ class Task(models.Model):
     @staticmethod
     @allow_staff_or_superuser
     def has_write_permission(request):
-        return request.user.type == USER_TYPE_PROJECT_OWNER
+        return request.user.is_project_owner or request.user.is_project_manager
 
     @staticmethod
     @allow_staff_or_superuser
     def has_create_permission(request):
-        return not request.user.is_authenticated() or request.user.type == USER_TYPE_PROJECT_OWNER
+        return not request.user.is_authenticated() or request.user.is_project_owner or request.user.is_project_manager
 
     @staticmethod
     @allow_staff_or_superuser
@@ -719,7 +718,7 @@ class AbstractEstimate(models.Model):
     @staticmethod
     @allow_staff_or_superuser
     def has_read_permission(request):
-        return request.user.is_project_owner or request.user.is_project_manager
+        return request.user.is_project_manager or request.user.is_project_owner
 
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):
@@ -840,7 +839,7 @@ class ProgressEvent(models.Model):
     @staticmethod
     @allow_staff_or_superuser
     def has_write_permission(request):
-        return request.user.type == USER_TYPE_PROJECT_OWNER
+        return request.user.is_project_owner or request.user.is_project_manager
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
@@ -958,7 +957,7 @@ class Integration(models.Model):
     @staticmethod
     @allow_staff_or_superuser
     def has_write_permission(request):
-        return request.user.type == USER_TYPE_PROJECT_OWNER
+        return request.user.is_project_owner or request.user.is_project_manager
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
