@@ -1,6 +1,0 @@
-{% load i18n %}{% autoescape off %}{% block email_content %}
-Hello {{ invite.created_by.first_name }},
-
-{{ invite.first_name }} has been invited to become a Tunga {% if invite.type == 3 %}project manager{% elif invite.type == 2 %}project owner{% else %}developer{% endif %}.
-
-{% endblock %}{% endautoescape %}

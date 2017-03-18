@@ -1,9 +1,0 @@
-{% load i18n %}{% autoescape off %}{% block email_content %}
-Hello,
-
-{{ message }}
-
-Kind regards,
-
-The Tunga Bot
-{% endblock %}{% endautoescape %}

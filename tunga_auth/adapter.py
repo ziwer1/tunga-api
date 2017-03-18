@@ -2,17 +2,53 @@ from allauth.account.adapter import DefaultAccountAdapter
 from allauth.account.models import EmailAddress
 from allauth.exceptions import ImmediateHttpResponse
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
+from allauth.utils import get_current_site
 from django.shortcuts import redirect
+from django.template.loader import render_to_string
 
 from tunga_utils.constants import USER_TYPE_DEVELOPER
 from tunga_auth.utils import get_session_user_type, get_session_callback_url
+from tunga_utils.emails import render_mail
 
 
 class TungaAccountAdapter(DefaultAccountAdapter):
-    pass
+
+    def render_mail(self, template_prefix, email, context):
+        """
+        Renders an e-mail to `email`.  `template_prefix` identifies the
+        e-mail that is to be sent, e.g. "account/email/email_confirmation"
+        """
+
+        # Get subject as all auth does
+        subject = render_to_string('{0}_subject.txt'.format(template_prefix),
+                                   context)
+        # remove superfluous line breaks
+        subject = " ".join(subject.splitlines()).strip()
+        subject = self.format_email_subject(subject)
+
+        # Feed the reset to our custom renderer
+
+        return render_mail(subject, template_prefix='{}_message'.format(template_prefix), to_emails=[email], context=context)
+
+    def send_confirmation_mail(self, request, emailconfirmation, signup):
+        current_site = get_current_site(request)
+        activate_url = self.get_email_confirmation_url(
+            request,
+            emailconfirmation)
+        ctx = {
+            "user": emailconfirmation.email_address.user,
+            "activate_url": activate_url,
+            "current_site": current_site,
+            "key": emailconfirmation.key,
+        }
+        if signup:
+            email_template = 'tunga/email/email_confirmation_signup'
+        else:
+            email_template = 'tunga/email/email_confirmation'
+        self.send_mail(email_template, emailconfirmation.email_address.email, ctx)
 
 
-class SocialAccountAdapter(DefaultSocialAccountAdapter):
+class TungaSocialAccountAdapter(DefaultSocialAccountAdapter):
     def pre_social_login(self, request, sociallogin):
         """
         Invoked just after a user successfully authenticates via a
@@ -66,7 +102,7 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         # raise ImmediateHttpResponse(redirect('/accounts/login'))
 
     def populate_user(self, request, sociallogin, data):
-        user = super(SocialAccountAdapter, self).populate_user(request, sociallogin, data)
+        user = super(TungaSocialAccountAdapter, self).populate_user(request, sociallogin, data)
         if not sociallogin.is_existing:
             # Read the user type from session if provided for new users
             user_type = get_session_user_type(request)
@@ -78,4 +114,4 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         callback = get_session_callback_url(request)
         if callback:
             return callback
-        return super(SocialAccountAdapter, self).get_connect_redirect_url(request, socialaccount)
+        return super(TungaSocialAccountAdapter, self).get_connect_redirect_url(request, socialaccount)
