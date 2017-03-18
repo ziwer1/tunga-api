@@ -13,6 +13,7 @@ from rest_auth.serializers import TokenSerializer, PasswordResetSerializer, Pass
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from tunga_auth.forms import TungaPasswordResetForm
 from tunga_auth.models import USER_TYPE_CHOICES, EmailVisitor
 from tunga_profiles.notifications import send_developer_invitation_accepted_email
 from tunga_utils.constants import USER_TYPE_DEVELOPER
@@ -202,10 +203,12 @@ class TungaTokenSerializer(TokenSerializer):
 
 class TungaPasswordResetSerializer(PasswordResetSerializer):
 
+    password_reset_form_class = TungaPasswordResetForm
+
     def get_email_options(self):
         return {
-            "email_template_name": "registration/password_reset_email.txt",
-            "html_email_template_name": "registration/password_reset_email.html"
+            "email_template_name": "tunga/email/password_reset_email.html",
+            "html_email_template_name": "tunga/email/password_reset_email.html"
         }
 
 

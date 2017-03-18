@@ -1,6 +1,8 @@
 import datetime
+import re
 
 from django.core.mail.message import EmailMultiAlternatives, EmailMessage
+from django.template.defaultfilters import striptags
 from django.template.exceptions import TemplateDoesNotExist
 from django.template.loader import render_to_string
 from django_rq.decorators import job
@@ -21,16 +23,31 @@ def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None,
             bodies[ext] = render_to_string(template_name,
                                            context).strip()
         except TemplateDoesNotExist:
-            if ext == 'txt' and not bodies:
-                # We need at least one body
-                raise
-    if 'txt' in bodies:
+            if ext == 'txt':
+                if 'html' in bodies:
+                    # Compose text body from html
+                    txt_body = re.sub(r'(<br\s*/\s*>|<\s*/\s*(?:div|p)>)', '\\1\n', bodies['html'])
+                    txt_body = striptags(txt_body)  # Striptags
+                    txt_body = re.sub(r' {2,}', ' ', txt_body)  # Squash all multi spaces
+                    txt_body = re.sub(r'\n( )+', '\n', txt_body)  # Remove indents
+                    txt_body = re.sub(r'\n{3,}', '\n\n', txt_body)  # Limit consecutive new lines to a max of 2
+                    bodies[ext] = txt_body
+                else:
+                    # We need at least one body
+                    raise
+
+    if bodies:
         msg = EmailMultiAlternatives(subject, bodies['txt'], from_email, to_emails, bcc=bcc, cc=cc)
         if 'html' in bodies:
-            msg.attach_alternative(premailer.transform(bodies['html']), 'text/html')
+            try:
+                html_body = render_to_string(
+                    'tunga/email/base.html', dict(email_content=bodies['html'])
+                ).strip()
+            except TemplateDoesNotExist:
+                html_body = bodies['html']
+            msg.attach_alternative(premailer.transform(html_body), 'text/html')
     else:
-        msg = EmailMessage(subject, premailer.transform(bodies['html']), from_email, to_emails, bcc=bcc, cc=cc)
-        msg.content_subtype = 'html'  # Main content is now text/html
+        raise TemplateDoesNotExist
     return msg
 
 

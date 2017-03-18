@@ -1,7 +1,10 @@
 from __future__ import unicode_literals
 
 from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.tokens import default_token_generator
 from django.db import models
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga_utils import bitcoin_utils, coinbase_utils
@@ -24,10 +27,11 @@ USER_SOURCE_CHOICES = (
 class TungaUser(AbstractUser):
     type = models.IntegerField(choices=USER_TYPE_CHOICES, blank=True, null=True)
     image = models.ImageField(upload_to='photos/%Y/%m/%d', blank=True, null=True)
-    last_activity = models.DateTimeField(blank=True, null=True)
     verified = models.BooleanField(default=False)
     pending = models.BooleanField(default=True)
     source = models.IntegerField(choices=USER_SOURCE_CHOICES, default=USER_SOURCE_DEFAULT)
+    last_activity_at = models.DateTimeField(blank=True, null=True)
+    last_set_password_email_at = models.DateTimeField(blank=True, null=True)
 
     class Meta(AbstractUser.Meta):
         unique_together = ('email',)
@@ -135,6 +139,13 @@ class TungaUser(AbstractUser):
                 client = coinbase_utils.get_oauth_client(wallet.token, wallet.token_secret, self)
                 return coinbase_utils.get_new_address(client)
         return None
+
+    @property
+    def uid(self):
+        return urlsafe_base64_encode(force_bytes(self.pk))
+
+    def generate_reset_token(self):
+        return default_token_generator.make_token(self)
 
 
 class EmailVisitor(models.Model):

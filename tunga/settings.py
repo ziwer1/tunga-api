@@ -260,6 +260,8 @@ ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = '/'
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
 ACCOUNT_USERNAME_BLACKLIST = ['tunga', 'tunga.io', 'admin', 'administrator', 'moderator', 'user']
+ACCOUNT_ADAPTER = "tunga_auth.adapter.TungaAccountAdapter"
+SOCIALACCOUNT_ADAPTER = "tunga_auth.adapter.TungaSocialAccountAdapter"
 
 SOCIALACCOUNT_PROVIDERS = {
     'facebook': {
@@ -273,7 +275,6 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 SOCIALACCOUNT_AUTO_SIGNUP = True
-SOCIALACCOUNT_ADAPTER = "tunga_auth.adapter.SocialAccountAdapter"
 
 OAUTH2_PROVIDER = {
     # this is the list of available scopes
