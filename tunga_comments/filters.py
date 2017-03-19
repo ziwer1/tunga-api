@@ -7,8 +7,8 @@ from tunga_tasks.models import Task
 
 
 class CommentFilter(GenericDateFilterSet):
-    since = django_filters.NumberFilter(name='id', lookup_type='gt')
-    task = django_filters.MethodFilter()
+    since = django_filters.NumberFilter(name='id', lookup_expr='gt')
+    task = django_filters.NumberFilter(method='filter_task')
 
     class Meta:
         model = Comment

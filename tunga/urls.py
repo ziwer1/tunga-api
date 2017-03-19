@@ -20,6 +20,7 @@ from django.contrib.auth.views import password_reset_confirm
 from rest_auth.views import UserDetailsView
 from rest_framework.routers import DefaultRouter
 from rest_framework_jwt.views import obtain_jwt_token, refresh_jwt_token, verify_jwt_token
+from rest_framework_swagger.views import get_swagger_view
 
 from tunga_activity.views import ActionViewSet
 from tunga_auth.views import VerifyUserView, AccountInfoView, UserViewSet, social_login_view, coinbase_connect_callback, \
@@ -35,6 +36,8 @@ from tunga_tasks.views import TaskViewSet, ApplicationViewSet, ParticipationView
     ProgressReportViewSet, ProgressEventViewSet, \
     coinbase_notification, bitpesa_notification, EstimateViewSet, QuoteViewSet
 from tunga_utils.views import SkillViewSet, ContactRequestView
+
+api_schema_view = get_swagger_view(title='Tunga API')
 
 router = DefaultRouter()
 router.register(r'user', UserViewSet)
@@ -96,7 +99,7 @@ urlpatterns = [
     url(r'api/', include('rest_framework.urls', namespace='rest_framework')),
     url(r'^api/countries/', CountryListView.as_view(), name='countries'),
     url(r'^api/contact-request/', ContactRequestView.as_view(), name='contact-request'),
-    url(r'^api/docs/', include('rest_framework_swagger.urls')),
+    url(r'^api/docs/', api_schema_view),
     url(r'^reset-password/confirm/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
         password_reset_confirm, name='password_reset_confirm'),
     url(r'^$', router.get_api_root_view(), name='backend-root')

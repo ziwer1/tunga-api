@@ -194,7 +194,7 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
             request.GET,
             self.filter_queryset(channel.target_actions.all().order_by('-id'))
         )
-        page = self.paginate_queryset(queryset)
+        page = self.paginate_queryset(queryset.qs)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)

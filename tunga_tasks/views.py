@@ -130,13 +130,12 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
     @detail_route(
         methods=['post'], url_path='claim',
-        permission_classes=[IsAuthenticated], serializer_class=None
+        permission_classes=[IsAuthenticated]
     )
     def claim(self, request, pk=None):
         """
         Claim a project
         ---
-        request_serializer: None
         response_serializer: TaskSerializer
         """
         task = get_object_or_404(self.get_queryset(), pk=pk)
@@ -152,7 +151,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
     @detail_route(
         methods=['post'], url_path='return',
-        permission_classes=[IsAuthenticated], serializer_class=None
+        permission_classes=[IsAuthenticated]
     )
     def return_project(self, request, pk=None):
         """
@@ -192,7 +191,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         self.check_object_permissions(request, task)
 
         queryset = ActionFilter(request.GET, self.filter_queryset(task.activity_stream.all().order_by('-id')))
-        page = self.paginate_queryset(queryset)
+        page = self.paginate_queryset(queryset.qs)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)

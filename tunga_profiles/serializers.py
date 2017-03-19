@@ -29,6 +29,7 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
 
     class Meta:
         model = UserProfile
+        fields = '__all__'
         details_serializer = ProfileDetailsSerializer
 
     def validate(self, attrs):

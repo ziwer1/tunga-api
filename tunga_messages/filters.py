@@ -13,7 +13,7 @@ class ChannelFilter(GenericDateFilterSet):
 
 
 class MessageFilter(GenericDateFilterSet):
-    since = django_filters.NumberFilter(name='id', lookup_type='gt')
+    since = django_filters.NumberFilter(name='id', lookup_expr='gt')
 
     class Meta:
         model = Message

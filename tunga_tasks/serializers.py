@@ -120,6 +120,7 @@ class BasicProgressEventSerializer(ContentTypeAnnotatedModelSerializer):
 
     class Meta:
         model = ProgressEvent
+        fields = '__all__'
 
 
 class BasicProgressReportSerializer(ContentTypeAnnotatedModelSerializer):
@@ -128,19 +129,21 @@ class BasicProgressReportSerializer(ContentTypeAnnotatedModelSerializer):
 
     class Meta:
         model = ProgressReport
+        fields = '__all__'
 
 
 class SimpleProgressEventSerializer(BasicProgressEventSerializer):
     report = BasicProgressReportSerializer(read_only=True, required=False, source='progressreport')
 
-    class Meta:
+    class Meta(BasicProgressEventSerializer.Meta):
         model = ProgressEvent
+
 
 
 class SimpleProgressReportSerializer(BasicProgressReportSerializer):
     uploads = UploadSerializer(required=False, read_only=True, many=True)
 
-    class Meta:
+    class Meta(BasicProgressReportSerializer.Meta):
         model = ProgressReport
 
 
@@ -182,6 +185,7 @@ class ProjectSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedMode
 
     class Meta:
         model = Project
+        fields = '__all__'
         read_only_fields = ('created_at',)
         details_serializer = ProjectDetailsSerializer
 
@@ -200,6 +204,7 @@ class TaskInvoiceSerializer(serializers.ModelSerializer, GetCurrentUserAnnotated
 
     class Meta:
         model = TaskInvoice
+        fields = '__all__'
 
     def get_developer_amount(self, obj):
         current_user = self.get_current_user()
@@ -621,6 +626,7 @@ class ApplicationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotated
 
     class Meta:
         model = Application
+        fields = '__all__'
         details_serializer = ApplicationDetailsSerializer
         extra_kwargs = {
             'pitch': {'required': True, 'allow_blank': False, 'allow_null': False},
@@ -653,6 +659,7 @@ class ParticipationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotat
 
     class Meta:
         model = Participation
+        fields = '__all__'
         read_only_fields = ('created_at',)
         details_serializer = ParticipationDetailsSerializer
 
@@ -686,6 +693,7 @@ class AbstractEstimateSerializer(
 
     class Meta:
         model = AbstractEstimate
+        fields = '__all__'
         read_only_fields = ('submitted_at', 'moderated_at', 'reviewed_at', 'created_at', 'updated_at')
         details_serializer = AbstractEstimateDetailsSerializer
 
@@ -839,6 +847,7 @@ class TimeEntrySerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedMo
 
     class Meta:
         model = TimeEntry
+        fields = '__all__'
         read_only_fields = ('created_at', 'updated_at')
         details_serializer = TimeEntryDetailsSerializer
 
@@ -859,6 +868,7 @@ class ProgressEventSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotat
 
     class Meta:
         model = ProgressEvent
+        fields = '__all__'
         read_only_fields = ('created_at',)
         details_serializer = ProgressEventDetailsSerializer
 
@@ -878,6 +888,7 @@ class ProgressReportSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnota
 
     class Meta:
         model = ProgressReport
+        fields = '__all__'
         read_only_fields = ('created_at',)
         details_serializer = ProgressReportDetailsSerializer
 

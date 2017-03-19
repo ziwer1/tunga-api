@@ -239,6 +239,7 @@ class EmailVisitorSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EmailVisitor
+        fields = '__all__'
 
     def create_visitor(self, email):
         visitor, created = EmailVisitor.objects.update_or_create(

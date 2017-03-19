@@ -9,9 +9,9 @@ from tunga_utils.filters import GenericDateFilterSet
 
 
 class ActionFilter(GenericDateFilterSet):
-    user = django_filters.MethodFilter()
-    task = django_filters.MethodFilter()
-    since = django_filters.NumberFilter(name='id', lookup_type='gt')
+    user = django_filters.NumberFilter(method='filter_user')
+    task = django_filters.NumberFilter(method='filter_task')
+    since = django_filters.NumberFilter(name='id', lookup_expr='gt')
 
     class Meta:
         model = Action
@@ -32,7 +32,7 @@ class ActionFilter(GenericDateFilterSet):
 
 
 class MessageActivityFilter(ActionFilter):
-    since = django_filters.MethodFilter()
+    since = django_filters.IsoDateTimeFilter(method='filter_since')
 
     def filter_since(self, queryset, value):
         return queryset.filter(

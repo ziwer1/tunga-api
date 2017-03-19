@@ -15,7 +15,7 @@ class ProjectFilter(GenericDateFilterSet):
 class TaskFilter(GenericDateFilterSet):
     applicant = django_filters.NumberFilter(name='applications__user', label='Applicant')
     participant = django_filters.NumberFilter(name='participants__user', label='Participant')
-    payment_status = django_filters.MethodFilter()
+    payment_status = django_filters.CharFilter(method='filter_payment_status')
     skill = django_filters.CharFilter(name='skills__name', label='skills')
     skill_id = django_filters.NumberFilter(name='skills', label='skills (by ID)')
 
@@ -67,10 +67,10 @@ class QuoteFilter(GenericDateFilterSet):
 
 
 class TimeEntryFilter(GenericDateFilterSet):
-    min_date = django_filters.IsoDateTimeFilter(name='spent_at', lookup_type='gte')
-    max_date = django_filters.IsoDateTimeFilter(name='spent_at', lookup_type='lte')
-    min_hours = django_filters.IsoDateTimeFilter(name='hours', lookup_type='gte')
-    max_hours = django_filters.IsoDateTimeFilter(name='hours', lookup_type='lte')
+    min_date = django_filters.IsoDateTimeFilter(name='spent_at', lookup_expr='gte')
+    max_date = django_filters.IsoDateTimeFilter(name='spent_at', lookup_expr='lte')
+    min_hours = django_filters.IsoDateTimeFilter(name='hours', lookup_expr='gte')
+    max_hours = django_filters.IsoDateTimeFilter(name='hours', lookup_expr='lte')
 
     class Meta:
         model = TimeEntry

@@ -2,7 +2,7 @@ from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from tunga_settings.models import UserSwitchSetting, UserVisibilitySetting
+from tunga_settings.models import UserSwitchSetting, UserVisibilitySetting, SwitchSetting
 from tunga_settings.serializers import UserSettingsUpdateSerializer, UserSettingsSerializer
 
 
@@ -13,6 +13,7 @@ class UserSettingsView(generics.GenericAPIView):
     """
     permission_classes = [IsAuthenticated]
     serializer_class = UserSettingsUpdateSerializer
+    queryset = SwitchSetting.objects.all()
 
     def get_object(self):
         user = self.request.user

@@ -79,7 +79,7 @@ INSTALLED_APPS = [
     'tunga_support',
 ]
 
-MIDDLEWARE_CLASSES = [
+MIDDLEWARE = [
     # Default
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -93,7 +93,6 @@ MIDDLEWARE_CLASSES = [
     # Local
     'oauth2_provider.middleware.OAuth2TokenMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    #'tunga_auth.middleware.UserLastActivityMiddleware',
 ]
 
 ROOT_URLCONF = 'tunga.urls'
@@ -296,7 +295,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'tunga_utils.pagination.DefaultPagination',
     'URL_FIELD_NAME': 'api_url',
     'DEFAULT_FILTER_BACKENDS': (
-        'rest_framework.filters.DjangoFilterBackend', 'rest_framework.filters.SearchFilter'
+        'django_filters.rest_framework.DjangoFilterBackend', 'rest_framework.filters.SearchFilter'
     ),
     'TEST_REQUEST_DEFAULT_FORMAT': 'json'
 }
