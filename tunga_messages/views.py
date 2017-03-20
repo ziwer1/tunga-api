@@ -17,9 +17,11 @@ from tunga_messages.filters import MessageFilter, ChannelFilter
 from tunga_messages.models import Message, Channel, ChannelUser
 from tunga_messages.serializers import MessageSerializer, ChannelSerializer, DirectChannelSerializer, \
     SupportChannelSerializer, DeveloperChannelSerializer
-from tunga_messages.tasks import get_or_create_direct_channel, get_or_create_support_channel, create_channel
+from tunga_messages.tasks import get_or_create_direct_channel, get_or_create_support_channel, create_channel, \
+    get_or_create_task_channel
 from tunga_messages.utils import annotate_channel_queryset_with_latest_activity_at
 from tunga_profiles.models import Inquirer
+from tunga_tasks.models import Task
 from tunga_utils import slack_utils
 from tunga_utils.constants import CHANNEL_TYPE_SUPPORT, APP_INTEGRATION_PROVIDER_SLACK, CHANNEL_TYPE_DEVELOPER
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
@@ -134,6 +136,27 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         response_serializer = ChannelSerializer(channel, context={'request': request})
         return Response(response_serializer.data)
 
+    @list_route(
+        methods=['post'], url_path='task/(?P<task_id>[^/]+)',
+        permission_classes=[IsAuthenticated]
+    )
+    def task_channel(self, request, task_id=None):
+        """
+        Gets or creates task channel
+        ---
+        response_serializer: ChannelSerializer
+        """
+
+        task = get_object_or_404(Task.objects.all(), pk=task_id)
+        channel = None
+        if task:
+            channel = get_or_create_task_channel(request.user, task)
+        if not channel:
+            return Response(
+                {'status': "Couldn't create task channel"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        response_serializer = ChannelSerializer(channel, context={'request': request})
+        return Response(response_serializer.data)
 
     @detail_route(
         methods=['post'], url_path='read',

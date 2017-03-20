@@ -44,6 +44,20 @@ def get_or_create_support_channel(user):
         return create_channel(user, channel_type=CHANNEL_TYPE_SUPPORT)
 
 
+def get_or_create_task_channel(user, task):
+    try:
+        return Channel.objects.filter(
+            type=CHANNEL_TYPE_TOPIC, participants=user
+        ).filter(participants=task.user).latest('created_at')
+    except Channel.DoesNotExist:
+        return create_channel(
+            initiator=user, participants=[task.user],
+            channel_type=CHANNEL_TYPE_TOPIC,
+            subject='{}: {}'.format(task.is_task and 'Task' or 'Project', task.summary),
+            content_object=task
+        )
+
+
 @job
 def clean_direct_channel(channel):
     channel = clean_instance(channel, Channel)

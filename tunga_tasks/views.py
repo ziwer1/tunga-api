@@ -224,12 +224,12 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
             fee = serializer.validated_data['fee']
             payment_method = serializer.validated_data['payment_method']
 
-            if fee < task.fee:
+            if fee < task.pay:
                 raise ValidationError({
                     'fee': 'You cannot reduce the fee for the task, Please contact support@tunga.io for assistance'
                 })
 
-            task.fee = fee
+            task.bid = fee
             task.payment_method = payment_method
 
             btc_price = coinbase_utils.get_btc_price(task.currency)
@@ -258,7 +258,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
             invoice = TaskInvoice.objects.create(
                 task=task,
                 title=task.title,
-                fee=task.fee,
+                fee=task.pay,
                 client=task.user,
                 developer=developer,
                 payment_method=task.payment_method,
@@ -293,7 +293,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                     BITONIC_CONSUMER_KEY, BITONIC_CONSUMER_SECRET, BITONIC_ACCESS_TOKEN, BITONIC_TOKEN_SECRET,
                     callback_uri=callback, signature_type=SIGNATURE_TYPE_QUERY
                 )
-                amount = task.fee
+                amount = task.pay
                 increase_factor = 1 + (Decimal(BITONIC_PAYMENT_COST_PERCENTAGE)*Decimal(0.01))
                 q_string = urlencode({
                     'ext_data': task.summary.encode('utf-8'),

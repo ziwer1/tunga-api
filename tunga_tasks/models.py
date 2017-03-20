@@ -160,6 +160,9 @@ class Task(models.Model):
     fee = models.DecimalField(
         max_digits=19, decimal_places=4, blank=True, null=True, default=None
     )
+    bid = models.DecimalField(
+        max_digits=19, decimal_places=4, blank=True, null=True, default=None
+    )
 
     # Contact info
     skype_id = models.CharField(max_length=100, blank=True, null=True)
@@ -276,7 +279,7 @@ class Task(models.Model):
         )
 
     def has_admin_access(self, user):
-        if user:
+        if user and user.is_authenticated():
             if user == self.user:
                 return True
             return self.taskaccess_set.filter(user=user).count() == 1
@@ -347,16 +350,20 @@ class Task(models.Model):
                 'confirmed_participants', 'rejected_participants'
             ]
             if not [x for x in request.data.keys() if not (x in allowed_keys or re.match(r'^file\d*$', x))]:
-                return self.pm.id == request.user.id or self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
+                return (self.pm and self.pm.id == request.user.id) or self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
         return False
 
     @property
     def task_number(self):
         return get_serialized_id(self.id, max_digits=3)
 
+    @property
+    def pay(self):
+        return self.bid or self.fee
+
     def display_fee(self, amount=None):
         if amount is None:
-            amount = self.fee
+            amount = self.pay
         if not amount:
             return ''
         if self.currency in CURRENCY_SYMBOLS:
@@ -366,7 +373,7 @@ class Task(models.Model):
 
     @property
     def is_payable(self):
-        return bool(self.fee)
+        return bool(self.pay)
 
     @property
     def is_task(self):
@@ -401,14 +408,14 @@ class Task(models.Model):
             processing_share = BANK_TRANSFER_PAYMENT_COST_PERCENTAGE * 0.01
 
         amount_details = None
-        if self.fee:
+        if self.pay:
             amount_details = dict(
                 dict(
                     currency=CURRENCY_SYMBOLS.get(self.currency, ''),
-                    pledge=self.fee,
-                    developer=Decimal(dev_share) * self.fee,
-                    tunga=Decimal(tunga_share) * self.fee,
-                    processing=Decimal(processing_share) * self.fee
+                    pledge=self.pay,
+                    developer=Decimal(dev_share) * self.pay,
+                    tunga=Decimal(tunga_share) * self.pay,
+                    processing=Decimal(processing_share) * self.pay
                 )
             )
             amount_details['total'] = amount_details['developer'] + amount_details['tunga'] + amount_details['processing']

@@ -40,7 +40,7 @@ def update_task_submit_milestone(task):
             draft_submission_date = task.deadline
         else:
             # standalone task needs a milestone before the deadline
-            days_before = (task.fee > 150 and task_period >= 7) and 2 or 1
+            days_before = (task.pay > 150 and task_period >= 7) and 2 or 1
             draft_submission_date = task.deadline - datetime.timedelta(days=days_before)
 
         draft_defaults = {'due_at': draft_submission_date, 'title': 'Final draft'}

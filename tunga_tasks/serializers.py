@@ -45,7 +45,7 @@ class SimpleTaskSerializer(ContentTypeAnnotatedModelSerializer):
     class Meta:
         model = Task
         fields = (
-            'id', 'user', 'title', 'summary', 'currency', 'fee', 'closed', 'paid', 'display_fee',
+            'id', 'user', 'title', 'summary', 'currency', 'fee', 'bid', 'pay', 'closed', 'paid', 'display_fee',
             'type', 'scope', 'is_project', 'is_task'
         )
 
@@ -247,6 +247,7 @@ class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
 class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer,
                      GetCurrentUserAnnotatedSerializerMixin):
     user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+    pay = serializers.DecimalField(max_digits=19, decimal_places=4, required=False, read_only=True)
     display_fee = serializers.SerializerMethodField(required=False, read_only=True)
     amount = serializers.JSONField(required=False, read_only=True)
     is_payable = serializers.BooleanField(required=False, read_only=True)
@@ -557,10 +558,10 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     def get_display_fee(self, obj):
         user = self.get_current_user()
         amount = None
-        if not obj.fee:
+        if not obj.pay:
             return None
         if user and user.is_developer:
-            amount = obj.fee * (1 - Decimal(TUNGA_SHARE_PERCENTAGE) * Decimal(0.01))
+            amount = obj.pay * (1 - Decimal(TUNGA_SHARE_PERCENTAGE) * Decimal(0.01))
         return obj.display_fee(amount=amount)
 
     def get_can_apply(self, obj):

@@ -2,6 +2,7 @@ from actstream.signals import action
 from django.db.models.signals import post_save
 from django.dispatch.dispatcher import receiver, Signal
 
+from tunga.settings import TUNGA_FEE_DEV
 from tunga_activity import verbs
 from tunga_messages.tasks import create_channel
 from tunga_tasks.notifications import notify_new_task_application, send_new_task_application_applicant_email, \
@@ -94,6 +95,11 @@ def activity_handler_application_response(sender, application, **kwargs):
             application.task.user, verb=status_verb, action_object=application, target=application.task
         )
         send_new_task_application_response_email.delay(application.id)
+
+        if application.accepted and application.hours_needed:
+            task = application.task
+            task.bid = application.hours_needed*TUNGA_FEE_DEV
+            task.save()
 
 
 @receiver(post_save, sender=Participation)
@@ -209,3 +215,8 @@ def activity_handler_quote_status_changed(sender, quote, **kwargs):
         elif quote.status in [STATUS_ACCEPTED, STATUS_REJECTED]:
             action_user = quote.reviewed_by
         action.send(action_user or quote, verb=action_verb, action_object=quote, target=quote.task)
+
+    if quote.status == STATUS_ACCEPTED:
+        task = quote.task
+        task.approved = True
+        task.save()
