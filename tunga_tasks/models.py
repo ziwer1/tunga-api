@@ -252,7 +252,12 @@ class Task(models.Model):
         ordering = ['-created_at']
 
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
-        if not self.id:
+        if self.id:
+            if not self.approved:
+                if self.source == TASK_SOURCE_NEW_USER and self.scope == TASK_SCOPE_TASK and self.description and len(
+                        self.description.split(' ')) >= 15:
+                    self.approved = True
+        else:
             # Analyze new tasks to decide on approval status
             if self.source == TASK_SOURCE_NEW_USER:
                 # For tasks from new users, only approve if sufficient info is provided
@@ -265,9 +270,6 @@ class Task(models.Model):
                 self.approved = bool(
                     self.scope == TASK_SCOPE_TASK or (self.scope == TASK_SCOPE_PROJECT and not self.pm_required)
                 )
-        elif not self.approved:
-            if self.source == TASK_SOURCE_NEW_USER and self.scope == TASK_SCOPE_TASK and self.description and len(self.description.split(' ')) >= 15:
-                self.approved = True
 
         super(Task, self).save(
             force_insert=force_insert, force_update=force_update, using=using, update_fields=update_fields

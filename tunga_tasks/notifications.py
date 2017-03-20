@@ -24,7 +24,7 @@ from tunga_utils.helpers import clean_instance, convert_to_text
 def notify_new_task(instance, new_user=False):
     send_new_task_client_receipt_email(instance)
     send_new_task_email(instance, new_user=new_user)
-    send_new_task_community_email(instance, new_user=new_user)
+    send_new_task_community_email(instance)
 
 
 @job

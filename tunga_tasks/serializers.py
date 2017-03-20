@@ -332,7 +332,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                             attrs.get('participation', None) or attrs.get('participants', None)
                 ):
                     errors.update({'visibility': 'Please choose at least one developer for this task'})
-                if scope == TASK_SCOPE_TASK and description and self.partial and len(description.split(' ')) >= 15:
+                if scope == TASK_SCOPE_TASK and description and self.partial and len(description.split(' ')) <= 15:
                     errors.update({'description': 'Please provide a more detailed description.'})
 
             if scope == TASK_SCOPE_ONGOING:
