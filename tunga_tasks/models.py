@@ -197,6 +197,7 @@ class Task(models.Model):
     satisfaction = models.SmallIntegerField(blank=True, null=True, help_text="Client's rating of task developers")
 
     # Task state modifiers
+    approved = models.BooleanField(default=False)
     apply = models.BooleanField(
         default=True, help_text='True if developers can apply for this task (visibility can override this)'
     )
@@ -207,6 +208,7 @@ class Task(models.Model):
         help_text='True if task has been paid and entire payment has been distributed tp participating developers'
     )
     archived = models.BooleanField(default=False)
+    reminded_complete_task = models.BooleanField(default=False)
 
     # Significant event dates
     deadline = models.DateTimeField(blank=True, null=True)
@@ -216,6 +218,8 @@ class Task(models.Model):
     archived_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     invoice_date = models.DateTimeField(blank=True, null=True)
+    complete_task_email_at = models.DateTimeField(blank=True, null=True)
+    check_task_email_at = models.DateTimeField(blank=True, null=True)
 
     # Applications and participation info
     pm = models.ForeignKey(
@@ -246,6 +250,28 @@ class Task(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        if not self.id:
+            # Analyze new tasks to decide on approval status
+            if self.source == TASK_SOURCE_NEW_USER:
+                # For tasks from new users, only approve if sufficient info is provided
+                if self.scope == TASK_SCOPE_TASK and self.description and len(self.description.split(' ')) >= 15:
+                    self.approved = True
+                else:
+                    self.approved = False
+            else:
+                # For authenticated users, approve tasks and projects that don't need a PM on creation
+                self.approved = bool(
+                    self.scope == TASK_SCOPE_TASK or (self.scope == TASK_SCOPE_PROJECT and not self.pm_required)
+                )
+        elif not self.approved:
+            if self.source == TASK_SOURCE_NEW_USER and self.scope == TASK_SCOPE_TASK and self.description and len(self.description.split(' ')) >= 15:
+                self.approved = True
+
+        super(Task, self).save(
+            force_insert=force_insert, force_update=force_update, using=using, update_fields=update_fields
+        )
 
     def has_admin_access(self, user):
         if user:

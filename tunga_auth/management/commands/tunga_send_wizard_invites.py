@@ -32,4 +32,3 @@ class Command(BaseCommand):
                 )
                 client.last_set_password_email_at = datetime.datetime.utcnow()
                 client.save()
-

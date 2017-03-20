@@ -8,7 +8,7 @@
                         <!-- BEGIN TEMPLATE // -->
                         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse;mso-table-lspace: 0pt;mso-table-rspace: 0pt;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;">
 							<tbody><tr>
-								<td align="center" valign="top" id="templateHeader" data-template-container="" style="background:#f6f6f6 url(&quot;https://gallery.mailchimp.com/4a29a04cabf8436cbb3d7ea7d/images/89dde4fd-38ce-4aa7-b960-64dc68de1e39.png&quot;) no-repeat center/cover;mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;background-color: #f6f6f6;background-image: url(https://gallery.mailchimp.com/4a29a04cabf8436cbb3d7ea7d/images/89dde4fd-38ce-4aa7-b960-64dc68de1e39.png);background-repeat: no-repeat;background-position: center;background-size: cover;border-top: 0;border-bottom: 0;padding-top: 54px;padding-bottom: 54px;">
+								<td align="center" valign="top" id="templateHeader" data-template-container="" style="background:#f6f6f6 url(&quot;https://gallery.mailchimp.com/4a29a04cabf8436cbb3d7ea7d/images/8ccffb3d-e78d-43c8-8a61-a7187f7c831c.jpg&quot;) no-repeat center/cover;mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;background-color: #f6f6f6;background-image: url(https://gallery.mailchimp.com/4a29a04cabf8436cbb3d7ea7d/images/8ccffb3d-e78d-43c8-8a61-a7187f7c831c.jpg);background-repeat: no-repeat;background-position: center;background-size: cover;border-top: 0;border-bottom: 0;padding-top: 54px;padding-bottom: 54px;">
 									<!--[if gte mso 9]>
 									<table align="center" border="0" cellspacing="0" cellpadding="0" width="600" style="width:600px;">
 									<tr>
@@ -33,7 +33,7 @@
 
                         <td valign="top" class="mcnTextContent" style="padding: 0px 18px 9px;font-family: Roboto, &quot;Helvetica Neue&quot;, Helvetica, Arial, sans-serif;font-size: 36px;font-style: normal;font-weight: bold;line-height: 100%;mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;word-break: break-word;color: #808080;text-align: left;">
 
-                            <div style="text-align: center;"><span style="color:#ffffff"><span style="font-size:45px"><strong><span style="font-family:roboto,helvetica neue,helvetica,arial,sans-serif">Yeey! Someone applied to your task!</span></strong></span></span></div>
+                            <div style="text-align: center;"><span style="color:#ffffff"><span style="font-size:45px"><strong><span style="font-family:roboto,helvetica neue,helvetica,arial,sans-serif">Thank you for posting a task on Tunga</span></strong></span></span></div>
 
                         </td>
                     </tr>
@@ -87,9 +87,11 @@
 
                             <h4 class="null" style="display: block;margin: 0;padding: 0;color: #999999;font-family: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif;font-size: 20px;font-style: normal;font-weight: normal;line-height: 100%;letter-spacing: normal;text-align: left;"><span style="font-family:roboto,helvetica neue,helvetica,arial,sans-serif"><span style="font-size:13px"><span style="color:#000000">Hi {{ owner.first_name }},<br>
 <br>
-{{ applicant.display_name }} has applied to your task. You can view&nbsp;the applications to your task <a href="{{ task_url }}">here</a><br>
+Thank you for posting a task on Tunga. You are very close to working with Top African developers.<br>
 <br>
-Note: there might be more developers applying to your task!<br>
+Before we can connect you with our developers we need just a bit more information from you. This will only take a few minutes of your time. Follow this link to give additional&nbsp;information about your task:&nbsp;<br>
+<br>
+<a href="{{ task_edit_url | safe }}">{{ task_edit_url }}</a><br>
 <br>
 Kind regards,</span></span></span><br>
 <br>

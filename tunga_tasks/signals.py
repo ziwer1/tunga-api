@@ -6,7 +6,7 @@ from tunga_activity import verbs
 from tunga_messages.tasks import create_channel
 from tunga_tasks.notifications import notify_new_task_application, send_new_task_application_applicant_email, \
     send_new_task_invitation_email, send_new_task_application_response_email, notify_task_invitation_response, \
-    send_task_application_not_selected_email, notify_new_progress_report
+    send_task_application_not_selected_email, notify_new_progress_report, notify_task_approved
 from tunga_tasks.models import Task, Application, Participation, ProgressEvent, ProgressReport, \
     IntegrationActivity, Integration, Estimate, Quote
 from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates, \
@@ -15,6 +15,7 @@ from tunga_utils.constants import APP_INTEGRATION_PROVIDER_HARVEST, STATUS_SUBMI
     STATUS_ACCEPTED, STATUS_REJECTED
 
 # Task
+task_approved = Signal(providing_args=["task"])
 task_applications_closed = Signal(providing_args=["task"])
 task_closed = Signal(providing_args=["task"])
 
@@ -42,6 +43,12 @@ def activity_handler_new_task(sender, instance, created, **kwargs):
         action.send(instance.user, verb=verbs.CREATE, action_object=instance)
 
         initialize_task_progress_events.delay(instance.id)
+
+
+@receiver(task_approved, sender=Task)
+def activity_handler_task_approved(sender, task, **kwargs):
+    if task.approved and task.is_task:
+        notify_task_approved.delay(task.id)
 
 
 @receiver(task_applications_closed, sender=Task)

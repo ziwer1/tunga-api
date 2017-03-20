@@ -13,7 +13,7 @@ from tunga_utils.helpers import clean_instance
 from tunga_utils.models import ContactRequest
 
 
-def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, **kwargs):
+def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, base_template=None, **kwargs):
     from_email = DEFAULT_FROM_EMAIL
 
     bodies = {}
@@ -41,7 +41,7 @@ def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None,
         if 'html' in bodies:
             try:
                 html_body = render_to_string(
-                    'tunga/email/base.html', dict(email_content=bodies['html'])
+                    base_template or 'tunga/email/base.html', dict(email_content=bodies['html'])
                 ).strip()
             except TemplateDoesNotExist:
                 html_body = bodies['html']
@@ -51,8 +51,8 @@ def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None,
     return msg
 
 
-def send_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, **kwargs):
-    msg = render_mail(subject, template_prefix, to_emails, context, bcc=bcc, cc=cc, **kwargs)
+def send_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, base_template=None, **kwargs):
+    msg = render_mail(subject, template_prefix, to_emails, context, bcc=bcc, cc=cc, base_template=base_template, **kwargs)
     return msg.send()
 
 

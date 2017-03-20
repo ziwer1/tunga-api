@@ -141,6 +141,10 @@ class TungaUser(AbstractUser):
         return None
 
     @property
+    def is_confirmed(self):
+        return self.emailaddress_set.filter(verified=True).count() > 0
+
+    @property
     def uid(self):
         return urlsafe_base64_encode(force_bytes(self.pk))
 

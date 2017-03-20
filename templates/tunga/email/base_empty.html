@@ -1,0 +1,15 @@
+{% autoescape off %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+</head>
+{% with container="max-width: 800px;margin: 0 auto;" img="vertical-align: middle;" img_small="30px;" footer_ext_links_a="margin: 0 2px;text-decoration: none;" footer_ext_links_a_img="vertical-align: middle;" %}
+<body style="font-family: sans-serif;padding: 0;margin: 0;">
+	<div>{{ email_content | safe }}</div>
+</body>
+{% endwith %}
+</html>
+{% endautoescape %}

@@ -2,7 +2,8 @@ from allauth.account.adapter import DefaultAccountAdapter
 from allauth.account.models import EmailAddress
 from allauth.exceptions import ImmediateHttpResponse
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
-from allauth.utils import get_current_site
+from django.contrib.sites.shortcuts import get_current_site
+
 from django.shortcuts import redirect
 from django.template.loader import render_to_string
 

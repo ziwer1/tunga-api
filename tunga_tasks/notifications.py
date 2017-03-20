@@ -12,26 +12,98 @@ from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL, TUNGA_STAFF_UPDATE_E
     SLACK_ATTACHMENT_COLOR_BLUE
 from tunga_auth.filterbackends import my_connections_q_filter
 from tunga_tasks import slugs
-from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport, Estimate
+from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport
 from tunga_utils import slack_utils
 from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, \
-    USER_TYPE_PROJECT_MANAGER, STATUS_APPROVED
+    USER_TYPE_PROJECT_MANAGER, TASK_SOURCE_NEW_USER
 from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance, convert_to_text
 
 
 @job
 def notify_new_task(instance, new_user=False):
-    send_new_task_email(instance, new_user=new_user)
     send_new_task_client_receipt_email(instance)
+    send_new_task_email(instance, new_user=new_user)
+    send_new_task_community_email(instance, new_user=new_user)
+
 
 @job
-def send_new_task_email(instance, new_user=False):
+def notify_task_approved(instance, new_user=False):
+    send_new_task_client_receipt_email(instance)
+    send_new_task_email(instance, new_user=new_user, completed=True)
+    send_new_task_community_email(instance)
+
+@job
+def send_new_task_client_receipt_email(instance, reminder=False):
+    instance = clean_instance(instance, Task)
+    subject = "{} Your {} has been posted on Tunga".format(
+        EMAIL_SUBJECT_PREFIX, instance.scope == TASK_SCOPE_TASK and 'task' or 'project'
+    )
+    if instance.is_task and not instance.approved:
+        subject = "{} {}Finalize your {}".format(
+            EMAIL_SUBJECT_PREFIX, reminder and 'Reminder: ' or '',
+            instance.scope == TASK_SCOPE_TASK and 'task' or 'project'
+        )
+    to = [instance.user.email]
+
+    ctx = {
+        'owner': instance.user,
+        'task': instance,
+        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id),
+        'task_edit_url': '%s/task/%s/edit/complete-task/' % (TUNGA_URL, instance.id)
+    }
+
+    if instance.source == TASK_SOURCE_NEW_USER and not instance.user.is_confirmed:
+        url_prefix = '{}/reset-password/confirm/{}/{}?new_user=true&next='.format(
+            TUNGA_URL, instance.user.uid, instance.user.generate_reset_token()
+        )
+        ctx['task_url'] = '{}{}'.format(url_prefix, ctx['task_url'])
+        ctx['task_edit_url'] = '{}{}'.format(url_prefix, ctx['task_edit_url'])
+
+    if instance.is_task:
+        if instance.approved:
+            email_template = 'tunga/email/email_new_task_client_approved'
+        else:
+            if reminder:
+                email_template = 'tunga/email/email_new_task_client_more_info_reminder'
+            else:
+                email_template = 'tunga/email/email_new_task_client_more_info'
+    else:
+        email_template = 'tunga/email/email_new_task_client_approved'
+    if send_mail(subject, email_template, to, ctx, base_template='tunga/email/base_empty.html'):
+        if not instance.approved:
+            instance.complete_task_email_at = datetime.datetime.utcnow()
+            if reminder:
+                instance.reminded_complete_task = True
+            instance.save()
+
+@job
+def send_new_task_email(instance, new_user=False, completed=False):
+    instance = clean_instance(instance, Task)
+
+    subject = "{} New {} {} by {}{}".format(
+        EMAIL_SUBJECT_PREFIX,
+        instance.scope == TASK_SCOPE_TASK and 'task' or 'project',
+        completed and 'details completed' or 'created',
+        instance.user.first_name, new_user and ' (New user)' or ''
+    )
+
+    to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+    ctx = {
+        'owner': instance.user,
+        'task': instance,
+        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
+    }
+    send_mail(subject, 'tunga/email/email_new_task', to, ctx)
+
+
+@job
+def send_new_task_community_email(instance):
     instance = clean_instance(instance, Task)
 
     # Notify Tunga and Devs or PMs
     community_receivers = None
-    if not instance.is_developer_ready or instance.visibility in [VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM]:
+    if (not instance.is_developer_ready) or (instance.approved and instance.visibility in [VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM]):
 
         # Filter users based on nature of work
         queryset = get_user_model().objects.filter(
@@ -88,32 +160,21 @@ def send_new_task_email(instance, new_user=False):
         if queryset:
             community_receivers = queryset[:15]
 
-    subject = "{} New task created by {}{}".format(
-        EMAIL_SUBJECT_PREFIX, instance.user.first_name, new_user and ' (New user)' or ''
+    subject = "{} New {} created by {}".format(
+        EMAIL_SUBJECT_PREFIX, instance.scope == TASK_SCOPE_TASK and 'task' or 'project', instance.user.first_name
     )
-    to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
-    bcc = [user.email for user in community_receivers] if community_receivers else None
-    ctx = {
-        'owner': instance.user,
-        'task': instance,
-        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
-    }
-    send_mail(subject, 'tunga/email/email_new_task', to, ctx, bcc=bcc)
 
-
-@job
-def send_new_task_client_receipt_email(instance):
-    instance = clean_instance(instance, Task)
-    subject = "{} Your {} has been received".format(
-        EMAIL_SUBJECT_PREFIX, instance.scope == TASK_SCOPE_TASK and 'task' or 'project'
-    )
-    to = [instance.user.email]
-    ctx = {
-        'owner': instance.user,
-        'task': instance,
-        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
-    }
-    send_mail(subject, 'tunga/email/email_new_task_client', to, ctx)
+    if community_receivers:
+        to = [community_receivers[0]]
+        bcc = None
+        if len(community_receivers) > 1:
+            bcc = [user.email for user in community_receivers[1:]] if community_receivers[1:] else None
+        ctx = {
+            'owner': instance.user,
+            'task': instance,
+            'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
+        }
+        send_mail(subject, 'tunga/email/email_new_task', to, ctx, bcc=bcc)
 
 
 @job
@@ -185,6 +246,12 @@ def notify_new_task_application_email(instance):
         'task': instance.task,
         'task_url': '%s/task/%s/applications/' % (TUNGA_URL, instance.task_id)
     }
+
+    if instance.source == TASK_SOURCE_NEW_USER and not instance.user.is_confirmed:
+        url_prefix = '{}/reset-password/confirm/{}/{}?new_user=true&next='.format(
+            TUNGA_URL, instance.user.uid, instance.user.generate_reset_token()
+        )
+        ctx['task_url'] = '{}{}'.format(url_prefix, ctx['task_url'])
     send_mail(subject, 'tunga/email/email_new_task_application', to, ctx)
 
 

@@ -95,7 +95,7 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
             if request.user.is_project_owner:
                 queryset = queryset.filter(Q(user=request.user) | Q(taskaccess__user=request.user))
             elif request.user.is_developer:
-                return queryset.filter(
+                return queryset.exclude(approved=False).filter(
                     Q(scope=TASK_SCOPE_TASK) |
                     (
                         Q(scope=TASK_SCOPE_PROJECT) & Q(pm_required=False) & ~Q(source=TASK_SOURCE_NEW_USER)

@@ -135,6 +135,7 @@ class SimpleConnectionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Connection
+        fields = '__all__'
 
 
 class SimpleUploadSerializer(serializers.ModelSerializer):

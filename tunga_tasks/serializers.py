@@ -19,7 +19,7 @@ from tunga_tasks.models import Task, Application, Participation, TimeEntry, Prog
     TaskInvoice, Estimate, Quote, WorkActivity, WorkPlan, AbstractEstimate
 from tunga_tasks.notifications import notify_new_task
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
-    task_integration, estimate_created, estimate_status_changed, quote_status_changed, quote_created
+    task_integration, estimate_created, estimate_status_changed, quote_status_changed, quote_created, task_approved
 from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, USER_TYPE_PROJECT_OWNER, USER_SOURCE_TASK_WIZARD, \
     TASK_SCOPE_ONGOING, VISIBILITY_CUSTOM, TASK_SCOPE_TASK, TASK_SCOPE_PROJECT, TASK_SOURCE_NEW_USER, STATUS_INITIAL, \
     STATUS_ACCEPTED, STATUS_APPROVED, STATUS_DECLINED, STATUS_REJECTED, STATUS_SUBMITTED
@@ -36,6 +36,7 @@ class SimpleProjectSerializer(ContentTypeAnnotatedModelSerializer):
 
     class Meta:
         model = Project
+        fields = '__all__'
 
 
 class SimpleTaskSerializer(ContentTypeAnnotatedModelSerializer):
@@ -137,7 +138,6 @@ class SimpleProgressEventSerializer(BasicProgressEventSerializer):
 
     class Meta(BasicProgressEventSerializer.Meta):
         model = ProgressEvent
-
 
 
 class SimpleProgressReportSerializer(BasicProgressReportSerializer):
@@ -332,6 +332,9 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                             attrs.get('participation', None) or attrs.get('participants', None)
                 ):
                     errors.update({'visibility': 'Please choose at least one developer for this task'})
+                if scope == TASK_SCOPE_TASK and description and self.partial and len(description.split(' ')) >= 15:
+                    errors.update({'description': 'Please provide a more detailed description.'})
+
             if scope == TASK_SCOPE_ONGOING:
                 if not skills and not self.partial:
                     errors.update({'skills': 'This field is required.'})
@@ -396,12 +399,14 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
 
         initial_apply = True
         initial_closed = False
+        initial_approved = False
         new_user = None
         is_update = bool(instance)
 
         if instance:
             initial_apply = instance.apply
             initial_closed = instance.closed
+            initial_approved = instance.approved
 
             if not instance.closed and validated_data.get('closed'):
                 validated_data['closed_at'] = datetime.datetime.utcnow()
@@ -441,6 +446,9 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         self.save_ratings(instance, ratings)
 
         if is_update:
+            if not initial_approved and instance.approved:
+                task_approved.send(sender=Task, task=instance)
+
             if initial_apply and not instance.apply:
                 task_applications_closed.send(sender=Task, task=instance)
 
@@ -556,7 +564,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         return obj.display_fee(amount=amount)
 
     def get_can_apply(self, obj):
-        if obj.closed or not obj.apply:
+        if obj.closed or not obj.apply or not obj.is_developer_ready:
             return False
         user = self.get_current_user()
         if user:
