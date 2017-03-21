@@ -29,7 +29,7 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
 
     class Meta:
         model = UserProfile
-        fields = '__all__'
+        exclude = ()
         details_serializer = ProfileDetailsSerializer
 
     def validate(self, attrs):

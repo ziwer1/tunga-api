@@ -185,7 +185,7 @@ class ProjectSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedMode
 
     class Meta:
         model = Project
-        fields = '__all__'
+        exclude = ()
         read_only_fields = ('created_at',)
         details_serializer = ProjectDetailsSerializer
 
@@ -635,7 +635,7 @@ class ApplicationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotated
 
     class Meta:
         model = Application
-        fields = '__all__'
+        exclude = ()
         details_serializer = ApplicationDetailsSerializer
         extra_kwargs = {
             'pitch': {'required': True, 'allow_blank': False, 'allow_null': False},
@@ -668,7 +668,7 @@ class ParticipationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotat
 
     class Meta:
         model = Participation
-        fields = '__all__'
+        exclude = ()
         read_only_fields = ('created_at',)
         details_serializer = ParticipationDetailsSerializer
 
@@ -856,7 +856,7 @@ class TimeEntrySerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedMo
 
     class Meta:
         model = TimeEntry
-        fields = '__all__'
+        exclude = ()
         read_only_fields = ('created_at', 'updated_at')
         details_serializer = TimeEntryDetailsSerializer
 
@@ -864,10 +864,11 @@ class TimeEntrySerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedMo
 class ProgressEventDetailsSerializer(serializers.ModelSerializer):
     task = SimpleTaskSerializer()
     created_by = SimpleUserSerializer()
+    active_participants = SimpleParticipationSerializer(many=True, source='task.active_participants')
 
     class Meta:
         model = ProgressEvent
-        fields = ('task', 'created_by')
+        fields = ('task', 'created_by', 'active_participants')
 
 
 class ProgressEventSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
@@ -877,7 +878,7 @@ class ProgressEventSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotat
 
     class Meta:
         model = ProgressEvent
-        fields = '__all__'
+        exclude = ()
         read_only_fields = ('created_at',)
         details_serializer = ProgressEventDetailsSerializer
 
@@ -897,7 +898,7 @@ class ProgressReportSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnota
 
     class Meta:
         model = ProgressReport
-        fields = '__all__'
+        exclude = ()
         read_only_fields = ('created_at',)
         details_serializer = ProgressReportDetailsSerializer
 

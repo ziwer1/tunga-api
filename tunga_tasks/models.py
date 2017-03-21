@@ -452,6 +452,10 @@ class Task(models.Model):
         return self.participation_set.filter(Q(accepted=True) | Q(responded=False))
 
     @property
+    def active_participants(self):
+        return self.participation_set.filter(accepted=True)
+
+    @property
     def assignee(self):
         try:
             return self.participation_set.get((Q(accepted=True) | Q(responded=False)), assignee=True)

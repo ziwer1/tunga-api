@@ -73,7 +73,7 @@ class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedS
 
     class Meta:
         model = Channel
-        fields = '__all__'
+        exclude = ()
         read_only_fields = ('created_at', 'type')
         details_serializer = ChannelDetailsSerializer
 
