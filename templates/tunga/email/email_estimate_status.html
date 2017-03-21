@@ -1,0 +1,21 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_content %}
+    <p>{% if target %}Hi {{ target.first_name }}{% else %}Hello{% endif %},</p>
+
+    <p>{{ actor.display_name }} {{ verb }} {% if noun == 'estimate' %}an{% else %}a{% endif %} {{ noun }}:</p>
+
+    <p>{{ task.summary }}</p>
+
+    <p>
+        {% if estimate.hours %}Hours: {{ estimate.hours | safe }}<br/>{% endif %}
+
+        {% if estimate.fee %}Cost: {{ estimate.fee | safe }}<br/>{% endif %}
+    </p>
+
+    <p>
+        Click the link below to view the details{% if actor.id == estimate.user.id %} and respond to the {{ noun }}{% else %}{% endif %}:<br/>
+        <a href="{{ estimate_url }}">{{ estimate_url }}</a>
+    </p>
+
+{% endblock %}

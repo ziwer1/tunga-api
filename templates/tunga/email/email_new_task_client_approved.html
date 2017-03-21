@@ -33,7 +33,7 @@
 
                         <td valign="top" class="mcnTextContent" style="padding: 0px 18px 9px;font-family: Roboto, &quot;Helvetica Neue&quot;, Helvetica, Arial, sans-serif;font-size: 36px;font-style: normal;font-weight: bold;line-height: 100%;mso-line-height-rule: exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;word-break: break-word;color: #808080;text-align: left;">
 
-                            <div style="text-align: center;"><span style="color:#ffffff"><span style="font-size:45px"><strong><span style="font-family:roboto,helvetica neue,helvetica,arial,sans-serif">Great stuff! Your task has been posted on Tunga</span></strong></span></span></div>
+                            <div style="text-align: center;"><span style="color:#ffffff"><span style="font-size:45px"><strong><span style="font-family:roboto,helvetica neue,helvetica,arial,sans-serif">Great stuff! Your {% if task.is_task %}task{% else %}project{% endif %} has been posted on Tunga</span></strong></span></span></div>
 
                         </td>
                     </tr>
@@ -87,23 +87,27 @@
 
                             <h4 class="null" style="display: block;margin: 0;padding: 0;color: #999999;font-family: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif;font-size: 20px;font-style: normal;font-weight: normal;line-height: 100%;letter-spacing: normal;text-align: left;"><span style="font-family:roboto,helvetica neue,helvetica,arial,sans-serif"><span style="font-size:13px"><span style="color:#000000">Hi {{ owner.first_name }},<br>
 <br>
-Your task has been submitted to Tunga. <a href="{{ task_url | safe }}">Here</a> &nbsp;you can view your task or make adjustments.&nbsp;<br>
+Your {% if task.is_task %}task{% else %}project{% endif %} has been submitted to Tunga. <a href="{{ task_url | safe }}">Here</a> &nbsp;you can view your {% if task.is_task %}task{% else %}project{% endif %} or make adjustments.&nbsp;<br>
 <br>
-This is what is going to happen next:<br>
-<br>
-<strong>1) Our developers are going to look at your task.</strong><br>
-<br>
-Developers can directly apply to your task or they can request additional information to you or give suggestions. You can interact with developers before you choose one to work with using our messaging functionality<br>
-<br>
-<strong>2) You choose a developer.</strong><br>
-<br>
-You can select the developer that suits your software need best. When you selected the developer, he will start on your task right away!<br>
-<br>
-<strong>3) Establish the workflow&nbsp;</strong><br>
-<br>
-You can share documents and communicate with the developer in Tunga's workflow page. This page will be created automatically for you. On this page, you can integrate tools like Trello, Github, and Slack. Also, all updates on the progress on this page. &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<br>
-If you have any questions regarding what is going to happen next, you can <a href="https://tunga.io/call">schedule a call</a> with us or email us at hello@tunga.io.<br>
-<br>
+{% if task.is_task %}
+    This is what is going to happen next:<br>
+    <br>
+    <strong>1) Our developers are going to look at your task.</strong><br>
+    <br>
+    Developers can directly apply to your task or they can request additional information to you or give suggestions. You can interact with developers before you choose one to work with using our messaging functionality<br>
+    <br>
+    <strong>2) You choose a developer.</strong><br>
+    <br>
+    You can select the developer that suits your software need best. When you selected the developer, he will start on your task right away!<br>
+    <br>
+    <strong>3) Establish the workflow&nbsp;</strong><br>
+    <br>
+    You can share documents and communicate with the developer in Tunga's workflow page. This page will be created automatically for you. On this page, you can integrate tools like Trello, Github, and Slack. Also, all updates on the progress on this page. &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<br>
+    If you have any questions regarding what is going to happen next, you can <a href="https://tunga.io/call">schedule a call</a> with us or email us at hello@tunga.io.<br>
+    <br>
+{% else %}
+    We will get back to you within 48 hours with the next steps to complete your project.
+{% endif %}
 Kind regards,</span></span></span><br>
 <br>
 <strong><span style="font-family:roboto,helvetica neue,helvetica,arial,sans-serif"><span style="font-size:13px"><span style="color:#ee1f54">Your friends from Tunga</span></span></span></strong></h4>

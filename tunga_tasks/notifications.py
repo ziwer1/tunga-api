@@ -12,10 +12,11 @@ from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL, TUNGA_STAFF_UPDATE_E
     SLACK_ATTACHMENT_COLOR_BLUE
 from tunga_auth.filterbackends import my_connections_q_filter
 from tunga_tasks import slugs
-from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport
+from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport, Quote, Estimate
 from tunga_utils import slack_utils
 from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, \
-    USER_TYPE_PROJECT_MANAGER, TASK_SOURCE_NEW_USER
+    USER_TYPE_PROJECT_MANAGER, TASK_SOURCE_NEW_USER, STATUS_INITIAL, STATUS_SUBMITTED, STATUS_APPROVED, STATUS_DECLINED, \
+    STATUS_ACCEPTED, STATUS_REJECTED
 from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance, convert_to_text
 
@@ -175,6 +176,103 @@ def send_new_task_community_email(instance):
             'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
         }
         send_mail(subject, 'tunga/email/email_new_task', to, ctx, bcc=bcc)
+
+
+VERB_MAP_STATUS_CHANGE = {
+    STATUS_SUBMITTED: 'submitted',
+    STATUS_APPROVED: 'approved',
+    STATUS_DECLINED: 'declined',
+    STATUS_ACCEPTED: 'accepted',
+    STATUS_REJECTED: 'rejected'
+}
+
+
+@job
+def send_estimate_status_email(instance, estimate_type='estimate'):
+    instance = clean_instance(instance, estimate_type == 'quote' and Quote or Estimate)
+    if instance.status == STATUS_INITIAL:
+        return
+
+    actor = None
+    target = None
+    action_verb = VERB_MAP_STATUS_CHANGE.get(instance.status, None)
+    recipients = None
+    copied = None
+
+    if instance.status in [STATUS_SUBMITTED]:
+        actor = instance.user
+        recipients = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+    elif instance.status in [STATUS_APPROVED, STATUS_DECLINED]:
+        actor = instance.moderated_by
+        target = instance.user
+        recipients = [instance.user.email]
+    elif instance.status in [STATUS_ACCEPTED, STATUS_REJECTED]:
+        actor = instance.reviewed_by
+        target = instance.user
+        recipients = [instance.user.email]
+        copied = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+
+    subject = "{} {} {} {}".format(
+        EMAIL_SUBJECT_PREFIX,
+        actor.first_name,
+        action_verb,
+        estimate_type == 'estimate' and 'an estimate' or 'a quote'
+    )
+    to = recipients
+
+    ctx = {
+        'owner': instance.user,
+        'estimate': instance,
+        'task': instance.task,
+        'estimate_url': '{}/task/{}/{}/{}'.format(TUNGA_URL, instance.task.id, estimate_type, instance.id),
+        'actor': actor,
+        'target': target,
+        'verb': action_verb,
+        'noun': estimate_type
+    }
+
+    if send_mail(subject, 'tunga/email/email_estimate_status', to, ctx, cc=copied):
+        if instance.status == STATUS_SUBMITTED:
+            instance.moderator_email_at = datetime.datetime.utcnow()
+            instance.save()
+        if instance.status in [STATUS_ACCEPTED, STATUS_REJECTED]:
+            instance.reviewed_email_at = datetime.datetime.utcnow()
+            instance.save()
+
+    if instance.status == STATUS_APPROVED:
+        send_estimate_approved_client_email(instance, estimate_type=estimate_type)
+
+
+def send_estimate_approved_client_email(instance, estimate_type='estimate'):
+    instance = clean_instance(instance, estimate_type == 'quote' and Quote or Estimate)
+    if instance.status != STATUS_APPROVED:
+        return
+    subject = "{} {} submitted {}".format(
+        EMAIL_SUBJECT_PREFIX,
+        instance.user.first_name,
+        estimate_type == 'estimate' and 'an estimate' or 'a quote'
+    )
+    to = [instance.task.user.email]
+    ctx = {
+        'owner': instance.user,
+        'estimate': instance,
+        'task': instance.task,
+        'estimate_url': '{}/task/{}/{}/{}'.format(TUNGA_URL, instance.task.id, estimate_type, instance.id),
+        'actor': instance.user,
+        'target': instance.task.user,
+        'verb': 'submitted',
+        'noun': estimate_type
+    }
+
+    if instance.task.source == TASK_SOURCE_NEW_USER and not instance.task.user.is_confirmed:
+        url_prefix = '{}/reset-password/confirm/{}/{}?new_user=true&next='.format(
+            TUNGA_URL, instance.user.uid, instance.user.generate_reset_token()
+        )
+        ctx['estimate_url'] = '{}{}'.format(url_prefix, ctx['estimate_url'])
+
+    if send_mail(subject, 'tunga/email/email_estimate_status', to, ctx):
+        instance.reviewer_email_at = datetime.datetime.utcnow()
+        instance.save()
 
 
 @job

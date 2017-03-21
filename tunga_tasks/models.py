@@ -20,7 +20,7 @@ from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
 from tunga.settings import TUNGA_SHARE_PERCENTAGE, BITONIC_PAYMENT_COST_PERCENTAGE, \
-    BANK_TRANSFER_PAYMENT_COST_PERCENTAGE
+    BANK_TRANSFER_PAYMENT_COST_PERCENTAGE, TUNGA_PM_TIME_RATIO, TUNGA_FEE_DEV, TUNGA_FEE_PM
 from tunga_activity.models import ActivityReadLog
 from tunga_comments.models import Comment
 from tunga_messages.models import Channel
@@ -720,6 +720,7 @@ class AbstractEstimate(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    reviewed_email_at = models.DateTimeField(blank=True, null=True)
 
     # Moderation
     moderated_by = models.ForeignKey(
@@ -727,6 +728,7 @@ class AbstractEstimate(models.Model):
     )
     moderator_comment = models.TextField(blank=True, null=True)
     moderated_at = models.DateTimeField(blank=True, null=True)
+    moderator_email_at = models.DateTimeField(blank=True, null=True)
 
     # Review
     reviewed_by = models.ForeignKey(
@@ -734,6 +736,7 @@ class AbstractEstimate(models.Model):
     )
     reviewer_comment = models.TextField(blank=True, null=True)
     reviewed_at = models.DateTimeField(blank=True, null=True)
+    reviewer_email_at = models.DateTimeField(blank=True, null=True)
 
     # Relationships
     activity_objects = GenericRelation(
@@ -767,6 +770,47 @@ class AbstractEstimate(models.Model):
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
         return request.user == self.user
+
+    @property
+    def dev_hours(self):
+        return sum([x.hours for x in self.activities.all()])
+
+    @property
+    def pm_hours(self):
+        return self.dev_hours*TUNGA_PM_TIME_RATIO
+
+    @property
+    def hours(self):
+        return self.dev_hours + self.dev_hours
+
+    @property
+    def dev_fee(self):
+        return Decimal(self.dev_hours) * TUNGA_FEE_DEV
+
+    @property
+    def pm_fee(self):
+        return Decimal(self.pm_hours)*TUNGA_FEE_PM
+
+    @property
+    def fee(self):
+        return self.dev_fee + self.pm_fee
+
+    @property
+    def fee_details(self):
+        return dict(
+            dev=dict(
+                hours=self.dev_hours,
+                fee=self.dev_fee
+            ),
+            pm=dict(
+                hours=self.pm_hours,
+                fee=self.pm_fee
+            ),
+            total=dict(
+                hours=self.dev_hours+self.pm_hours,
+                fee=self.dev_fee+self.pm_fee
+            )
+        )
 
 
 class Estimate(AbstractEstimate):

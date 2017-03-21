@@ -7,7 +7,7 @@ from tunga_activity import verbs
 from tunga_messages.tasks import create_channel
 from tunga_tasks.notifications import notify_new_task_application, send_new_task_application_applicant_email, \
     send_new_task_invitation_email, send_new_task_application_response_email, notify_task_invitation_response, \
-    send_task_application_not_selected_email, notify_new_progress_report, notify_task_approved
+    send_task_application_not_selected_email, notify_new_progress_report, notify_task_approved, send_estimate_status_email
 from tunga_tasks.models import Task, Application, Participation, ProgressEvent, ProgressReport, \
     IntegrationActivity, Integration, Estimate, Quote
 from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates, \
@@ -202,6 +202,8 @@ def activity_handler_estimate_status_changed(sender, estimate, **kwargs):
             action_user = estimate.reviewed_by
         action.send(action_user or estimate, verb=action_verb, action_object=estimate, target=estimate.task)
 
+    send_estimate_status_email(estimate.id)
+
 
 @receiver(quote_status_changed, sender=Quote)
 def activity_handler_quote_status_changed(sender, quote, **kwargs):
@@ -219,4 +221,9 @@ def activity_handler_quote_status_changed(sender, quote, **kwargs):
     if quote.status == STATUS_ACCEPTED:
         task = quote.task
         task.approved = True
+        task.bid = quote.fee
         task.save()
+
+    send_estimate_status_email(quote.id, estimate_type='quote')
+
+
