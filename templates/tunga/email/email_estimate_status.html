@@ -1,5 +1,8 @@
 {% extends "tunga/email/content.html" %}
 {% load i18n %}
+{% block email_header %}
+    New {{ noun | capfirst }} {{ verb }} by {{ actor.first_name }}
+{% endblock %}
 {% block email_content %}
     <p>{% if target %}Hi {{ target.first_name }}{% else %}Hello{% endif %},</p>
 

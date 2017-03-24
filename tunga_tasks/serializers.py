@@ -784,6 +784,7 @@ class AbstractEstimateSerializer(
                 try:
                     item['content_type'] = c_type
                     item['object_id'] = instance.id
+                    item['user'] = self.get_current_user()
                     WorkActivity.objects.create(**item)
                 except:
                     pass
@@ -837,8 +838,9 @@ class QuoteSerializer(AbstractEstimateSerializer):
                 try:
                     item['content_type'] = c_type
                     item['object_id'] = instance.id
+                    item['user'] = self.get_current_user()
                     WorkPlan.objects.create(**item)
-                except:
+                except ValueError:
                     pass
 
 
