@@ -1,7 +1,10 @@
 {% extends "tunga/email/content.html" %}
 {% load i18n %}
+{% block email_header %}
+    {{ invitee.first_name }} {% if accepted %}accepted{% else %}turned down{% endif %} your {% if task.is_task %}task{% else %}project{% endif %}.
+{% endblock %}
 {% block email_content %}
-    <p>Hello {{ inviter.first_name }},</p>
+    <p>Hi {{ inviter.first_name }},</p>
 
     <p>
         {{ invitee.display_name }} {% if accepted %}accepted{% else %}rejected{% endif %} your invitation for the task:

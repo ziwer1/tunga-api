@@ -1,5 +1,8 @@
 {% extends "tunga/email/content.html" %}
 {% load i18n %}
+{% block email_header %}
+    {{ application.first_name }} wants to become a Tunga developer.
+{% endblock %}
 {% block email_content %}
     <p>Hello,</p>
 

@@ -1,7 +1,10 @@
 {% extends "tunga/email/content.html" %}
 {% load i18n %}
+{% block email_header %}
+    {{ owner.first_name }} {% if accepted %}accepted{% else %}turned down{% endif %} your application.
+{% endblock %}
 {% block email_content %}
-    <p>Hello {{ applicant.first_name }},</p>
+    <p>Hi {{ applicant.first_name }},</p>
 
     <p>
         {{ owner.display_name }} {% if accepted %}accepted{% else %}rejected{% endif %} your application for the task:

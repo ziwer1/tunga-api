@@ -2,6 +2,9 @@
 {% load account %}
 {% user_display user as user_display %}
 {% load i18n %}
+{% block email_header %}
+    Confirm your email on Tunga.
+{% endblock %}
 {% block email_content %}
     <p>Hi {{ user.first_name }},</p>
 

@@ -569,7 +569,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             return False
         user = self.get_current_user()
         if user:
-            if obj.user == user or user.pending or not profile_check(user):
+            if obj.user == user or not user.is_developer or user.pending or not profile_check(user):
                 return False
             return obj.applicants.filter(id=user.id).count() == 0 and \
                    obj.participation_set.filter(user=user).count() == 0
@@ -579,7 +579,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         if obj.closed:
             return False
         user = self.get_current_user()
-        if user and user.is_authenticated() and (user.is_project_manager or user.is_admin) and not obj.pm:
+        if user and user.is_authenticated() and (user.is_project_manager or user.is_admin) and not obj.pm and (obj.pm_required or obj.source == TASK_SOURCE_NEW_USER):
             return True
         return False
 

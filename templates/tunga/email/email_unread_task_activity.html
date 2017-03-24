@@ -1,6 +1,9 @@
 {% extends "tunga/email/content.html" %}
+{% block email_header %}
+    Check on your {% if task.is_task %}task{% else %}project{% endif %} on Tunga.
+{% endblock %}
 {% block email_content %}
-    <p>Hello {{ receiver.first_name }},</p>
+    <p>Hi {{ receiver.first_name }},</p>
 
     <p>You missed {{ new_activity }} new activit{{ new_activity | pluralize:"y,ies" }} for the task:</p>
 

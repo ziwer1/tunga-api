@@ -1,7 +1,10 @@
 {% extends "tunga/email/content.html" %}
 {% load i18n %}
+{% block email_header %}
+    Get started with your Tunga account!
+{% endblock %}
 {% block email_content %}
-    <p>Hello {{ invite.first_name }},</p>
+    <p>Hi {{ invite.first_name }},</p>
 
     <p>You have been invited to become a Tunga {% if invite.type == 3 %}project manager{% elif invite.type == 2 %}project owner{% else %}developer{% endif %}.</p>
 

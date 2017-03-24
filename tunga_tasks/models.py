@@ -301,7 +301,7 @@ class Task(models.Model):
         if request.user == self.user or \
                 (self.parent and request.user == self.parent.user) or \
                 self.has_admin_access(request.user) or \
-                (request.user.is_project_manager and (self.pm == request.user or not self.pm)):
+                (request.user.is_project_manager): #and (self.pm == request.user or not self.pm)):
             return True
         elif self.visibility == VISIBILITY_DEVELOPER:
             return request.user.type == USER_TYPE_DEVELOPER
@@ -584,6 +584,7 @@ class Application(models.Model):
     pitch = models.CharField(max_length=1000, blank=True, null=True)
     hours_needed = models.PositiveIntegerField(blank=True, null=True)
     hours_available = models.PositiveIntegerField(blank=True, null=True)
+    days_available = models.PositiveIntegerField(blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)  # These will also be delivered as messages to the client
     deliver_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,5 +1,8 @@
 {% extends "tunga/email/content.html" %}
 {% load i18n %}
+{% block email_header %}
+    Woohoo! A new {% if task.is_task %}task{% else %}project{% endif %} was posted on Tunga
+{% endblock %}
 {% block email_content %}
     <p>Hello,</p>
 

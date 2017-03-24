@@ -13,8 +13,10 @@ from tunga_utils.helpers import clean_instance
 from tunga_utils.models import ContactRequest
 
 
-def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, base_template=None, **kwargs):
+def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, **kwargs):
     from_email = DEFAULT_FROM_EMAIL
+    if not re.match(r'^\[\s*Tunga', subject):
+        subject = '{} {}'.format(EMAIL_SUBJECT_PREFIX, subject)
 
     bodies = {}
     for ext in ['html', 'txt']:
@@ -41,7 +43,7 @@ def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None,
         if 'html' in bodies:
             try:
                 html_body = render_to_string(
-                    base_template or 'tunga/email/base.html', dict(email_content=bodies['html'])
+                    'tunga/email/base.html', dict(email_content=bodies['html'])
                 ).strip()
             except TemplateDoesNotExist:
                 html_body = bodies['html']
@@ -51,8 +53,8 @@ def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None,
     return msg
 
 
-def send_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, base_template=None, **kwargs):
-    msg = render_mail(subject, template_prefix, to_emails, context, bcc=bcc, cc=cc, base_template=base_template, **kwargs)
+def send_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, **kwargs):
+    msg = render_mail(subject, template_prefix, to_emails, context, bcc=bcc, cc=cc, **kwargs)
     return msg.send()
 
 

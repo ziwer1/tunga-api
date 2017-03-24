@@ -1,7 +1,10 @@
 {% extends "tunga/email/content.html" %}
 {% load i18n %}
+{% block email_header %}
+    Great! Your application was received.
+{% endblock %}
 {% block email_content %}
-    <p>Hello {{ applicant.first_name }},</p>
+    <p>Hi {{ applicant.first_name }},</p>
 
     <p>You applied for a task:</p>
 

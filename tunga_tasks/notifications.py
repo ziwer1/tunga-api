@@ -71,7 +71,7 @@ def send_new_task_client_receipt_email(instance, reminder=False):
                 email_template = 'tunga/email/email_new_task_client_more_info'
     else:
         email_template = 'tunga/email/email_new_task_client_approved'
-    if send_mail(subject, email_template, to, ctx, base_template='tunga/email/base_empty.html'):
+    if send_mail(subject, email_template, to, ctx):
         if not instance.approved:
             instance.complete_task_email_at = datetime.datetime.utcnow()
             if reminder:
@@ -188,7 +188,7 @@ VERB_MAP_STATUS_CHANGE = {
 
 
 @job
-def send_estimate_status_email(instance, estimate_type='estimate'):
+def send_estimate_status_email(instance, estimate_type='estimate', target_admins=False):
     instance = clean_instance(instance, estimate_type == 'quote' and Quote or Estimate)
     if instance.status == STATUS_INITIAL:
         return
@@ -197,7 +197,6 @@ def send_estimate_status_email(instance, estimate_type='estimate'):
     target = None
     action_verb = VERB_MAP_STATUS_CHANGE.get(instance.status, None)
     recipients = None
-    copied = None
 
     if instance.status in [STATUS_SUBMITTED]:
         actor = instance.user
@@ -208,9 +207,14 @@ def send_estimate_status_email(instance, estimate_type='estimate'):
         recipients = [instance.user.email]
     elif instance.status in [STATUS_ACCEPTED, STATUS_REJECTED]:
         actor = instance.reviewed_by
-        target = instance.user
-        recipients = [instance.user.email]
-        copied = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+        if target_admins:
+            recipients = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+        else:
+            target = instance.user
+            recipients = [instance.user.email]
+
+            # Notify staff in a separate email
+            send_estimate_status_email.delay(instance.id, estimate_type=estimate_type, target_admins=True)
 
     subject = "{} {} {} {}".format(
         EMAIL_SUBJECT_PREFIX,
@@ -231,7 +235,7 @@ def send_estimate_status_email(instance, estimate_type='estimate'):
         'noun': estimate_type
     }
 
-    if send_mail(subject, 'tunga/email/email_estimate_status', to, ctx, cc=copied):
+    if send_mail(subject, 'tunga/email/email_estimate_status', to, ctx):
         if instance.status == STATUS_SUBMITTED:
             instance.moderator_email_at = datetime.datetime.utcnow()
             instance.save()

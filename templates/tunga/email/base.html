@@ -1,54 +1,100 @@
 {% autoescape off %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
-</head>
-{% with container="max-width: 800px;margin: 0 auto;" img="vertical-align: middle;" img_small="30px;" footer_ext_links_a="margin: 0 2px;text-decoration: none;" footer_ext_links_a_img="vertical-align: middle;" %}
-<body style="font-family: sans-serif;padding: 0;margin: 0;">
-	<div style="{{ container }}">
-		<div style="text-align: center;margin: 10px 0;">
-            <img height="100px" width="100px" style="width: 100px; height: 100px;" src="https://tunga.io/static/tunga/img/email/tunga_round.png" alt="Tunga"/>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+        <link href='https://fonts.googleapis.com/css?family=Roboto:100,100i,300,300i,400,400i,500,500i,700,700i'
+              rel='stylesheet' type='text/css'>
+        <style>
+            body {
+                font-family: 'Roboto', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+                padding: 0;
+                margin: 0;
+                background-color: #f6f6f6;
+            }
+
+            table {
+                width: 100%;
+                border-width: 0;
+                border-collapse: collapse;
+            }
+
+            .container {
+                max-width: 800px;
+                margin: 0 auto;
+            }
+
+            .header {
+                font-size: 45px;
+                font-weight: bold;
+                color: #fff;
+                text-align: center;
+                padding: 54px 0;
+                background: #202020;
+                background-repeat: no-repeat;
+                background-position: center;
+                background-size: cover;
+            }
+
+            .content {
+                padding: 20px 0;
+            }
+
+            .signature {
+                margin-top: 20px
+            }
+
+            .highlight {
+                color: #ee1f54; font-weight: bold
+            }
+
+            .footer {
+                text-align: center;
+                color: #fff;
+                background-color: #202020;
+                margin-top: 50px;
+                padding: 50px 0;
+            }
+
+            .footer a {
+                margin: 0 5px;
+                text-decoration: none;
+            }
+
+            .footer a img {
+                vertical-align: middle;
+            }
+
+        </style>
+    </head>
+    {% with img="vertical-align: middle;" img_small="30px;" %}
+        <body>
+        <div>
+            {{ email_content | safe }}
         </div>
-		<div style="text-align: center;margin: 20px 0 10px;">
-			{{ email_content | safe }}
-		</div>
-	</div>
-	<div style="color: #fff;background-color: #ee1f54;padding: 15px;margin-top:50px;">
-		<div style="{{ container }}">
-            <table style="width:100%; border-width: 0;border-collapse: collapse;">
-                <tr>
-                    <td>
-                        <img style="{{ img }}" src="https://tunga.io/static/tunga/img/email/noun.png"
-                             height="{{ img_small }}"/> Need help?
-                        <p style="font-size: 12px;">If you have a question or need assistance, email us!</p>
-						<div style="font-size: 12px;">We are more than happy to help out.</div>
-                    </td>
-                    <td style="text-align: right; padding-top: 25px">
-                        <a style="{{ footer_ext_links_a }}" href="https://www.facebook.com/tunga.io/">
-                            <img style="{{ footer_ext_links_a_img }}" height="{{ img_small }}"
-                                 src="https://tunga.io/static/tunga/img/email/fb.png" alt="Facebook"/>
-                        </a>
-                        <a style="{{ footer_ext_links_a }}" href="https://twitter.com/tunga_io">
-                            <img style="{{ footer_ext_links_a_img }}" height="{{ img_small }}"
-                                 src="https://tunga.io/static/tunga/img/email/twitter.png" alt="Twitter"/>
-                        </a>
-                        <a style="{{ footer_ext_links_a }}" href="https://blog.tunga.io">
-                            <img style="{{ footer_ext_links_a_img }}" height="{{ img_small }}"
-                                 src="https://tunga.io/static/tunga/img/email/blog.png" alt="Blog"/>
-                        </a>
-                        <a style="{{ footer_ext_links_a }}" href="mailto:bart@tunga.io">
-                            <img style="{{ footer_ext_links_a_img }}" height="{{ img_small }}"
-                                 src="https://tunga.io/static/tunga/img/email/mail.png" alt="E-mail"/>
-                        </a>
-                    </td>
-                </tr>
-            </table>
-		</div>
-	</div>
-</body>
-{% endwith %}
-</html>
+        <div class="footer">
+            <div class="container">
+                <a href="https://tunga.io">
+                    <img width="24px" height="24px"
+                         src="https://tunga.io/static/tunga/img/email/outline-light-link-48.png" alt="Tunga"/>
+                </a>
+                <a href="https://www.facebook.com/tunga.io/">
+                    <img width="24px" height="24px"
+                         src="https://tunga.io/static/tunga/img/email/outline-light-facebook-48.png" alt="Facebook"/>
+                </a>
+                <a href="https://twitter.com/tunga_io">
+                    <img width="24px" height="24px"
+                         src="https://tunga.io/static/tunga/img/email/outline-light-twitter-48.png" alt="Twitter"/>
+                </a>
+                <a href="https://blog.tunga.io">
+                    <img width="24px" height="24px"
+                         src="https://tunga.io/static/tunga/img/email/outline-light-medium-48.png" alt="Blog"/>
+                </a>
+            </div>
+        </div>
+        </body>
+    {% endwith %}
+    </html>
 {% endautoescape %}

@@ -1,10 +1,23 @@
 {% autoescape off %}
-{% block email_content %}{% endblock %}
+<div class="header" style="background-image: url({% block email_header_bg %}https://tunga.io/static/tunga/img/email/header1.jpg{% endblock %})">
+    <div class="container">
+        {% block email_header %}
+            Hello from Tunga
+        {% endblock %}
+    </div>
+</div>
+<div class="content">
+    <div class="container">
+        {% block email_content %}{% endblock %}
+    </div>
+</div>
 
-<div style="margin: 30px 0 10px;">
-    {% block signature %}
-    <p>Kind regards,</p>
-    <p>The Tunga team</p>
-    {% endblock %}
+<div class="signature">
+    <div class="container">
+        {% block signature %}
+        <p>Kind regards,</p>
+        <p class="highlight">Your friends from Tunga</p>
+        {% endblock %}
+    </div>
 </div>
 {% endautoescape %}

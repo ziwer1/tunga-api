@@ -1,6 +1,9 @@
 {% extends "tunga/email/content.html" %}
+{% block email_header %}
+    You have new messages on Tunga.
+{% endblock %}
 {% block email_content %}
-    <p>Hello {{ customer.name }},</p>
+    <p>Hi {{ customer.name }},</p>
 
     <p>You have {{ count }} new message{{ count | pluralize }}</p>
 

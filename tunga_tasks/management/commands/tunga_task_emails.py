@@ -11,8 +11,8 @@ class Command(BaseCommand):
         """
         Distribute task payments.
         """
-        # command to run: python manage.py tunga_distribute_task_payments
+        # command to run: python manage.py tunga_task_emails
 
-        #send_new_task_client_receipt_email(80)
+        send_new_task_client_receipt_email(82)
 
-        send_estimate_status_email(7, estimate_type='quote')
+        #send_estimate_status_email(7, estimate_type='quote')

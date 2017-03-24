@@ -1,7 +1,10 @@
 {% extends "tunga/email/content.html" %}
 {% load i18n %}
+{% block email_header %}
+    Thank you for posting your {% if task.is_task %}task{% else %}project{% endif %} on Tunga
+{% endblock %}
 {% block email_content %}
-    <p>Hello {{ owner.first_name }},</p>
+    <p>Hi {{ owner.first_name }},</p>
 
     <p>Thanks for using Tunga!</p>
 
