@@ -20,21 +20,21 @@ class ActionFilter(GenericDateFilterSet):
             'action_object_content_type', 'action_object_object_id', 'since'
         )
 
-    def filter_user(self, queryset, value):
+    def filter_user(self, queryset, name, value):
         return queryset.filter(
             actor_content_type=ContentType.objects.get_for_model(get_user_model()), actor_object_id=value
         )
 
-    def filter_task(self, queryset, value):
+    def filter_task(self, queryset, name, value):
         return queryset.filter(
             target_content_type=ContentType.objects.get_for_model(Task), target_object_id=value
         )
 
 
 class MessageActivityFilter(ActionFilter):
-    since = django_filters.IsoDateTimeFilter(method='filter_since')
+    since = django_filters.NumberFilter(method='filter_since')
 
-    def filter_since(self, queryset, value):
+    def filter_since(self, queryset, name, value):
         return queryset.filter(
             id__gt=value, verb__in=[verbs.SEND, verbs.UPLOAD]
         )

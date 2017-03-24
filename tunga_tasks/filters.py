@@ -27,7 +27,7 @@ class TaskFilter(GenericDateFilterSet):
             'skill', 'skill_id'
         )
 
-    def filter_payment_status(self, queryset, value):
+    def filter_payment_status(self, queryset, name, value):
         queryset = queryset.filter(closed=True)
         if value in ['paid', 'processing']:
             queryset = queryset.filter(paid=True)

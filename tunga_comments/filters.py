@@ -14,7 +14,7 @@ class CommentFilter(GenericDateFilterSet):
         model = Comment
         fields = ('user', 'content_type', 'object_id', 'since')
 
-    def filter_task(self, queryset, value):
+    def filter_task(self, queryset, name, value):
         task_content_type = ContentType.objects.get_for_model(Task)
         return queryset.filter(content_type=task_content_type.id, object_id=value)
 
