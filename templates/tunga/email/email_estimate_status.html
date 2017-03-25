@@ -13,7 +13,7 @@
     <p>
         {% if estimate.hours %}Hours: {{ estimate.hours | floatformat:-2 }}<br/>{% endif %}
 
-        {% if estimate.fee %}{% if target or not target.is_project_manager %}Cost: €{{ estimate.fee | floatformat:-2 }}<br/>{% endif %}{% endif %}
+        {% if estimate.fee %}Cost: €{{ estimate.fee | floatformat:-2 }}<br/>{% endif %}
     </p>
 
     <p>

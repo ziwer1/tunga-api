@@ -561,7 +561,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         if not obj.pay:
             return None
         if user and user.is_developer:
-            amount = obj.pay * (1 - Decimal(TUNGA_SHARE_PERCENTAGE) * Decimal(0.01))
+            amount = obj.pay_dev * (1 - obj.tunga_ratio_dev)
         return obj.display_fee(amount=amount)
 
     def get_can_apply(self, obj):
@@ -576,7 +576,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         return False
 
     def get_can_claim(self, obj):
-        if obj.closed:
+        if obj.closed or obj.is_task:
             return False
         user = self.get_current_user()
         if user and user.is_authenticated() and (user.is_project_manager or user.is_admin) and not obj.pm and (obj.pm_required or obj.source == TASK_SOURCE_NEW_USER):

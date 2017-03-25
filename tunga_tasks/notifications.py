@@ -82,8 +82,9 @@ def send_new_task_client_receipt_email(instance, reminder=False):
 def send_new_task_email(instance, new_user=False, completed=False):
     instance = clean_instance(instance, Task)
 
-    subject = "{} New {} {} by {}{}".format(
+    subject = "{} {} {} {} by {}{}".format(
         EMAIL_SUBJECT_PREFIX,
+        completed and 'New wizard' and 'New',
         instance.scope == TASK_SCOPE_TASK and 'task' or 'project',
         completed and 'details completed' or 'created',
         instance.user.first_name, new_user and ' (New user)' or ''
@@ -93,7 +94,8 @@ def send_new_task_email(instance, new_user=False, completed=False):
     ctx = {
         'owner': instance.user,
         'task': instance,
-        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
+        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id),
+        'completed': completed
     }
     send_mail(subject, 'tunga/email/email_new_task', to, ctx)
 
@@ -166,7 +168,7 @@ def send_new_task_community_email(instance):
     )
 
     if community_receivers:
-        to = [community_receivers[0]]
+        to = [community_receivers[0].email]
         bcc = None
         if len(community_receivers) > 1:
             bcc = [user.email for user in community_receivers[1:]] if community_receivers[1:] else None
@@ -228,7 +230,7 @@ def send_estimate_status_email(instance, estimate_type='estimate', target_admins
         'owner': instance.user,
         'estimate': instance,
         'task': instance.task,
-        'estimate_url': '{}/task/{}/{}/{}'.format(TUNGA_URL, instance.task.id, estimate_type, instance.id),
+        'estimate_url': '{}/work/{}/{}/{}'.format(TUNGA_URL, instance.task.id, estimate_type, instance.id),
         'actor': actor,
         'target': target,
         'verb': action_verb,
@@ -261,7 +263,7 @@ def send_estimate_approved_client_email(instance, estimate_type='estimate'):
         'owner': instance.user,
         'estimate': instance,
         'task': instance.task,
-        'estimate_url': '{}/task/{}/{}/{}'.format(TUNGA_URL, instance.task.id, estimate_type, instance.id),
+        'estimate_url': '{}/work/{}/{}/{}'.format(TUNGA_URL, instance.task.id, estimate_type, instance.id),
         'actor': instance.user,
         'target': instance.task.user,
         'verb': 'submitted',
@@ -288,7 +290,7 @@ def send_new_task_invitation_email(instance):
         'inviter': instance.created_by,
         'invitee': instance.user,
         'task': instance.task,
-        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.task.id)
+        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
     }
     send_mail(subject, 'tunga/email/email_new_task_invitation', to, ctx)
 
@@ -310,7 +312,7 @@ def notify_task_invitation_response_email(instance):
         'invitee': instance.user,
         'accepted': instance.accepted,
         'task': instance.task,
-        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.task.id)
+        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
     }
     send_mail(subject, 'tunga/email/email_task_invitation_response', to, ctx)
 
@@ -322,7 +324,7 @@ def notify_task_invitation_response_slack(instance):
     if not slack_utils.is_task_notification_enabled(instance.task, slugs.EVENT_APPLICATION):
         return
 
-    task_url = '%s/task/%s/' % (TUNGA_URL, instance.task_id)
+    task_url = '%s/work/%s/' % (TUNGA_URL, instance.task_id)
     slack_msg = "Task invitation %s by %s %s\n\n<%s|View details on Tunga>" % (
         instance.accepted and 'accepted' or 'rejected', instance.user.short_name,
         instance.accepted and ':smiley: :fireworks:' or ':unamused:',
@@ -346,10 +348,10 @@ def notify_new_task_application_email(instance):
         'owner': instance.task.user,
         'applicant': instance.user,
         'task': instance.task,
-        'task_url': '%s/task/%s/applications/' % (TUNGA_URL, instance.task_id)
+        'task_url': '%s/work/%s/applications/' % (TUNGA_URL, instance.task_id)
     }
 
-    if instance.source == TASK_SOURCE_NEW_USER and not instance.user.is_confirmed:
+    if instance.task.source == TASK_SOURCE_NEW_USER and not instance.user.is_confirmed:
         url_prefix = '{}/reset-password/confirm/{}/{}?new_user=true&next='.format(
             TUNGA_URL, instance.user.uid, instance.user.generate_reset_token()
         )
@@ -364,7 +366,7 @@ def notify_new_task_application_slack(instance):
     if not slack_utils.is_task_notification_enabled(instance.task, slugs.EVENT_APPLICATION):
         return
 
-    application_url = '%s/task/%s/applications/' % (TUNGA_URL, instance.task_id)
+    application_url = '%s/work/%s/applications/' % (TUNGA_URL, instance.task_id)
     slack_msg = "New application from %s" % instance.user.short_name
     attachments = [
         {
@@ -397,7 +399,7 @@ def send_new_task_application_response_email(instance):
         'applicant': instance.user,
         'accepted': instance.accepted,
         'task': instance.task,
-        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.task.id)
+        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
     }
     send_mail(subject, 'tunga/email/email_task_application_response', to, ctx)
 
@@ -411,7 +413,7 @@ def send_new_task_application_applicant_email(instance):
         'owner': instance.task.user,
         'applicant': instance.user,
         'task': instance.task,
-        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.task.id)
+        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
     }
     send_mail(subject, 'tunga/email/email_new_task_application_applicant', to, ctx)
 
@@ -428,7 +430,7 @@ def send_task_application_not_selected_email(instance):
         bcc = [dev.user.email for dev in rejected_applicants[1:]] if len(rejected_applicants) > 1 else None
         ctx = {
             'task': instance,
-            'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
+            'task_url': '%s/work/%s/' % (TUNGA_URL, instance.id)
         }
         send_mail(subject, 'tunga/email/email_task_application_not_selected', to, ctx, bcc=bcc)
 
@@ -449,7 +451,7 @@ def send_progress_event_reminder_email(instance):
         ctx = {
             'owner': instance.task.user,
             'event': instance,
-            'update_url': '%s/task/%s/event/%s/' % (TUNGA_URL, instance.task.id, instance.id)
+            'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.task.id, instance.id)
         }
         if send_mail(subject, 'tunga/email/email_progress_event_reminder', to, ctx, bcc=bcc):
             instance.last_reminder_at = datetime.datetime.utcnow()
@@ -471,7 +473,7 @@ def notify_new_progress_report_email(instance):
         'reporter': instance.user,
         'event': instance.event,
         'report': instance,
-        'update_url': '%s/task/%s/event/%s/' % (TUNGA_URL, instance.event.task.id, instance.event.id)
+        'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.event.task.id, instance.event.id)
     }
     send_mail(subject, 'tunga/email/email_new_progress_report', to, ctx)
 
@@ -482,7 +484,7 @@ def notify_new_progress_report_slack(instance):
     if not slack_utils.is_task_notification_enabled(instance.event.task, slugs.EVENT_PROGRESS):
         return
 
-    report_url = '%s/task/%s/event/%s/' % (TUNGA_URL, instance.event.task_id, instance.event_id)
+    report_url = '%s/work/%s/event/%s/' % (TUNGA_URL, instance.event.task_id, instance.event_id)
     slack_msg = "%s submitted a Progress Report | %s" % (
         instance.user.display_name, '<{}|View details on Tunga>'.format(report_url)
     )
@@ -536,7 +538,7 @@ def send_task_invoice_request_email(instance):
     ctx = {
         'owner': instance.user,
         'task': instance,
-        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id),
+        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.id),
         'invoice_url': '%s/api/task/%s/download/invoice/?format=pdf' % (TUNGA_URL, instance.id)
     }
     send_mail(subject, 'tunga/email/email_task_invoice_request', to, ctx)

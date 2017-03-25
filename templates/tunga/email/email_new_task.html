@@ -6,7 +6,7 @@
 {% block email_content %}
     <p>Hello,</p>
 
-    <p>{{ owner.display_name }} created a new task:</p>
+    <p>{{ owner.display_name }} {% if completed %}completed the details for{% else %}created{% endif %} a new task:</p>
 
     <p>{{ task.summary }}</p>
 
@@ -19,7 +19,11 @@
 
         {% if task.deadline %}Deadline: {{ task.deadline | date:'jS F Y \a\t H:i' }} GMT<br/>{% endif %}
 
-        {% if task.description %}{{ task.description | safe }}<br/>{% endif %}
+        {% if task.description %}
+            <br/>
+            Description:<br/>
+            {{ task.description | safe }}<br/>
+        {% endif %}
     </p>
 
     <p>

@@ -4,7 +4,8 @@ from django.dispatch.dispatcher import receiver, Signal
 
 from tunga.settings import TUNGA_FEE_DEV
 from tunga_activity import verbs
-from tunga_messages.tasks import create_channel
+from tunga_messages.models import Message
+from tunga_messages.tasks import create_channel, get_or_create_task_channel
 from tunga_tasks.notifications import notify_new_task_application, send_new_task_application_applicant_email, \
     send_new_task_invitation_email, send_new_task_application_response_email, notify_task_invitation_response, \
     send_task_application_not_selected_email, notify_new_progress_report, notify_task_approved, send_estimate_status_email
@@ -73,12 +74,8 @@ def activity_handler_new_application(sender, instance, created, **kwargs):
 
         if instance.remarks:
             # Send the developer's remarks as a message to the client
-            subject = 'Developer remark on %s' % instance.task.summary
-            create_channel(
-                initiator=instance.user, participants=[instance.task.user],
-                subject=subject, messages=[{'user': instance.user, 'body': instance.remarks}],
-                content_object=instance
-            )
+            channel = get_or_create_task_channel(instance.user, instance)
+            Message.objects.create(channel=channel, **{'user': instance.user, 'body': instance.remarks})
 
         # Send email notification to project owner
         notify_new_task_application.delay(instance.id)

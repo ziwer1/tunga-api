@@ -9,8 +9,8 @@
     <br>
     {{ applicant.display_name }} has applied to your task.<br/>
     <br/>
-    You can view the applications to your task by clicking the following link:
-    <a href="{{ task_url }}">here</a><br>
+    You can view the applications to your task by clicking the following link:<br/>
+    <a href="{{ task_url | safe }}">{{ task_url | safe }}</a><br>
     <br>
     Note: more developers may apply to your task!<br>
     <br>

@@ -152,7 +152,7 @@ class Task(models.Model):
     parent = models.ForeignKey('self', related_name='sub_tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
     source = models.IntegerField(choices=TASK_SOURCE_CHOICES, default=TASK_SOURCE_DEFAULT)
 
-    # Pledge
+    # Payment
     billing_method = models.IntegerField(
         choices=TASK_BILLING_CHOICES, default=TASK_BILLING_METHOD_FIXED, blank=True, null=True
     )
@@ -162,6 +162,21 @@ class Task(models.Model):
     )
     bid = models.DecimalField(
         max_digits=19, decimal_places=4, blank=True, null=True, default=None
+    )
+    dev_rate = models.DecimalField(
+        max_digits=19, decimal_places=4, default=19
+    )
+    pm_rate = models.DecimalField(
+        max_digits=19, decimal_places=4, default=39
+    )
+    pm_time_percentage = models.DecimalField(
+        max_digits=7, decimal_places=4, default=15
+    )
+    tunga_percentage_dev = models.DecimalField(
+        max_digits=7, decimal_places=4, default=34.21
+    )
+    tunga_percentage_pm = models.DecimalField(
+        max_digits=7, decimal_places=4, default=48.71
     )
 
     # Contact info
@@ -358,8 +373,30 @@ class Task(models.Model):
         return get_serialized_id(self.id, max_digits=3)
 
     @property
+    def tunga_ratio_dev(self):
+        return self.tunga_percentage_dev * Decimal(0.01)
+
+    @property
+    def tunga_ratio_pm(self):
+        return self.tunga_percentage_pm * Decimal(0.01)
+
+    @property
+    def pm_time_ratio(self):
+        return self.pm_time_percentage * Decimal(0.01)
+
+    @property
     def pay(self):
         return self.bid or self.fee
+
+    @property
+    def pay_dev(self):
+        return self.pay - self.pay_pm
+
+    @property
+    def pay_pm(self):
+        if self.is_project and self.pm:
+            return self.pm_time_ratio*self.pay
+        return 0
 
     def display_fee(self, amount=None):
         if amount is None:
@@ -399,13 +436,11 @@ class Task(models.Model):
 
     @property
     def amount(self):
-        tunga_share = TUNGA_SHARE_PERCENTAGE * 0.01
-        dev_share = 1 - tunga_share
         processing_share = 0
         if self.payment_method == TASK_PAYMENT_METHOD_BITONIC:
-            processing_share = BITONIC_PAYMENT_COST_PERCENTAGE * 0.01
+            processing_share = Decimal(BITONIC_PAYMENT_COST_PERCENTAGE) * Decimal(0.01)
         elif self.payment_method == TASK_PAYMENT_METHOD_BANK:
-            processing_share = BANK_TRANSFER_PAYMENT_COST_PERCENTAGE * 0.01
+            processing_share = Decimal(BANK_TRANSFER_PAYMENT_COST_PERCENTAGE) * Decimal(0.01)
 
         amount_details = None
         if self.pay:
@@ -413,12 +448,13 @@ class Task(models.Model):
                 dict(
                     currency=CURRENCY_SYMBOLS.get(self.currency, ''),
                     pledge=self.pay,
-                    developer=Decimal(dev_share) * self.pay,
-                    tunga=Decimal(tunga_share) * self.pay,
-                    processing=Decimal(processing_share) * self.pay
+                    developer=(1 - self.tunga_ratio_dev) * self.pay_dev,
+                    pm=(1 - self.tunga_ratio_pm) * self.pay_pm,
+                    processing=processing_share * self.pay
                 )
             )
-            amount_details['total'] = amount_details['developer'] + amount_details['tunga'] + amount_details['processing']
+            amount_details['tunga'] = self.pay - (amount_details['developer'] + amount_details['pm'])
+            amount_details['total'] = self.pay + amount_details['processing']
         return amount_details
 
     @property
@@ -544,7 +580,7 @@ class Task(models.Model):
             for data in participation_shares:
                 payment_shares.append({
                     'participant': data['participant'],
-                    'share': Decimal(data['share'])*Decimal((100 - TUNGA_SHARE_PERCENTAGE)*0.01)
+                    'share': Decimal(data['share'])*Decimal((100 - self.tunga_percentage_dev)*0.01)
                 })
         return payment_shares
 
@@ -559,7 +595,7 @@ class Task(models.Model):
     def get_user_payment_share(self, participation_id):
         share = self.get_user_participation_share(participation_id=participation_id)
         if share:
-            return share*(Decimal(100 - TUNGA_SHARE_PERCENTAGE) / Decimal(100))
+            return share*(Decimal(100 - self.tunga_percentage_dev) / Decimal(100))
         return 0
 
 
@@ -1237,6 +1273,16 @@ class TaskInvoice(models.Model):
     class Meta:
         ordering = ['created_at']
 
+    @property
+    def pay_dev(self):
+        return self.fee - self.pay_pm
+
+    @property
+    def pay_pm(self):
+        if self.task.is_project and self.pm:
+            return self.task.pm_time_ratio * self.fee
+        return 0
+
     def display_fee(self, amount=None):
         if amount is None:
             amount = self.fee
@@ -1250,26 +1296,30 @@ class TaskInvoice(models.Model):
         return self.get_amount_details(share=1)
 
     def get_amount_details(self, share=1):
-        tunga_share = TUNGA_SHARE_PERCENTAGE * 0.01
-        dev_share = 1 - tunga_share
+        share = Decimal(share)
         fee_portion = self.fee * share
+        fee_portion_dev = self.pay_dev * share
+        fee_portion_pm = self.pay_pm * share
+
         processing_share = 0
         if self.payment_method == TASK_PAYMENT_METHOD_BITONIC:
-            processing_share = BITONIC_PAYMENT_COST_PERCENTAGE * 0.01
+            processing_share = Decimal(BITONIC_PAYMENT_COST_PERCENTAGE) * Decimal(0.01)
         elif self.payment_method == TASK_PAYMENT_METHOD_BANK:
-            processing_share = BANK_TRANSFER_PAYMENT_COST_PERCENTAGE * 0.01
-        amount_details = {
-            'currency': CURRENCY_SYMBOLS.get(self.currency, ''),
-            'share': share,
-            'pledge': self.fee,
-            'portion': round_decimal(fee_portion, 2),
-            'developer': round_decimal(Decimal(dev_share) * fee_portion, 2),
-            'tunga': round_decimal(Decimal(tunga_share) * fee_portion, 2),
-            'processing': round_decimal(Decimal(processing_share) * fee_portion, 2)
-        }
+            processing_share = Decimal(BANK_TRANSFER_PAYMENT_COST_PERCENTAGE) * Decimal(0.01)
+        amount_details = dict(
+            currency=CURRENCY_SYMBOLS.get(self.currency, ''),
+            share=share,
+            pledge=self.fee,
+            portion=round_decimal(fee_portion, 2),
+            developer=round_decimal((1 - self.task.tunga_ratio_dev) * fee_portion_dev, 2),
+            pm=round_decimal((1 - self.task.tunga_ratio_pm) * fee_portion_pm, 2),
+            processing=round_decimal(Decimal(processing_share) * fee_portion, 2)
+        )
 
-        amount_details['total'] = round_decimal(amount_details['portion'] + amount_details['processing'], 2)
-        amount_details['total_dev'] = round_decimal(amount_details['tunga'] + amount_details['processing'], 2)
+        amount_details['tunga'] = round_decimal(fee_portion - (amount_details['developer'] + amount_details['pm']), 2)
+        amount_details['total'] = round_decimal(fee_portion + amount_details['processing'], 2)
+        amount_details['total_dev'] = round_decimal(fee_portion_dev + (processing_share * fee_portion_dev), 2)
+        amount_details['total_pm'] = round_decimal(fee_portion_pm + (processing_share * fee_portion_pm), 2)
         return amount_details
 
     @property
