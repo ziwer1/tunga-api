@@ -1,16 +1,16 @@
 from actstream.signals import action
+from decimal import Decimal
 from django.db.models.signals import post_save
 from django.dispatch.dispatcher import receiver, Signal
 
-from tunga.settings import TUNGA_FEE_DEV
 from tunga_activity import verbs
 from tunga_messages.models import Message
-from tunga_messages.tasks import create_channel, get_or_create_task_channel
+from tunga_messages.tasks import get_or_create_task_channel
+from tunga_tasks.models import Task, Application, Participation, ProgressEvent, ProgressReport, \
+    IntegrationActivity, Integration, Estimate, Quote
 from tunga_tasks.notifications import notify_new_task_application, send_new_task_application_applicant_email, \
     send_new_task_invitation_email, send_new_task_application_response_email, notify_task_invitation_response, \
     send_task_application_not_selected_email, notify_new_progress_report, notify_task_approved, send_estimate_status_email
-from tunga_tasks.models import Task, Application, Participation, ProgressEvent, ProgressReport, \
-    IntegrationActivity, Integration, Estimate, Quote
 from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates, \
     complete_harvest_integration
 from tunga_utils.constants import APP_INTEGRATION_PROVIDER_HARVEST, STATUS_SUBMITTED, STATUS_APPROVED, STATUS_DECLINED, \
@@ -93,9 +93,9 @@ def activity_handler_application_response(sender, application, **kwargs):
         )
         send_new_task_application_response_email.delay(application.id)
 
-        if application.accepted and application.hours_needed:
+        if application.accepted and application.hours_needed and application.task.is_task:
             task = application.task
-            task.bid = application.hours_needed*TUNGA_FEE_DEV
+            task.bid = Decimal(application.hours_needed)*application.task.dev_rate
             task.save()
 
 

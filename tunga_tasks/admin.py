@@ -35,7 +35,8 @@ class ParticipationInline(admin.TabularInline):
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     list_display = (
-        'summary', 'user', 'type', 'scope', 'source', 'apply', 'closed', 'archived', 'skills_list', 'created_at'
+        'summary', 'user', 'type', 'scope', 'source', 'apply', 'closed', 'archived', 'skills_list', 'created_at',
+        'fee', 'bid', 'dev_rate', 'pm_rate', 'pm_time_percentage', 'tunga_percentage_dev', 'tunga_percentage_pm'
     )
     list_filter = ('type', 'scope', 'source', 'closed', 'apply', 'archived')
     search_fields = ('title',)

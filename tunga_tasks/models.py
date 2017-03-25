@@ -19,8 +19,8 @@ from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
-from tunga.settings import TUNGA_SHARE_PERCENTAGE, BITONIC_PAYMENT_COST_PERCENTAGE, \
-    BANK_TRANSFER_PAYMENT_COST_PERCENTAGE, TUNGA_PM_TIME_RATIO, TUNGA_FEE_DEV, TUNGA_FEE_PM
+from tunga.settings import BITONIC_PAYMENT_COST_PERCENTAGE, \
+    BANK_TRANSFER_PAYMENT_COST_PERCENTAGE
 from tunga_activity.models import ActivityReadLog
 from tunga_comments.models import Comment
 from tunga_messages.models import Channel
@@ -806,11 +806,11 @@ class AbstractEstimate(models.Model):
     @staticmethod
     @allow_staff_or_superuser
     def has_write_permission(request):
-        return request.user.is_project_manager
+        return request.user.is_project_manager or request.user.is_project_owner
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
-        return request.user == self.user
+        return request.user == self.user or request.user == self.task.user
 
     @property
     def dev_hours(self):
@@ -818,19 +818,19 @@ class AbstractEstimate(models.Model):
 
     @property
     def pm_hours(self):
-        return self.dev_hours*TUNGA_PM_TIME_RATIO
+        return self.dev_hours*self.task.pm_time_ratio
 
     @property
     def hours(self):
-        return self.dev_hours + self.dev_hours
+        return self.dev_hours + self.pm_hours
 
     @property
     def dev_fee(self):
-        return Decimal(self.dev_hours) * TUNGA_FEE_DEV
+        return Decimal(self.dev_hours) * self.task.dev_rate
 
     @property
     def pm_fee(self):
-        return Decimal(self.pm_hours)*TUNGA_FEE_PM
+        return Decimal(self.pm_hours)*self.task.pm_rate
 
     @property
     def fee(self):
