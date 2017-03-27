@@ -580,7 +580,7 @@ class Task(models.Model):
             for data in participation_shares:
                 payment_shares.append({
                     'participant': data['participant'],
-                    'share': Decimal(data['share'])*Decimal((100 - self.tunga_percentage_dev)*0.01)
+                    'share': Decimal(data['share'])*Decimal(1 - self.tunga_ratio_dev)
                 })
         return payment_shares
 

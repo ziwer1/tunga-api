@@ -84,7 +84,7 @@ def send_new_task_email(instance, new_user=False, completed=False):
 
     subject = "{} {} {} {} by {}{}".format(
         EMAIL_SUBJECT_PREFIX,
-        completed and 'New wizard' and 'New',
+        completed and 'New wizard' or 'New',
         instance.scope == TASK_SCOPE_TASK and 'task' or 'project',
         completed and 'details completed' or 'created',
         instance.user.first_name, new_user and ' (New user)' or ''
