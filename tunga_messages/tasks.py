@@ -1,6 +1,8 @@
+from django.contrib.contenttypes.models import ContentType
 from django_rq.decorators import job
 
 from tunga_messages.models import Channel, ChannelUser, Message
+from tunga_tasks.models import Task
 from tunga_utils.constants import CHANNEL_TYPE_DIRECT, CHANNEL_TYPE_TOPIC, CHANNEL_TYPE_SUPPORT, CHANNEL_TYPE_DEVELOPER
 from tunga_utils.helpers import clean_instance
 
@@ -46,9 +48,14 @@ def get_or_create_support_channel(user):
 
 def get_or_create_task_channel(user, task):
     try:
-        return Channel.objects.filter(
-            type=CHANNEL_TYPE_TOPIC, participants=user
-        ).filter(participants=task.user).latest('created_at')
+        channel = Channel.objects.filter(
+            type=CHANNEL_TYPE_TOPIC, object_id=task.id, content_type=ContentType.objects.get_for_model(Task)
+        ).latest('created_at')
+        # Add users as participants
+        ChannelUser.objects.update_or_create(user=user, channel=channel)
+        ChannelUser.objects.update_or_create(user=task.user, channel=channel)
+        return channel
+
     except Channel.DoesNotExist:
         return create_channel(
             initiator=user, participants=[task.user],

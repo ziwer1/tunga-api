@@ -459,7 +459,10 @@ class Task(models.Model):
 
     @property
     def summary(self):
-        return self.title or self.excerpt or '{} #{}'.format(self.is_task and 'Task' or 'Project', self.id)
+        try:
+            return self.title or truncatewords(strip_tags(self.description).strip(), 10)
+        except:
+            return '{} #{}'.format(self.is_task and 'Task' or 'Project', self.id)
 
     @property
     def excerpt(self):

@@ -38,7 +38,7 @@ class TaskAdmin(admin.ModelAdmin):
         'summary', 'user', 'type', 'scope', 'source', 'apply', 'closed', 'archived', 'skills_list', 'created_at',
         'fee', 'bid', 'dev_rate', 'pm_rate', 'pm_time_percentage', 'tunga_percentage_dev', 'tunga_percentage_pm'
     )
-    list_filter = ('type', 'scope', 'source', 'closed', 'apply', 'archived')
+    list_filter = ('type', 'scope', 'source', 'apply', 'closed', 'paid', 'pay_distributed', 'archived')
     search_fields = ('title',)
     inlines = (TaskAccessInline, ParticipationInline)
 
