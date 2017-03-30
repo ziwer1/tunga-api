@@ -43,13 +43,13 @@ class TaskFilter(GenericDateFilterSet):
 class ApplicationFilter(GenericDateFilterSet):
     class Meta:
         model = Application
-        fields = ('user', 'task', 'accepted', 'responded')
+        fields = ('user', 'task', 'status')
 
 
 class ParticipationFilter(GenericDateFilterSet):
     class Meta:
         model = Participation
-        fields = ('user', 'task', 'accepted')
+        fields = ('user', 'task', 'status')
 
 
 class EstimateFilter(GenericDateFilterSet):

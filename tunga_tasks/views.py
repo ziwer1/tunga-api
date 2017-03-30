@@ -45,7 +45,7 @@ from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, Parti
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
 from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa
-from tunga_utils.constants import TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BANK
+from tunga_utils.constants import TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BANK, STATUS_ACCEPTED
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.mixins import SaveUploadsMixin
 from tunga_utils.serializers import InvoiceUserSerializer
@@ -244,7 +244,9 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
             developer = None
             try:
-                assignee = task.participation_set.filter(accepted=True).order_by('-assignee').earliest('created_at')
+                assignee = task.participation_set.filter(
+                    status=STATUS_ACCEPTED
+                ).order_by('-assignee').earliest('created_at')
                 developer = assignee.user
             except:
                 pass

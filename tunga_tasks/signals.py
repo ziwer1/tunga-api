@@ -14,7 +14,7 @@ from tunga_tasks.notifications import notify_new_task_application, send_new_task
 from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates, \
     complete_harvest_integration
 from tunga_utils.constants import APP_INTEGRATION_PROVIDER_HARVEST, STATUS_SUBMITTED, STATUS_APPROVED, STATUS_DECLINED, \
-    STATUS_ACCEPTED, STATUS_REJECTED
+    STATUS_ACCEPTED, STATUS_REJECTED, STATUS_INITIAL
 
 # Task
 task_approved = Signal(providing_args=["task"])
@@ -86,14 +86,14 @@ def activity_handler_new_application(sender, instance, created, **kwargs):
 
 @receiver(application_response, sender=Application)
 def activity_handler_application_response(sender, application, **kwargs):
-    if application.accepted or application.responded:
-        status_verb = application.accepted and verbs.ACCEPT or verbs.REJECT
+    if application.status != STATUS_INITIAL:
+        status_verb = application.status == STATUS_ACCEPTED and verbs.ACCEPT or verbs.REJECT
         action.send(
             application.task.user, verb=status_verb, action_object=application, target=application.task
         )
         send_new_task_application_response_email.delay(application.id)
 
-        if application.accepted and application.hours_needed and application.task.is_task:
+        if application.status == STATUS_ACCEPTED and application.hours_needed and application.task.is_task:
             task = application.task
             task.bid = Decimal(application.hours_needed)*application.task.dev_rate
             task.save()
@@ -104,23 +104,23 @@ def activity_handler_new_participant(sender, instance, created, **kwargs):
     if created:
         action.send(instance.created_by, verb=verbs.ADD, action_object=instance, target=instance.task)
 
-        if not instance.responded and not instance.accepted:
+        if instance.status == STATUS_INITIAL:
             send_new_task_invitation_email.delay(instance.id)
 
-        if instance.accepted:
+        if instance.status == STATUS_ACCEPTED:
             update_task_periodic_updates.delay(instance.task.id)
 
 
 @receiver(participation_response, sender=Participation)
 def activity_handler_participation_response(sender, participation, **kwargs):
-    if participation.accepted or participation.responded:
-        status_verb = participation.accepted and verbs.ACCEPT or verbs.REJECT
+    if participation.status != STATUS_INITIAL:
+        status_verb = participation.status == STATUS_ACCEPTED and verbs.ACCEPT or verbs.REJECT
         action.send(
             participation.task.user, verb=status_verb, action_object=participation, target=participation.task
         )
         notify_task_invitation_response.delay(participation.id)
 
-        if participation.accepted:
+        if participation.status == STATUS_ACCEPTED:
             update_task_periodic_updates.delay(participation.task.id)
 
 

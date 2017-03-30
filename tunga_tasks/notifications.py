@@ -148,7 +148,7 @@ def send_new_task_community_email(instance):
                         When(
                             participation__task__closed=True,
                             participation__user__id=F('id'),
-                            participation__accepted=True,
+                            participation__status=STATUS_ACCEPTED,
                             then=1
                         ),
                         default=0,
@@ -304,13 +304,16 @@ def notify_task_invitation_response(instance):
 @job
 def notify_task_invitation_response_email(instance):
     instance = clean_instance(instance, Participation)
+    if instance.status not in [STATUS_ACCEPTED, STATUS_REJECTED]:
+        return
+
     subject = "%s Task invitation %s by %s" % (
-        EMAIL_SUBJECT_PREFIX, instance.accepted and 'accepted' or 'rejected', instance.user.first_name)
+        EMAIL_SUBJECT_PREFIX, instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected', instance.user.first_name)
     to = list({instance.task.user.email, instance.created_by.email})
     ctx = {
         'inviter': instance.created_by,
         'invitee': instance.user,
-        'accepted': instance.accepted,
+        'accepted': instance.status == STATUS_ACCEPTED,
         'task': instance.task,
         'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
     }
@@ -326,8 +329,8 @@ def notify_task_invitation_response_slack(instance):
 
     task_url = '%s/work/%s/' % (TUNGA_URL, instance.task_id)
     slack_msg = "Task invitation %s by %s %s\n\n<%s|View details on Tunga>" % (
-        instance.accepted and 'accepted' or 'rejected', instance.user.short_name,
-        instance.accepted and ':smiley: :fireworks:' or ':unamused:',
+        instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected', instance.user.short_name,
+        instance.status == STATUS_ACCEPTED and ':smiley: :fireworks:' or ':unamused:',
         task_url
     )
     slack_utils.send_integration_message(instance.task, message=slack_msg)
@@ -392,12 +395,12 @@ def notify_new_task_application_slack(instance):
 @job
 def send_new_task_application_response_email(instance):
     instance = clean_instance(instance, Application)
-    subject = "%s Task application %s" % (EMAIL_SUBJECT_PREFIX, instance.accepted and 'accepted' or 'rejected')
+    subject = "%s Task application %s" % (EMAIL_SUBJECT_PREFIX, instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected')
     to = [instance.user.email]
     ctx = {
         'owner': instance.task.user,
         'applicant': instance.user,
-        'accepted': instance.accepted,
+        'accepted': instance.status == STATUS_ACCEPTED,
         'task': instance.task,
         'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
     }
@@ -422,7 +425,7 @@ def send_new_task_application_applicant_email(instance):
 def send_task_application_not_selected_email(instance):
     instance = clean_instance(instance, Task)
     rejected_applicants = instance.application_set.filter(
-        responded=False
+        status=STATUS_REJECTED
     )
     if rejected_applicants:
         subject = "%s Your application was not accepted for: %s" % (EMAIL_SUBJECT_PREFIX, instance.summary)
@@ -444,7 +447,7 @@ def send_progress_event_reminder(instance):
 def send_progress_event_reminder_email(instance):
     instance = clean_instance(instance, ProgressEvent)
     subject = "%s Upcoming Task Update" % (EMAIL_SUBJECT_PREFIX,)
-    participants = instance.task.participation_set.filter(accepted=True)
+    participants = instance.task.participation_set.filter(status=STATUS_ACCEPTED)
     if participants:
         to = [participants[0].user.email]
         bcc = [participant.user.email for participant in participants[1:]] if participants.count() > 1 else None

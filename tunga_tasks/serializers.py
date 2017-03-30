@@ -476,7 +476,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         if participation:
             new_assignee = None
             for item in participation:
-                if 'accepted' in item and item.get('accepted', False):
+                if 'status' in item and item.get('status', None) == STATUS_ACCEPTED:
                     item['activated_at'] = datetime.datetime.utcnow()
                 defaults = item
                 if isinstance(defaults, dict):
@@ -489,7 +489,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                 try:
                     participation_obj, created = Participation.objects.update_or_create(
                         task=task, user=item['user'], defaults=defaults)
-                    if (not created) and 'accepted' in item:
+                    if (not created) and 'status' in item and item.get('status', None) != STATUS_INITIAL:
                         participation_response.send(sender=Participation, participation=participation_obj)
                     if 'assignee' in item and item['assignee']:
                         new_assignee = item['user']
@@ -537,11 +537,9 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                     if assignee:
                         defaults['assignee'] = bool(user.id == assignee)
                     if rejected_participants and user.id in rejected_participants:
-                        defaults['accepted'] = False
-                        defaults['responded'] = True
+                        defaults['status'] = STATUS_REJECTED
                     if confirmed_participants and user.id in confirmed_participants:
-                        defaults['accepted'] = True
-                        defaults['responded'] = True
+                        defaults['status'] = STATUS_ACCEPTED
                         defaults['activated_at'] = datetime.datetime.utcnow()
 
                     participation_obj, created = Participation.objects.update_or_create(
@@ -597,7 +595,9 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     def get_is_participant(self, obj):
         user = self.get_current_user()
         if user:
-            return obj.subtask_participants_inclusive_filter.filter((Q(accepted=True) | Q(responded=False)), user=user).count() > 0
+            return obj.subtask_participants_inclusive_filter.filter(
+                user=user, status__in=[STATUS_INITIAL, STATUS_ACCEPTED]
+            ).count() > 0
         return False
 
     def get_is_admin(self, obj):
@@ -613,8 +613,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                     'id': participation.id,
                     'user': participation.user.id,
                     'assignee': participation.assignee,
-                    'accepted': participation.accepted,
-                    'responded': participation.responded
+                    'status': participation.status
                 }
             except:
                 pass
@@ -645,11 +644,9 @@ class ApplicationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotated
         }
 
     def update(self, instance, validated_data):
-        initial_responded = instance.responded
-        if validated_data.get('accepted'):
-            validated_data['responded'] = True
+        initial_status = instance.status
         instance = super(ApplicationSerializer, self).update(instance, validated_data)
-        if not initial_responded and instance.accepted or instance.responded:
+        if instance.status != STATUS_INITIAL and instance.status != initial_status:
             application_response.send(sender=Application, application=instance)
         return instance
 
@@ -673,12 +670,11 @@ class ParticipationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotat
         details_serializer = ParticipationDetailsSerializer
 
     def update(self, instance, validated_data):
-        initial_responded = instance.responded
-        if validated_data.get('accepted'):
-            validated_data['responded'] = True
+        initial_status = instance.status
+        if validated_data.get('status', None) == STATUS_ACCEPTED:
             validated_data['activated_at'] = datetime.datetime.utcnow()
         instance = super(ParticipationSerializer, self).update(instance, validated_data)
-        if not initial_responded and instance.accepted or instance.responded:
+        if instance.status != STATUS_INITIAL and instance.status != initial_status:
             participation_response.send(sender=Participation, participation=instance)
         return instance
 

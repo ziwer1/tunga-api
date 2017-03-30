@@ -17,7 +17,7 @@ class WorkFilter(GenericDateFilterSet):
 class ConnectionFilter(GenericDateFilterSet):
     class Meta:
         model = Connection
-        fields = ('from_user', 'to_user', 'accepted', 'responded')
+        fields = ('from_user', 'to_user', 'status')
 
 
 class DeveloperApplicationFilter(GenericDateFilterSet):

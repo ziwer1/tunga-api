@@ -322,14 +322,13 @@ class Task(models.Model):
             return request.user.type == USER_TYPE_DEVELOPER
         elif self.visibility == VISIBILITY_MY_TEAM:
             return bool(
-                Connection.objects.exclude(accepted=False).filter(
+                Connection.objects.exclude(status=STATUS_REJECTED).filter(
                     Q(from_user=self.user, to_user=request.user) | Q(from_user=request.user, to_user=self.user)
                 ).count()
             )
         elif self.visibility == VISIBILITY_CUSTOM:
             return self.subtask_participants_inclusive_filter.filter(
-                (Q(accepted=True) | Q(responded=False)),
-                user=request.user
+                user=request.user, status__in=[STATUS_INITIAL, STATUS_ACCEPTED]
             ).count()
         return False
 
@@ -365,7 +364,9 @@ class Task(models.Model):
                 'confirmed_participants', 'rejected_participants'
             ]
             if not [x for x in request.data.keys() if not (x in allowed_keys or re.match(r'^file\d*$', x))]:
-                return (self.pm and self.pm.id == request.user.id) or self.participation_set.filter((Q(accepted=True) | Q(responded=False)), user=request.user).count()
+                return (self.pm and self.pm.id == request.user.id) or self.participation_set.filter(
+                    user=request.user, status__in=[STATUS_INITIAL, STATUS_ACCEPTED]
+                ).count()
         return False
 
     @property
@@ -488,16 +489,18 @@ class Task(models.Model):
 
     @property
     def participation(self):
-        return self.participation_set.filter(Q(accepted=True) | Q(responded=False))
+        return self.participation_set.filter(status__in=[STATUS_INITIAL, STATUS_ACCEPTED])
 
     @property
     def active_participants(self):
-        return self.participation_set.filter(accepted=True)
+        return self.participation_set.filter(status=STATUS_ACCEPTED)
 
     @property
     def assignee(self):
         try:
-            return self.participation_set.get((Q(accepted=True) | Q(responded=False)), assignee=True)
+            return self.participation_set.get(
+                assignee=True, status__in=[STATUS_INITIAL, STATUS_ACCEPTED]
+            )
         except:
             return None
 
@@ -535,7 +538,7 @@ class Task(models.Model):
 
     @property
     def applications(self):
-        return self.application_set.filter(responded=False)
+        return self.application_set.filter(status=STATUS_INITIAL)
 
     @property
     def all_uploads(self):
@@ -552,7 +555,7 @@ class Task(models.Model):
         )
 
     def get_participation_shares(self, return_hash=False):
-        participants = self.participation_set.filter(accepted=True).order_by('-share')
+        participants = self.participation_set.filter(status=STATUS_ACCEPTED).order_by('-share')
         num_participants = participants.count()
 
         participation_shares = []
@@ -615,11 +618,23 @@ class TaskAccess(models.Model):
         unique_together = ('user', 'task')
 
 
+REQUEST_STATUS_CHOICES = (
+    (STATUS_INITIAL, 'Initial'),
+    (STATUS_ACCEPTED, 'Accepted'),
+    (STATUS_REJECTED, 'Rejected')
+)
+
+
 class Application(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     accepted = models.BooleanField(default=False)
     responded = models.BooleanField(default=False)
+    status = models.CharField(
+        max_length=20, choices=REQUEST_STATUS_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in REQUEST_STATUS_CHOICES]),
+        default=STATUS_INITIAL
+    )
     pitch = models.CharField(max_length=1000, blank=True, null=True)
     hours_needed = models.PositiveIntegerField(blank=True, null=True)
     hours_available = models.PositiveIntegerField(blank=True, null=True)
@@ -669,6 +684,11 @@ class Participation(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     accepted = models.BooleanField(default=False)
     responded = models.BooleanField(default=False)
+    status = models.CharField(
+        max_length=20, choices=REQUEST_STATUS_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in REQUEST_STATUS_CHOICES]),
+        default=STATUS_INITIAL
+    )
     assignee = models.BooleanField(default=False)
     role = models.CharField(max_length=100, default='Developer')
     share = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
@@ -755,7 +775,7 @@ class AbstractEstimate(models.Model):
     introduction = models.TextField()
     # Status
     status = models.CharField(
-        max_length=30, choices=ESTIMATE_STATUS_CHOICES, default=STATUS_INITIAL,
+        max_length=20, choices=ESTIMATE_STATUS_CHOICES, default=STATUS_INITIAL,
         help_text=', '.join(['%s - %s' % (item[0], item[1]) for item in ESTIMATE_STATUS_CHOICES])
     )
     start_date = models.DateTimeField(blank=True, null=True)

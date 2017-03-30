@@ -7,18 +7,18 @@ from dry_rest_permissions.generics import DRYPermissionFiltersBase
 
 from tunga_auth.models import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
 from tunga_profiles.models import UserProfile
-from tunga_utils.constants import USER_TYPE_PROJECT_MANAGER
+from tunga_utils.constants import USER_TYPE_PROJECT_MANAGER, STATUS_INITIAL, STATUS_ACCEPTED
 
 
 def my_connections_q_filter(user):
     return (
         (
             Q(connections_initiated__to_user=user) &
-            Q(connections_initiated__accepted=True)
+            Q(connections_initiated__status=STATUS_ACCEPTED)
         ) |
         (
             Q(connection_requests__from_user=user) &
-            Q(connection_requests__accepted=True)
+            Q(connection_requests__status=STATUS_ACCEPTED)
         )
     )
 
@@ -82,7 +82,7 @@ class UserFilterBackend(DRYPermissionFiltersBase):
             )
         elif user_filter == 'requests':
             queryset = queryset.filter(
-                connections_initiated__to_user=request.user, connections_initiated__responded=False)
+                connections_initiated__to_user=request.user, connections_initiated__status=STATUS_INITIAL)
         elif user_filter == 'relevant':
             queryset = queryset.filter(type=USER_TYPE_DEVELOPER)
             try:

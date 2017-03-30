@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 
-from tunga_utils.constants import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
+from tunga_utils.constants import USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER, STATUS_ACCEPTED
 from tunga_tasks.models import Task
 
 
@@ -124,7 +124,7 @@ class APITaskTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['participation']), 1)
         self.assertEqual(response.data['participation'][0]['user'], self.developer.id)
-        self.assertTrue(response.data['participation'][0]['accepted'])
+        self.assertTrue(response.data['participation'][0]['status'] == STATUS_ACCEPTED)
 
         response = self.client.patch(
             url, {'participants': [self.developer.id], 'rejected_participants': [self.developer.id]}
@@ -132,7 +132,7 @@ class APITaskTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['details']['participation']), 1)
         self.assertEqual(response.data['details']['participation'][0]['user']['id'], self.developer.id)
-        self.assertFalse(response.data['details']['participation'][0]['accepted'])
+        self.assertFalse(response.data['details']['participation'][0]['status'] == STATUS_ACCEPTED)
 
         task.user = self.admin
         task.save()

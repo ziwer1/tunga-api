@@ -35,8 +35,8 @@ class WorkAdmin(admin.ModelAdmin):
 
 @admin.register(Connection)
 class ConnectionAdmin(admin.ModelAdmin):
-    list_display = ('from_user', 'to_user', 'accepted', 'responded')
-    list_filter = ('accepted', 'responded')
+    list_display = ('from_user', 'to_user', 'status')
+    list_filter = ('status',)
 
 
 @admin.register(DeveloperApplication)

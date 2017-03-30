@@ -19,7 +19,7 @@ from tunga_utils.constants import CURRENCY_BTC, PAYMENT_METHOD_BTC_WALLET, \
     PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, \
     UPDATE_SCHEDULE_WEEKLY, UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, UPDATE_SCHEDULE_ANNUALLY, \
     PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_SUBMIT, STATUS_PENDING, STATUS_PROCESSING, \
-    STATUS_INITIATED, APP_INTEGRATION_PROVIDER_HARVEST, PROGRESS_EVENT_TYPE_COMPLETE
+    STATUS_INITIATED, APP_INTEGRATION_PROVIDER_HARVEST, PROGRESS_EVENT_TYPE_COMPLETE, STATUS_ACCEPTED
 from tunga_utils.helpers import clean_instance
 
 
@@ -69,7 +69,7 @@ def update_task_periodic_updates(task):
 
         if not periodic_start_date:
             periodic_start_date = Participation.objects.filter(
-                Q(task=target_task) | Q(task__parent=target_task), accepted=True
+                Q(task=target_task) | Q(task__parent=target_task), status=STATUS_ACCEPTED
             ).aggregate(start_date=Min('activated_at'))['start_date']
 
         if periodic_start_date:
@@ -370,7 +370,7 @@ def complete_harvest_integration(integration):
                             pass
 
         # Create task participants in Harvest
-        participants = integration.task.participation_set.filter(accepted=True)
+        participants = integration.task.participation_set.filter(status=STATUS_ACCEPTED)
         for participant in participants:
             harvest_client.create_user(
                 user={

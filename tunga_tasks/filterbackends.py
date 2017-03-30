@@ -12,7 +12,7 @@ from dry_rest_permissions.generics import DRYPermissionFiltersBase
 from tunga_profiles.models import UserProfile
 from tunga_utils.constants import VISIBILITY_DEVELOPER, \
     VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, TASK_SCOPE_ONGOING, TASK_SCOPE_PROJECT, TASK_SOURCE_NEW_USER, STATUS_APPROVED, \
-    STATUS_ACCEPTED
+    STATUS_ACCEPTED, STATUS_INITIAL
 from tunga_utils.filterbackends import dont_filter_staff_or_superuser
 
 
@@ -43,10 +43,7 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                 queryset = queryset.filter(
                     Q(user=request.user) |
                     (
-                        Q(participation__user=request.user) &
-                        (
-                            Q(participation__accepted=True) | Q(participation__responded=False)
-                        )
+                        Q(participation__user=request.user) & Q(participation__status__in=[STATUS_INITIAL, STATUS_ACCEPTED])
                     )
                 )
         elif label_filter in ['new-projects', 'estimates', 'quotes']:
@@ -84,11 +81,11 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
             queryset = queryset.filter(
                 (
                     Q(user__connections_initiated__to_user=request.user) &
-                    Q(user__connections_initiated__accepted=True)
+                    Q(user__connections_initiated__status=STATUS_ACCEPTED)
                 ) |
                 (
                     Q(user__connection_requests__from_user=request.user) &
-                    Q(user__connection_requests__accepted=True)
+                    Q(user__connection_requests__status=STATUS_ACCEPTED)
                 )
             )
 
@@ -117,7 +114,7 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                                 ) |
                                 (
                                     Q(user__connection_requests__from_user=request.user) &
-                                    Q(user__connection_requests__accepted=True)
+                                    Q(user__connection_requests__status=STATUS_ACCEPTED)
                                 )
                             )
                         )
@@ -156,9 +153,7 @@ class ParticipationFilterBackend(DRYPermissionFiltersBase):
             Q(task__user=request.user) |
             (
                 Q(task__participation__user=request.user) &
-                (
-                    Q(task__participation__accepted=True) | Q(task__participation__responded=False)
-                )
+                Q(task__participation__status__in=[STATUS_INITIAL, STATUS_ACCEPTED])
             )
         )
 
@@ -193,9 +188,7 @@ class ProgressEventFilterBackend(DRYPermissionFiltersBase):
             Q(task__user=request.user) |
             (
                 Q(task__participation__user=request.user) &
-                (
-                    Q(task__participation__accepted=True) | Q(task__participation__responded=False)
-                )
+                Q(task__participation__status__in=[STATUS_INITIAL, STATUS_ACCEPTED])
             )
         )
 
@@ -208,8 +201,6 @@ class ProgressReportFilterBackend(DRYPermissionFiltersBase):
             Q(event__task__user=request.user) |
             (
                 Q(event__task__participation__user=request.user) &
-                (
-                    Q(event__task__participation__accepted=True) | Q(event__task__participation__responded=False)
-                )
+                Q(event__task__participation__status__in=[STATUS_INITIAL, STATUS_ACCEPTED])
             )
         )

@@ -12,7 +12,8 @@ from tunga_profiles.validators import validate_email
 from tunga_utils.constants import REQUEST_STATUS_INITIAL, REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED, \
     BTC_WALLET_PROVIDER_COINBASE, PAYMENT_METHOD_BTC_WALLET, PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, \
     COUNTRY_CODE_UGANDA, COUNTRY_CODE_TANZANIA, COUNTRY_CODE_NIGERIA, APP_INTEGRATION_PROVIDER_SLACK, \
-    APP_INTEGRATION_PROVIDER_HARVEST, USER_TYPE_PROJECT_MANAGER, USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER
+    APP_INTEGRATION_PROVIDER_HARVEST, USER_TYPE_PROJECT_MANAGER, USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER, \
+    STATUS_INITIAL, STATUS_ACCEPTED, STATUS_REJECTED
 from tunga_utils.helpers import get_serialized_id
 from tunga_utils.models import AbstractExperience
 from tunga_utils.validators import validate_btc_address
@@ -185,6 +186,12 @@ class Work(AbstractExperience):
     class Meta:
         verbose_name_plural = 'work'
 
+CONNECTION_STATUS_CHOICES = (
+    (STATUS_INITIAL, 'Initial'),
+    (STATUS_ACCEPTED, 'Accepted'),
+    (STATUS_REJECTED, 'Rejected')
+)
+
 
 class Connection(models.Model):
     from_user = models.ForeignKey(
@@ -192,6 +199,10 @@ class Connection(models.Model):
     to_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='connection_requests')
     accepted = models.BooleanField(default=False)
     responded = models.BooleanField(default=False)
+    status = models.CharField(
+        max_length=30, choices=CONNECTION_STATUS_CHOICES, default=STATUS_INITIAL,
+        help_text=', '.join(['%s - %s' % (item[0], item[1]) for item in CONNECTION_STATUS_CHOICES])
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __unicode__(self):
@@ -227,9 +238,9 @@ class DeveloperApplication(models.Model):
     experience = models.TextField()
     discovery_story = models.TextField()
     status = models.PositiveSmallIntegerField(
-            choices=APPLICATION_STATUS_CHOICES,
-            help_text=','.join(['%s - %s' % (item[0], item[1]) for item in APPLICATION_STATUS_CHOICES]),
-            default=REQUEST_STATUS_INITIAL
+        choices=APPLICATION_STATUS_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in APPLICATION_STATUS_CHOICES]),
+        default=REQUEST_STATUS_INITIAL
     )
     created_at = models.DateTimeField(auto_now_add=True)
     confirmation_key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)

@@ -52,14 +52,14 @@ class TaskAdmin(admin.ModelAdmin):
 
 @admin.register(Application)
 class ApplicationAdmin(admin.ModelAdmin):
-    list_display = ('task', 'user', 'responded', 'accepted', 'created_at')
-    list_filter = ('accepted', 'created_at')
+    list_display = ('task', 'user', 'status', 'created_at')
+    list_filter = ('status', 'created_at')
 
 
 @admin.register(Participation)
 class ParticipationAdmin(admin.ModelAdmin):
-    list_display = ('task', 'user', 'responded', 'accepted', 'share', 'created_at')
-    list_filter = ('accepted', 'created_at')
+    list_display = ('task', 'user', 'status', 'share', 'created_at')
+    list_filter = ('status', 'created_at')
 
 
 @admin.register(Estimate)

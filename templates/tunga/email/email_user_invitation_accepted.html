@@ -6,6 +6,6 @@
 {% block email_content %}
     <p>Hi {{ invite.created_by.first_name }},</p>
 
-    <p>{{ invite.first_name }} accepted your invitation to become a Tunga {% if invite.type == 3 %}project manager{% elif invite.type == 2 %}project owner{% else %}developer{% endif %}.</p>
+    <p>{{ invite.first_name }} accepted your invitation to become a Tunga {{ invite.get_type_display }}.</p>
 
 {% endblock %}
