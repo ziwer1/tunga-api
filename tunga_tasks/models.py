@@ -374,15 +374,15 @@ class Task(models.Model):
 
     @property
     def tunga_ratio_dev(self):
-        return self.tunga_percentage_dev * Decimal(0.01)
+        return Decimal(self.tunga_percentage_dev) * Decimal(0.01)
 
     @property
     def tunga_ratio_pm(self):
-        return self.tunga_percentage_pm * Decimal(0.01)
+        return Decimal(self.tunga_percentage_pm) * Decimal(0.01)
 
     @property
     def pm_time_ratio(self):
-        return self.pm_time_percentage * Decimal(0.01)
+        return Decimal(self.pm_time_percentage) * Decimal(0.01)
 
     @property
     def pay(self):
@@ -448,8 +448,8 @@ class Task(models.Model):
                 dict(
                     currency=CURRENCY_SYMBOLS.get(self.currency, ''),
                     pledge=self.pay,
-                    developer=(1 - self.tunga_ratio_dev) * self.pay_dev,
-                    pm=(1 - self.tunga_ratio_pm) * self.pay_pm,
+                    developer=Decimal(1 - self.tunga_ratio_dev) * self.pay_dev,
+                    pm=Decimal(1 - self.tunga_ratio_pm) * self.pay_pm,
                     processing=processing_share * self.pay
                 )
             )
@@ -1300,9 +1300,9 @@ class TaskInvoice(models.Model):
 
     def get_amount_details(self, share=1):
         share = Decimal(share)
-        fee_portion = self.fee * share
-        fee_portion_dev = self.pay_dev * share
-        fee_portion_pm = self.pay_pm * share
+        fee_portion = Decimal(self.fee) * share
+        fee_portion_dev = Decimal(self.pay_dev) * share
+        fee_portion_pm = Decimal(self.pay_pm) * share
 
         processing_share = 0
         if self.payment_method == TASK_PAYMENT_METHOD_BITONIC:
@@ -1314,8 +1314,8 @@ class TaskInvoice(models.Model):
             share=share,
             pledge=self.fee,
             portion=round_decimal(fee_portion, 2),
-            developer=round_decimal((1 - self.task.tunga_ratio_dev) * fee_portion_dev, 2),
-            pm=round_decimal((1 - self.task.tunga_ratio_pm) * fee_portion_pm, 2),
+            developer=round_decimal(Decimal(1 - self.task.tunga_ratio_dev) * fee_portion_dev, 2),
+            pm=round_decimal(Decimal(1 - self.task.tunga_ratio_pm) * fee_portion_pm, 2),
             processing=round_decimal(Decimal(processing_share) * fee_portion, 2)
         )
 
