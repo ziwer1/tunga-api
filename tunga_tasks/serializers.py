@@ -559,7 +559,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         if not obj.pay:
             return None
         if user and user.is_developer:
-            amount = obj.pay_dev * (1 - obj.tunga_ratio_dev)
+            amount = Decimal(obj.pay_dev) * Decimal(1 - obj.tunga_ratio_dev)
         return obj.display_fee(amount=amount)
 
     def get_can_apply(self, obj):
