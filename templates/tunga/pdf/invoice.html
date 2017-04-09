@@ -34,13 +34,49 @@
             font-weight: bold;
         }
 
+        .top-border {
+            border-top: 1px solid #000;
+        }
+
+        .pull-left {
+            float: left;
+        }
+
+        .pull-right {
+            float: right;
+        }
+
+        .clearfix {
+            float: none;
+            clear: both;
+        }
+
+        a, .highlight {
+            color: #ee1f54;
+        }
+
+        a:link, a:visited, a:focus, a:hover, a:active {
+            text-decoration: none;
+        }
+
+        table th,
+        table td {
+            padding: 5px 0;
+        }
+
+        table th:last-child,
+        table td:last-child {
+            border-left: 1px solid #000;
+            padding-left: 5px;
+        }
+
         footer {
             position: absolute;
             left: 0;
             right: 0;
             bottom: 20px;
             width: 100%;
-            text-align: center;
+            /*text-align: center;*/
         }
     </style>
     <script>
@@ -66,17 +102,17 @@
         {% else %}
             <div class="bold">
                 {{ invoice.client.profile.company }}<br/>
-                {{ invoice.client.display_name }}<br/>
+                Attn: {{ invoice.client.display_name }}<br/>
                 {{ invoice.client.profile.street | default:'' }} {{ developer_info.client.profile.plot_number | default:'' }}<br/>
                 {{ invoice.client.profile.postal_code | default:'' }}<br/>
                 {{ invoice.client.profile.country_name | default:'' }}
             </div>
 
-            <p style="margin: 20px 0;">Invoice generated on behalf of:</p>
+            <div style="margin: 20px 0;">Invoice generated on behalf of:</div>
         {% endif %}
 
-        <div {% if context.is_developer %}class="bold"{% endif %}>
-            {{ developer_info.developer.display_name }}<br/>
+        <div {% if context.is_developer %}class="bold"{% endif %} style="margin-top: 20px">
+            {% if context.is_developer %}Attn: {% endif %}{{ developer_info.developer.display_name }}<br/>
             {{ developer_info.developer.profile.street | default:'' }} {{ developer_info.developer.profile.plot_number | default:'' }}<br/>
             {{ developer_info.developer.profile.postal_code | default:'' }}<br/>
             {{ developer_info.developer.profile.country_name | default:'' }}
@@ -91,60 +127,84 @@
             </div>
         {% endif %}
 
-        <div style="margin-top: 20px;">
-            Invoice number: {{ developer_info.number | default:'' }}<br/>
-            Invoicing date: {{ invoice.date }}
+        <div style="margin-top: 40px;">
+            <div class="pull-left" style="margin-right: 50px;">
+                <strong>Invoice number:</strong><br/>
+                {{ developer_info.number | default:'' }}
+            </div>
+            <div class="pull-left">
+                <strong>Invoicing date:</strong><br/>
+                {{ invoice.date }}
+            </div>
+            <div class="clearfix"></div>
         </div>
 
-        <table>
+        <table style="margin-top: 80px">
             <tr style="border-bottom: 1px solid #000;">
-                <th colspan="2">Description</th>
+                <th>Description</th>
+                <th>Amount</th>
             </tr>
 
             {% if context.is_developer %}
                 <tr>
                     <td>Tunga fee for {{ invoice.title }}</td>
-                    <td class="text-right">{{ developer_info.amount.currency | safe }} {{ developer_info.amount.tunga | floatformat:2 }}</td>
+                    <td>{{ developer_info.amount.currency | safe }} {{ developer_info.amount.tunga | floatformat:2 }}</td>
                 </tr>
             {% else %}
                 <tr>
                     <td>{{ invoice.title }}</td>
-                    <td class="text-right">{{ developer_info.amount.currency | safe }} {{ developer_info.amount.portion | floatformat:2 }}</td>
+                    <td>{{ developer_info.amount.currency | safe }} {{ developer_info.amount.portion | floatformat:2 }}</td>
                 </tr>
             {% endif %}
 
-            <tr>
+            <tr class="top-border">
                 <td>Payment costs</td>
-                <td class="text-right">{{ developer_info.amount.currency | safe }} {{ developer_info.amount.processing | floatformat:2 }}</td>
+                <td>{{ developer_info.amount.currency | safe }} {{ developer_info.amount.processing | floatformat:2 }}</td>
             </tr>
 
-            <tr style="border-top: 1px solid #000; ">
-                <td class="text-right">Subtotal</td>
-                <td class="text-right">{{ invoice.amount.currency | safe }}
+            <tr class="top-border">
+                <td>Subtotal</td>
+                <td>{{ invoice.amount.currency | safe }}
                     {% if context.is_developer %}{{ developer_info.amount.total_dev | floatformat:2 }}{% else %}
                         {{ developer_info.amount.total | floatformat:2 }}{% endif %}</td>
             </tr>
 
-            <tr>
-                <td class="text-right">VAT 0%</td>
-                <td class="text-right">{{ developer_info.amount.currency | safe }} 0.00</td>
+            <tr class="top-border">
+                <td>VAT 0%</td>
+                <td>{{ developer_info.amount.currency | safe }} 0.00</td>
             </tr>
 
-            <tr style="border-top: 1px solid #000; ">
-                <td class="text-right">Total</td>
-                <td class="text-right">{{ developer_info.amount.currency | safe }}
+            <tr class="top-border">
+                <th>Total</th>
+                <th>{{ developer_info.amount.currency | safe }}
                     {% if context.is_developer %}{{ developer_info.amount.total_dev | floatformat:2 }}{% else %}
-                        {{ developer_info.amount.total | floatformat:2 }}{% endif %}</td>
+                        {{ developer_info.amount.total | floatformat:2 }}{% endif %}</th>
             </tr>
         </table>
 
     </div>
 
     <footer class="footer">
-        {% if context.is_developer %}{% else %}
-            <div>Generated on behalf of {{ developer_info.developer.display_name }} by:</div>
-        {% endif %}
-        Stichting Butterfly Works | Ms. van Riemsdijkweg 57, 1033RC Amsterdam | VAT: NL.8138.72.327.B.01
+        <div class="container">
+            <div style="width: 30%" class="pull-left"><img src="https://tunga.io/icons/tunga_long.jpg" width="200px" style="width: 200px; max-width: 95%"></div>
+            <div style="width: 70%" class="pull-right">
+                <div class="pull-right">
+                    <div class="bold">
+                    {% if context.is_developer %}
+                        Tunga BV
+                    {% else %}
+                        Generated on behalf of {{ developer_info.developer.display_name }} by Tunga Bv
+                    {% endif %}
+                    </div>
+                    <div>
+                        Ms van Riemsdijkweg 57, 1033 RC Amsterdam, the Netherlands<br/>
+                        +31 (0) 615955194 , <a href="mailto:hello@tunga.io" class="highlight">hello@tunga.io</a>, <a href="https://tunga.io" class="highlight">tunga.io</a><br/>
+                        KvK 67015697, IBAN NL64 INGB 0007 6631 29
+                    </div>
+                </div>
+            </div>
+            <div class="clearfix"></div>
+        </div>
     </footer>
 </div>
 {% endfor %}
