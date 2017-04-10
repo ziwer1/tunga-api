@@ -20,9 +20,9 @@ def notify_new_comment_slack(instance):
     if not slack_utils.is_task_notification_enabled(task, slugs.EVENT_COMMUNICATION):
         return
 
-    task_url = '%s/task/%s/' % (TUNGA_URL, task.id)
+    task_url = '{}/work/{}/'.format(TUNGA_URL, task.id)
 
-    slack_msg = '%s | <%s|View on Tunga>' % (instance.text_body, task_url)
+    slack_msg = '{} | <{}|View on Tunga>'.format(instance.text_body, task_url)
     extras = dict(author_name=instance.user.display_name)
 
     try:

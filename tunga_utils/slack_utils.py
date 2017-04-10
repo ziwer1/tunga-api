@@ -3,7 +3,7 @@ import json
 import requests
 from slacker import Slacker
 
-from tunga.settings import SLACK_CUSTOMER_OUTGOING_WEBHOOK_TOKEN, SLACK_AUTHORIZE_URL, SLACK_SCOPES, SLACK_CLIENT_ID, \
+from tunga.settings import SLACK_STAFF_OUTGOING_WEBHOOK_TOKEN, SLACK_AUTHORIZE_URL, SLACK_SCOPES, SLACK_CLIENT_ID, \
     SLACK_ACCESS_TOKEN_URL, TUNGA_ICON_URL_150, TUNGA_ICON_SQUARE_URL_150
 from tunga_utils.constants import APP_INTEGRATION_PROVIDER_SLACK
 from tunga_profiles.utils import get_app_integration
@@ -46,6 +46,7 @@ KEY_MRKDWN_IN = 'mrkdwn_in'
 KEY_COMMAND = 'command'
 
 KEY_CHANNELS = 'channels'
+KEY_CHANNEL = 'channel'
 
 
 def get_authorize_url(redirect_uri):
@@ -69,7 +70,7 @@ def get_webhook_url(user):
 
 
 def verify_webhook_token(token):
-    return token == SLACK_CUSTOMER_OUTGOING_WEBHOOK_TOKEN
+    return token == SLACK_STAFF_OUTGOING_WEBHOOK_TOKEN
 
 
 def get_integration_task(task):

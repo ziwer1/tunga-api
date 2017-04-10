@@ -8,7 +8,7 @@
 
     <p>{{ owner.display_name }} requested for a task update:</p>
 
-    <p>Due date: {{ event.due_at | date:'jS F Y \a\t H:i' }} GMT</p>
+    <p>Due date: {{ event.due_at | date:'jS F Y' }}</p>
 
     {% if event.title %}<p>Title: {{ event.title }}</p>{% endif %}
 

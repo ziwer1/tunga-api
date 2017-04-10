@@ -17,7 +17,7 @@
 
         {% if task.skills %}Skills: {{ task.skills }}<br/>{% endif %}
 
-        {% if task.deadline %}Deadline: {{ task.deadline | date:'jS F Y \a\t H:i' }} GMT<br/>{% endif %}
+        {% if task.deadline %}Deadline: {{ task.deadline | date:'jS F Y' }}<br/>{% endif %}
 
         {% if task.description %}
             <br/>
@@ -31,7 +31,7 @@
 
             {% if forloop.first %}Milestones:<br/>{% endif %}
 
-            {{ forloop.counter }}: {{ event.title }} at {{ event.due_at | date:'jS F Y \a\t H:i' }} GMT<br/>
+            {{ forloop.counter }}: {{ event.title }} at {{ event.due_at | date:'jS F Y' }}<br/>
 
         {% endfor %}
     </p>

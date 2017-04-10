@@ -4,12 +4,13 @@ from django.contrib.auth import get_user_model
 from django.db.models import When, Case, IntegerField
 from django.db.models.aggregates import Sum
 from django.db.models.expressions import F
-from django.template.defaultfilters import truncatewords
+from django.template.defaultfilters import truncatewords, floatformat
 from django_rq.decorators import job
 
 from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, SLACK_ATTACHMENT_COLOR_TUNGA, \
     SLACK_ATTACHMENT_COLOR_RED, SLACK_ATTACHMENT_COLOR_GREEN, SLACK_ATTACHMENT_COLOR_NEUTRAL, \
-    SLACK_ATTACHMENT_COLOR_BLUE
+    SLACK_ATTACHMENT_COLOR_BLUE, SLACK_DEVELOPER_INCOMING_WEBHOOK, SLACK_STAFF_INCOMING_WEBHOOK, \
+    SLACK_STAFF_UPDATES_CHANNEL, SLACK_DEVELOPER_UPDATES_CHANNEL, SLACK_PMS_UPDATES_CHANNEL
 from tunga_auth.filterbackends import my_connections_q_filter
 from tunga_tasks import slugs
 from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport, Quote, Estimate
@@ -21,18 +22,70 @@ from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance, convert_to_text
 
 
+def create_task_slack_msg(task, summary=None, channel='#general'):
+    task_url = '{}/work/{}/'.format(TUNGA_URL, task.id)
+    attachments = [
+        {
+            slack_utils.KEY_TITLE: task.summary,
+            slack_utils.KEY_TITLE_LINK: task_url,
+            slack_utils.KEY_TEXT: task.excerpt,
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_TUNGA
+        }
+    ]
+    extra_details = ''
+    if task.type:
+        extra_details += '*Type*: {}\n'.format(task.get_type_display())
+    if task.skills:
+        extra_details += '*Skills*: {}\n'.format(task.skills_list)
+    if task.deadline:
+        extra_details += '*Deadline*: {}\n'.format(task.deadline.strftime('%d/%b/%Y'))
+    if task.fee:
+        amount = task.is_developer_ready and task.pay_dev or task.pay
+        extra_details += '*Fee*: EUR {}\n'.format(floatformat(amount, arg=-2))
+    if extra_details:
+        attachments.append({
+            slack_utils.KEY_TEXT: extra_details,
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
+        })
+    if task.deliverables:
+        attachments.append({
+            slack_utils.KEY_TITLE: 'Deliverables',
+            slack_utils.KEY_TEXT: task.deliverables,
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
+        })
+    if task.stack_description:
+        attachments.append({
+            slack_utils.KEY_TITLE: 'Tech Stack',
+            slack_utils.KEY_TEXT: task.stack_description,
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
+        })
+    if not summary:
+        summary = "New {} created by {} | <{}|View on Tunga>".format(
+            task.scope == TASK_SCOPE_TASK and 'task' or 'project',
+            task.user.first_name, task_url)
+    return {
+        slack_utils.KEY_TEXT: summary,
+        slack_utils.KEY_CHANNEL: channel,
+        slack_utils.KEY_ATTACHMENTS: attachments
+    }
+
+
 @job
 def notify_new_task(instance, new_user=False):
     send_new_task_client_receipt_email(instance)
-    send_new_task_email(instance, new_user=new_user)
-    send_new_task_community_email(instance)
+    send_new_task_admin(instance, new_user=new_user)
+    send_new_task_community(instance)
 
 
 @job
 def notify_task_approved(instance, new_user=False):
     send_new_task_client_receipt_email(instance)
-    send_new_task_email(instance, new_user=new_user, completed=True)
-    send_new_task_community_email(instance)
+    send_new_task_admin(instance, new_user=new_user, completed=True)
+    send_new_task_community(instance)
 
 @job
 def send_new_task_client_receipt_email(instance, reminder=False):
@@ -78,8 +131,14 @@ def send_new_task_client_receipt_email(instance, reminder=False):
                 instance.reminded_complete_task = True
             instance.save()
 
+
 @job
-def send_new_task_email(instance, new_user=False, completed=False):
+def send_new_task_admin(instance, new_user=False, completed=False):
+    send_new_task_admin_email(instance, new_user=new_user, completed=completed)
+    send_new_task_admin_slack(instance, new_user=new_user, completed=completed)
+
+@job
+def send_new_task_admin_email(instance, new_user=False, completed=False):
     instance = clean_instance(instance, Task)
 
     subject = "{} {} {} {} by {}{}".format(
@@ -101,10 +160,32 @@ def send_new_task_email(instance, new_user=False, completed=False):
 
 
 @job
+def send_new_task_admin_slack(instance, new_user=False, completed=False):
+    instance = clean_instance(instance, Task)
+    task_url = '{}/work/{}/'.format(TUNGA_URL, instance.id)
+    summary = "{} {} {} {} by {}{} | <{}|View on Tunga>".format(
+        EMAIL_SUBJECT_PREFIX,
+        completed and 'New wizard' or 'New',
+        instance.scope == TASK_SCOPE_TASK and 'task' or 'project',
+        completed and 'details completed' or 'created',
+        instance.user.first_name, new_user and ' (New user)' or '',
+        task_url
+    )
+    slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_UPDATES_CHANNEL)
+    slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, slack_msg)
+
+
+@job
+def send_new_task_community(instance):
+    send_new_task_community_email(instance)
+    send_new_task_community_slack(instance)
+
+
+@job
 def send_new_task_community_email(instance):
     instance = clean_instance(instance, Task)
 
-    # Notify Tunga and Devs or PMs
+    # Notify Devs or PMs
     community_receivers = None
     if (not instance.is_developer_ready) or (instance.approved and instance.visibility in [VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM]):
 
@@ -175,9 +256,21 @@ def send_new_task_community_email(instance):
         ctx = {
             'owner': instance.user,
             'task': instance,
-            'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id)
+            'task_url': '{}/work/{}/'.format(TUNGA_URL, instance.id)
         }
         send_mail(subject, 'tunga/email/email_new_task', to, ctx, bcc=bcc)
+
+
+@job
+def send_new_task_community_slack(instance):
+    instance = clean_instance(instance, Task)
+
+    # Notify Devs or PMs via Slack
+    if (not instance.is_developer_ready) or (instance.approved and instance.visibility == VISIBILITY_DEVELOPER):
+        slack_msg = create_task_slack_msg(
+            instance, channel=instance.is_developer_ready and SLACK_DEVELOPER_UPDATES_CHANNEL or SLACK_PMS_UPDATES_CHANNEL
+        )
+        slack_utils.send_incoming_webhook(SLACK_DEVELOPER_INCOMING_WEBHOOK, slack_msg)
 
 
 VERB_MAP_STATUS_CHANGE = {
@@ -465,6 +558,7 @@ def send_progress_event_reminder_email(instance):
 def notify_new_progress_report(instance):
     notify_new_progress_report_email(instance)
     notify_new_progress_report_slack(instance)
+
 
 @job
 def notify_new_progress_report_email(instance):
