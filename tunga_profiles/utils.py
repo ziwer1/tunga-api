@@ -7,7 +7,7 @@ def profile_check(user):
 
     required = ['country', 'city', 'street', 'plot_number', 'postal_code']
 
-    if user.is_developer:
+    if user.is_developer or user.is_project_manager:
         required.extend(['payment_method', 'id_document'])
     elif user.is_project_owner:
         required.extend(['company'])
