@@ -63,6 +63,7 @@ UPDATE_SCHEDULE_CHOICES = (
 
 
 class Project(models.Model):
+    # This model is deprecated ... the task model is now used for both tasks and projects
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='projects_created', on_delete=models.DO_NOTHING)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
@@ -306,6 +307,11 @@ class Task(models.Model):
             (Q(task=self) | Q(task__parent=self))
         )
 
+    def get_is_participant(self, user, active_only=True):
+        return self.subtask_participants_inclusive_filter.filter(
+            user=user, status__in=active_only and [STATUS_ACCEPTED] or [STATUS_INITIAL, STATUS_ACCEPTED]
+        ).count() > 0
+
     @staticmethod
     @allow_staff_or_superuser
     def has_read_permission(request):
@@ -489,11 +495,11 @@ class Task(models.Model):
 
     @property
     def participation(self):
-        return self.participation_set.filter(status__in=[STATUS_INITIAL, STATUS_ACCEPTED])
+        return self.subtask_participants_inclusive_filter.filter(status__in=[STATUS_INITIAL, STATUS_ACCEPTED])
 
     @property
     def active_participants(self):
-        return self.participation_set.filter(status=STATUS_ACCEPTED)
+        return self.subtask_participants_inclusive_filter.filter(status=STATUS_ACCEPTED)
 
     @property
     def assignee(self):
@@ -572,7 +578,8 @@ class Task(models.Model):
                     share = Decimal(participant.share or 0)/Decimal(total_shares)
                 share_info = {
                     'participant': participant,
-                    'share': share
+                    'share': share,
+                    'value': participant.share or 0
                 }
                 participation_shares.append(share_info)
                 participation_shares_hash[participant.id] = share_info
@@ -988,6 +995,9 @@ class ProgressEvent(models.Model):
     def has_object_write_permission(self, request):
         return request.user == self.task.user
 
+    def user_report(self, user):
+        return self.progressreport_set.filter(user=user)
+
 
 PROGRESS_REPORT_STATUS_CHOICES = (
     (PROGRESS_REPORT_STATUS_ON_SCHEDULE, 'On schedule'),
@@ -997,7 +1007,7 @@ PROGRESS_REPORT_STATUS_CHOICES = (
 
 
 class ProgressReport(models.Model):
-    event = models.OneToOneField(ProgressEvent, on_delete=models.CASCADE)
+    event = models.ForeignKey(ProgressEvent, on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
     status = models.PositiveSmallIntegerField(
         choices=PROGRESS_REPORT_STATUS_CHOICES,

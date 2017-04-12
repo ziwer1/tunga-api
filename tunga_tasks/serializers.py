@@ -595,9 +595,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     def get_is_participant(self, obj):
         user = self.get_current_user()
         if user:
-            return obj.subtask_participants_inclusive_filter.filter(
-                user=user, status__in=[STATUS_INITIAL, STATUS_ACCEPTED]
-            ).count() > 0
+            return obj.get_is_participant(user, active_only=False)
         return False
 
     def get_is_admin(self, obj):
@@ -869,16 +867,34 @@ class ProgressEventDetailsSerializer(serializers.ModelSerializer):
         fields = ('task', 'created_by', 'active_participants')
 
 
-class ProgressEventSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
+class ProgressEventSerializer(
+    ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedSerializerMixin
+):
     created_by = SimpleUserSerializer(required=False, read_only=True,
                                                     default=CreateOnlyCurrentUserDefault())
-    report = SimpleProgressReportSerializer(read_only=True, required=False, source='progressreport')
+    reports = SimpleProgressReportSerializer(read_only=True, required=False, source='progressreport_set', many=True)
+    my_report = serializers.SerializerMethodField(read_only=True, required=False)
+    is_participant = serializers.SerializerMethodField(read_only=True, required=False)
 
     class Meta:
         model = ProgressEvent
         exclude = ()
         read_only_fields = ('created_at',)
         details_serializer = ProgressEventDetailsSerializer
+
+    def get_my_report(self, obj):
+        user = self.get_current_user()
+        if user:
+            my_report = obj.user_report(user)
+            if my_report:
+                return SimpleProgressReportSerializer(instance=my_report).data
+        return None
+
+    def get_is_participant(self, obj):
+        user = self.get_current_user()
+        if user:
+            return obj.task.get_is_participant(user, active_only=True)
+        return False
 
 
 class ProgressReportDetailsSerializer(serializers.ModelSerializer):
