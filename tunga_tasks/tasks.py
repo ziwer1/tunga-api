@@ -85,7 +85,8 @@ def update_task_periodic_updates(task):
             if period_info:
                 unit = isinstance(period_info, dict) and period_info.keys()[0] or period_info
                 multiplier = isinstance(period_info, dict) and period_info.values()[0] or 1
-                delta = {unit: multiplier * target_task.update_interval_units}
+                delta = dict()
+                delta[unit] = multiplier * target_task.update_interval
                 last_update_at = periodic_start_date
                 while True:
                     next_update_at = last_update_at + relativedelta(**delta)
@@ -93,16 +94,13 @@ def update_task_periodic_updates(task):
                         # Don't schedule updates on weekends
                         next_update_at += relativedelta(days=7-next_update_at.weekday())
                     if not target_task.deadline or next_update_at < target_task.deadline:
-                        min_before_next_update_at = next_update_at - relativedelta(hours=24)
-                        max_after_next_update_at = next_update_at + relativedelta(hours=24)
-
-                        num_updates_within_24hrs = ProgressEvent.objects.filter(
+                        num_updates_within_on_same_day = ProgressEvent.objects.filter(
                             task=target_task, type=PROGRESS_EVENT_TYPE_PERIODIC,
-                            due_at__gt=min_before_next_update_at, due_at__lt=max_after_next_update_at
+                            due_at__contains=next_update_at.date()
                         ).count()
 
-                        if num_updates_within_24hrs == 0:
-                            # Schedule at most one periodic update within any 24 hour period
+                        if num_updates_within_on_same_day == 0:
+                            # Schedule at most one periodic update for any day
                             ProgressEvent.objects.update_or_create(
                                 task=target_task, type=PROGRESS_EVENT_TYPE_PERIODIC, due_at=next_update_at
                             )
