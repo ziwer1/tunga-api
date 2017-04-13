@@ -893,7 +893,7 @@ class ProgressEventSerializer(
     def get_is_participant(self, obj):
         user = self.get_current_user()
         if user:
-            return obj.task.get_is_participant(user, active_only=True)
+            return obj.get_is_participant(user, active_only=True)
         return False
 
 

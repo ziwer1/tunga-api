@@ -17,7 +17,7 @@ from tunga_tasks.models import Task, Participation, Application, ProgressEvent, 
 from tunga_utils import slack_utils
 from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, \
     USER_TYPE_PROJECT_MANAGER, TASK_SOURCE_NEW_USER, STATUS_INITIAL, STATUS_SUBMITTED, STATUS_APPROVED, STATUS_DECLINED, \
-    STATUS_ACCEPTED, STATUS_REJECTED
+    STATUS_ACCEPTED, STATUS_REJECTED, PROGRESS_EVENT_TYPE_PM
 from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance, convert_to_text
 
@@ -472,7 +472,7 @@ def notify_new_task_application_slack(instance):
                                   (truncatewords(convert_to_text(instance.pitch), 100),
                                    instance.hours_needed and '\n*Workload:* {} hrs'.format(instance.hours_needed) or '',
                                    instance.deliver_at and '\n*Delivery Date:* {}'.format(
-                                       instance.deliver_at.strftime("%d %b, %Y at %H:%M GMT")
+                                       instance.deliver_at.strftime("%d %b, %Y")
                                    ) or '',
                                    instance.remarks and '\n*Remarks:* {}'.format(
                                        truncatewords(convert_to_text(instance.remarks), 100)
@@ -539,11 +539,26 @@ def send_progress_event_reminder(instance):
 @job
 def send_progress_event_reminder_email(instance):
     instance = clean_instance(instance, ProgressEvent)
-    subject = "%s Upcoming Task Update" % (EMAIL_SUBJECT_PREFIX,)
+
+    is_internal = instance.type == PROGRESS_EVENT_TYPE_PM
+    if is_internal and not instance.task.is_project:
+        return
+    pm = instance.task.pm
+    if not pm and instance.task.user.is_project_manager:
+        pm = instance.task.user
+
+    if is_internal and not pm:
+        return
+
+    subject = "{} Upcoming {} Update".format(EMAIL_SUBJECT_PREFIX, instance.task.is_task and 'Task' or 'Project')
     participants = instance.task.participation_set.filter(status=STATUS_ACCEPTED)
     if participants:
-        to = [participants[0].user.email]
-        bcc = [participant.user.email for participant in participants[1:]] if participants.count() > 1 else None
+        if is_internal:
+            to = [pm.email]
+            bcc = None
+        else:
+            to = [participants[0].user.email]
+            bcc = [participant.user.email for participant in participants[1:]] if participants.count() > 1 else None
         ctx = {
             'owner': instance.task.user,
             'event': instance,
@@ -564,7 +579,9 @@ def notify_new_progress_report(instance):
 def notify_new_progress_report_email(instance):
     instance = clean_instance(instance, ProgressReport)
     subject = "%s %s submitted a Progress Report" % (EMAIL_SUBJECT_PREFIX, instance.user.display_name)
-    to = [instance.event.task.user.email]
+
+    is_internal = instance.event.type == PROGRESS_EVENT_TYPE_PM
+    to = is_internal and TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS or [instance.event.task.user.email]
     ctx = {
         'owner': instance.event.task.user,
         'reporter': instance.user,
@@ -572,30 +589,48 @@ def notify_new_progress_report_email(instance):
         'report': instance,
         'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.event.task.id, instance.event.id)
     }
-    send_mail(subject, 'tunga/email/email_new_progress_report', to, ctx)
+    send_mail(subject, 'tunga/email/email_new_progress_report{}'.format(is_internal and '_pm' or ''), to, ctx)
 
 @job
 def notify_new_progress_report_slack(instance):
     instance = clean_instance(instance, ProgressReport)
 
-    if not slack_utils.is_task_notification_enabled(instance.event.task, slugs.EVENT_PROGRESS):
+    is_internal = instance.event.type == PROGRESS_EVENT_TYPE_PM
+    if not (slack_utils.is_task_notification_enabled(instance.event.task, slugs.EVENT_PROGRESS) or is_internal):
         return
 
     report_url = '%s/work/%s/event/%s/' % (TUNGA_URL, instance.event.task_id, instance.event_id)
     slack_msg = "%s submitted a Progress Report | %s" % (
         instance.user.display_name, '<{}|View details on Tunga>'.format(report_url)
     )
+
+    slack_text_suffix = ''
+    if is_internal:
+        if instance.last_deadline_met is not None:
+            slack_text_suffix = '\nWas the last deadline met?: {}'.format(instance.last_deadline_met and 'Yes' or 'No')
+        if instance.next_deadline is not None:
+            slack_text_suffix += '\nNext deadline: {}'.format(instance.next_deadline.strftime("%d %b, %Y"))
     attachments = [
         {
             slack_utils.KEY_TITLE: instance.event.task.summary,
             slack_utils.KEY_TITLE_LINK: report_url,
-            slack_utils.KEY_TEXT: '*Status:* %s'
-                                  '\n*Percentage completed:* %s%s' %
-                                  (instance.get_status_display(), instance.percentage, '%'),
+            slack_utils.KEY_TEXT: '*Status:* {}'
+                                  '\n*Percentage completed:* {}{}{}'.format(
+                instance.get_status_display(), instance.percentage, '%', slack_text_suffix
+            ),
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
         }
     ]
+
+    if is_internal and instance.deadline_report:
+        attachments.append({
+            slack_utils.KEY_TITLE: 'Report about the last deadline:',
+            slack_utils.KEY_TEXT: convert_to_text(instance.deadline_report),
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
+        })
+
     if instance.accomplished:
         attachments.append({
             slack_utils.KEY_TITLE: 'What has been accomplished since last update?',
@@ -617,6 +652,13 @@ def notify_new_progress_report_slack(instance):
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
         })
+    if is_internal and instance.team_appraisal:
+        attachments.append({
+            slack_utils.KEY_TITLE: 'Team appraisal:',
+            slack_utils.KEY_TEXT: convert_to_text(instance.team_appraisal),
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
+        })
     if instance.remarks:
         attachments.append({
             slack_utils.KEY_TITLE: 'Other remarks or questions',
@@ -624,7 +666,13 @@ def notify_new_progress_report_slack(instance):
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
         })
-    slack_utils.send_integration_message(instance.event.task, message=slack_msg, attachments=attachments)
+    if is_internal:
+        slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_ATTACHMENTS: attachments
+        })
+    else:
+        slack_utils.send_integration_message(instance.event.task, message=slack_msg, attachments=attachments)
 
 
 @job

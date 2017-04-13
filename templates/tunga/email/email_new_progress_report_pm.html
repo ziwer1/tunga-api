@@ -1,0 +1,70 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    New progress report for {% if event.task.is_task %}task{% else %}project{% endif %}.
+{% endblock %}
+{% block email_content %}
+    <p>Hello,</p>
+
+    <p>{{ reporter.first_name }} submitted a progress report:</p>
+
+    <p>{% if event.task.is_task %}Task{% else %}Project{% endif %}: {{ event.task.summary }}</p>
+
+    <p>
+        Status: {{ report.get_status_display }}
+    </p>
+
+    <p>
+        Percentage Completed: {{ report.percentage | default:'0' }}%
+    </p>
+
+    <p>
+        Was the last deadline met?: {% if report.last_deadline_met %}Yes{% else %}No{% endif %}
+    </p>
+
+
+    {% if report.deadline_report %}
+        <p>
+            Report about the last deadline:<br/>
+            {{ report.deadline_report }}
+        </p>
+    {% endif %}
+
+    <p>
+        Accomplished:<br/>
+        {{ report.accomplished }}
+    </p>
+
+    {% if report.next_steps %}
+        <p>
+            Next steps:<br/>
+            {{ report.next_steps }}
+        </p>
+    {% endif %}
+
+    {% if report.next_deadline %}
+        <p>
+            Next deadline:<br/>
+            {{ report.next_deadline | date:'jS F Y' }}
+        </p>
+    {% endif %}
+
+    {% if report.team_appraisal %}
+        <p>
+            Team appraisal:<br/>
+            {{ report.team_appraisal }}
+        </p>
+    {% endif %}
+
+    {% if report.remarks %}
+        <p>
+            Remarks:<br/>
+            {{ report.remarks }}
+        </p>
+    {% endif %}
+
+    <p>
+        Click the link below to view the full report:<br/>
+        <a href="{{ update_url }}">{{ update_url }}</a>
+    </p>
+{% endblock %}

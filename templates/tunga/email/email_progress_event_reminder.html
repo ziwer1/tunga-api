@@ -12,7 +12,7 @@
 
     {% if event.title %}<p>Title: {{ event.title }}</p>{% endif %}
 
-    <p>Task: {{ event.task.summary }}</p>
+    <p>{% if event.task.is_task %}Task{% else %}Project{% endif %}: {{ event.task.summary }}</p>
 
     <p>
         Click the link below to view the fill the update form:<br/>

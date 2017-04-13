@@ -11,6 +11,10 @@
     <p>Task: {{ event.task.summary }}</p>
 
     <p>
+        Status: {{ report.get_status_display }}
+    </p>
+
+    <p>
         Accomplished:<br/>
         {{ report.accomplished }}
     </p>

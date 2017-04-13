@@ -19,7 +19,8 @@ from tunga_utils.constants import CURRENCY_BTC, PAYMENT_METHOD_BTC_WALLET, \
     PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, \
     UPDATE_SCHEDULE_WEEKLY, UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, UPDATE_SCHEDULE_ANNUALLY, \
     PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_SUBMIT, STATUS_PENDING, STATUS_PROCESSING, \
-    STATUS_INITIATED, APP_INTEGRATION_PROVIDER_HARVEST, PROGRESS_EVENT_TYPE_COMPLETE, STATUS_ACCEPTED
+    STATUS_INITIATED, APP_INTEGRATION_PROVIDER_HARVEST, PROGRESS_EVENT_TYPE_COMPLETE, STATUS_ACCEPTED, \
+    PROGRESS_EVENT_TYPE_PM
 from tunga_utils.helpers import clean_instance
 
 
@@ -28,6 +29,7 @@ def initialize_task_progress_events(task):
     task = clean_instance(task, Task)
     update_task_submit_milestone(task)
     update_task_periodic_updates(task)
+    update_task_pm_updates(task)
 
 
 @job
@@ -48,6 +50,7 @@ def update_task_submit_milestone(task):
 
         submit_defaults = {'due_at': task.deadline, 'title': 'Submit work'}
         ProgressEvent.objects.update_or_create(task=task, type=PROGRESS_EVENT_TYPE_COMPLETE, defaults=submit_defaults)
+
 
 @job
 def update_task_periodic_updates(task):
@@ -108,6 +111,59 @@ def update_task_periodic_updates(task):
                         break
                     else:
                         last_update_at = next_update_at
+
+
+@job
+def update_task_pm_updates(task):
+    task = clean_instance(task, Task)
+
+    target_task = task
+    if task.parent:
+        # for sub-tasks, create all periodic updates on the project
+        target_task = task.parent
+
+    if target_task.is_task or not target_task.approved:
+        return
+
+    if target_task.update_interval and target_task.update_interval_units:
+        periodic_start_date = ProgressEvent.objects.filter(
+            Q(task=target_task) | Q(task__parent=target_task), type=PROGRESS_EVENT_TYPE_PM
+        ).aggregate(latest_date=Max('due_at'))['latest_date']
+
+        now = datetime.datetime.utcnow()
+        if periodic_start_date and periodic_start_date > now:
+            return
+
+        if not periodic_start_date:
+            periodic_start_date = target_task.created_at
+
+        if periodic_start_date:
+            last_update_at = periodic_start_date
+            while True:
+                last_update_day = last_update_at.weekday()
+                next_update_at = last_update_at
+                if last_update_day < 3:
+                    # Last was before Thursday so schedule for Thursday
+                    next_update_at += relativedelta(days=3 - last_update_day)
+                else:
+                    # Last was on after Thursday so schedule for Monday
+                    next_update_at += relativedelta(days=7 - last_update_day)
+
+                if not target_task.deadline or next_update_at < target_task.deadline:
+                    num_updates_within_on_same_day = ProgressEvent.objects.filter(
+                        task=target_task, type=PROGRESS_EVENT_TYPE_PM,
+                        due_at__contains=next_update_at.date()
+                    ).count()
+
+                    if num_updates_within_on_same_day == 0:
+                        # Schedule at most one periodic update for any day
+                        ProgressEvent.objects.update_or_create(
+                            task=target_task, type=PROGRESS_EVENT_TYPE_PERIODIC, due_at=next_update_at
+                        )
+                if next_update_at > now:
+                    break
+                else:
+                    last_update_at = next_update_at
 
 
 @job

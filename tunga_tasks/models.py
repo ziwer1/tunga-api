@@ -999,6 +999,20 @@ class ProgressEvent(models.Model):
     def user_report(self, user):
         return self.progressreport_set.filter(user=user)
 
+    def get_is_participant(self, user, active_only=True):
+        if self.type == PROGRESS_EVENT_TYPE_PM:
+            if not self.task.is_project or not user.is_project_manager:
+                return False
+            if self.task.pm:
+                return self.task.pm == user
+            else:
+                return self.task.user == user
+        return self.task.get_is_participant(user, active_only=active_only)
+
+    @property
+    def pm(self):
+        return self.task.pm
+
 
 PROGRESS_REPORT_STATUS_CHOICES = (
     (PROGRESS_REPORT_STATUS_ON_SCHEDULE, 'On schedule'),
@@ -1019,6 +1033,13 @@ class ProgressReport(models.Model):
     next_steps = models.TextField(blank=True, null=True)
     obstacles = models.TextField(blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
+
+    # PMs only
+    last_deadline_met = models.NullBooleanField(blank=True, null=True)
+    deadline_report = models.TextField(blank=True, null=True)
+    team_appraisal = models.TextField(blank=True, null=True)
+    next_deadline = models.DateTimeField(blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     uploads = GenericRelation(Upload, related_query_name='progress_reports')
 
@@ -1037,7 +1058,7 @@ class ProgressReport(models.Model):
     @staticmethod
     @allow_staff_or_superuser
     def has_write_permission(request):
-        return request.user.type == USER_TYPE_DEVELOPER
+        return request.user.is_developer or request.user.is_project_manager
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
