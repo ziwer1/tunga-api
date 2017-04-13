@@ -9,7 +9,7 @@ from django_rq.decorators import job
 from premailer import premailer
 
 from tunga.settings import DEFAULT_FROM_EMAIL, TUNGA_CONTACT_REQUEST_EMAIL_RECIPIENTS, EMAIL_SUBJECT_PREFIX
-from tunga_utils.helpers import clean_instance
+from tunga_utils.helpers import clean_instance, convert_to_text
 from tunga_utils.models import ContactRequest
 
 
@@ -28,12 +28,7 @@ def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None,
             if ext == 'txt':
                 if 'html' in bodies:
                     # Compose text body from html
-                    txt_body = re.sub(r'(<br\s*/\s*>|<\s*/\s*(?:div|p)>)', '\\1\n', bodies['html'])
-                    txt_body = striptags(txt_body)  # Striptags
-                    txt_body = re.sub(r' {2,}', ' ', txt_body)  # Squash all multi spaces
-                    txt_body = re.sub(r'\n( )+', '\n', txt_body)  # Remove indents
-                    txt_body = re.sub(r'\n{3,}', '\n\n', txt_body)  # Limit consecutive new lines to a max of 2
-                    bodies[ext] = txt_body
+                    bodies[ext] = convert_to_text(bodies['html'])
                 else:
                     # We need at least one body
                     raise
