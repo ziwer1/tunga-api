@@ -9,8 +9,8 @@ def profile_check(user):
 
     if user.is_developer or user.is_project_manager:
         required.extend(['payment_method', 'id_document'])
-    elif user.is_project_owner:
-        required.extend(['company'])
+    # elif user.is_project_owner:
+    #    required.extend(['company'])
 
     profile_dict = user.profile.__dict__
     for key in profile_dict:
