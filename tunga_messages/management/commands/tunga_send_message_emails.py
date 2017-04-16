@@ -8,7 +8,7 @@ from django.db.models.expressions import Case, When, F
 from django.db.models.fields import IntegerField
 from django.db.models.query_utils import Q
 
-from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL
+from tunga.settings import TUNGA_URL
 from tunga_activity import verbs
 from tunga_messages.models import ChannelUser
 from tunga_utils.constants import CHANNEL_TYPE_DIRECT

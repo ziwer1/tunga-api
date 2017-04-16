@@ -1,8 +1,8 @@
 from django.contrib.auth import get_user_model
 from django_rq.decorators import job
 
-from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_URL, SLACK_STAFF_INCOMING_WEBHOOK, \
-    SLACK_ATTACHMENT_COLOR_GREEN, TUNGA_ICON_URL_150, SLACK_ATTACHMENT_COLOR_TUNGA, SLACK_STAFF_CUSTOMER_CHANNEL
+from tunga.settings import TUNGA_URL, SLACK_STAFF_INCOMING_WEBHOOK, \
+    TUNGA_ICON_URL_150, SLACK_ATTACHMENT_COLOR_TUNGA, SLACK_STAFF_CUSTOMER_CHANNEL
 from tunga_messages.models import Message
 from tunga_utils import slack_utils
 from tunga_utils.constants import CHANNEL_TYPE_SUPPORT, APP_INTEGRATION_PROVIDER_SLACK, CHANNEL_TYPE_DEVELOPER, \

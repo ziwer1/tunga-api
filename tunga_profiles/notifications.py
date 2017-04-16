@@ -3,11 +3,11 @@ import datetime
 from django.contrib.auth import get_user_model
 from django_rq.decorators import job
 
-from tunga.settings import EMAIL_SUBJECT_PREFIX, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, TUNGA_URL
+from tunga.settings import TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, TUNGA_URL
 from tunga_profiles.models import DeveloperApplication, Skill, DeveloperInvitation
 from tunga_tasks.models import Task
-from tunga_utils.helpers import clean_instance
 from tunga_utils.emails import send_mail
+from tunga_utils.helpers import clean_instance
 
 
 @job

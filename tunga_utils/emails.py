@@ -1,8 +1,7 @@
 import datetime
 import re
 
-from django.core.mail.message import EmailMultiAlternatives, EmailMessage
-from django.template.defaultfilters import striptags
+from django.core.mail.message import EmailMultiAlternatives
 from django.template.exceptions import TemplateDoesNotExist
 from django.template.loader import render_to_string
 from django_rq.decorators import job
