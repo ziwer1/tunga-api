@@ -448,6 +448,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
 
         if is_update:
             if not initial_approved and instance.approved:
+                instance.approved_at = datetime.datetime.utcnow()
+                instance.save()
                 task_approved.send(sender=Task, task=instance)
 
             if initial_apply and not instance.apply:

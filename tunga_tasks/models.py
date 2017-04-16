@@ -158,9 +158,11 @@ class Task(models.Model):
         choices=TASK_BILLING_CHOICES, default=TASK_BILLING_METHOD_FIXED, blank=True, null=True
     )
     currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
+    # Amount placed on task by client
     fee = models.DecimalField(
         max_digits=19, decimal_places=4, blank=True, null=True, default=None
     )
+    # Created from developer estimate (hrs * rate/hr)
     bid = models.DecimalField(
         max_digits=19, decimal_places=4, blank=True, null=True, default=None
     )
@@ -170,12 +172,15 @@ class Task(models.Model):
     pm_rate = models.DecimalField(
         max_digits=19, decimal_places=4, default=39
     )
+    # Used to calculate PM hours given the development hrs
     pm_time_percentage = models.DecimalField(
         max_digits=7, decimal_places=4, default=15
     )
+    # Percentage of dev fee that goes to Tunga
     tunga_percentage_dev = models.DecimalField(
         max_digits=7, decimal_places=4, default=34.21
     )
+    # Percentage of pm fee that goes to Tunga
     tunga_percentage_pm = models.DecimalField(
         max_digits=7, decimal_places=4, default=48.71
     )
@@ -197,7 +202,9 @@ class Task(models.Model):
     scope = models.IntegerField(choices=TASK_SCOPE_CHOICES, default=TASK_SCOPE_TASK)  # task, project or ongoing project
     has_requirements = models.BooleanField(default=False)
     pm_required = models.BooleanField(default=False)
-    contact_required = models.BooleanField(default=False)
+    contact_required = models.BooleanField(
+        default=False, help_text='True if client chooses to be contacted for more info?'
+    )
     skills = tagulous.models.TagField(Skill, blank=True)
     coders_needed = models.IntegerField(choices=TASK_CODERS_NEEDED_CHOICES, blank=True, null=True)
 
@@ -216,7 +223,12 @@ class Task(models.Model):
     satisfaction = models.SmallIntegerField(blank=True, null=True, help_text="Client's rating of task developers")
 
     # Task state modifiers
-    approved = models.BooleanField(default=False)
+    approved = models.BooleanField(
+        default=False, help_text='True if task or project is ready for developers'
+    )
+    review = models.BooleanField(
+        default=False, help_text='True if task or project should be reviewed by an admin'
+    )
     apply = models.BooleanField(
         default=True, help_text='True if developers can apply for this task (visibility can override this)'
     )
@@ -224,13 +236,14 @@ class Task(models.Model):
     paid = models.BooleanField(default=False, help_text='True if the task is paid')
     pay_distributed = models.BooleanField(
         default=False,
-        help_text='True if task has been paid and entire payment has been distributed tp participating developers'
+        help_text='True if task has been paid and entire payment has been distributed to participating developers'
     )
     archived = models.BooleanField(default=False)
     reminded_complete_task = models.BooleanField(default=False)
 
     # Significant event dates
     deadline = models.DateTimeField(blank=True, null=True)
+    approved_at = models.DateTimeField(blank=True, null=True)
     apply_closed_at = models.DateTimeField(blank=True, null=True)
     closed_at = models.DateTimeField(blank=True, null=True)
     paid_at = models.DateTimeField(blank=True, null=True)
@@ -289,7 +302,6 @@ class Task(models.Model):
                 self.approved = bool(
                     self.scope == TASK_SCOPE_TASK or (self.scope == TASK_SCOPE_PROJECT and not self.pm_required)
                 )
-
         super(Task, self).save(
             force_insert=force_insert, force_update=force_update, using=using, update_fields=update_fields
         )

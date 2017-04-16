@@ -174,6 +174,63 @@ def send_new_task_admin_slack(instance, new_user=False, completed=False):
 
 
 @job
+def send_reminder_task_applications(instance, admin=True):
+    send_reminder_task_applications_slack(instance, admin=admin)
+
+
+@job
+def send_reminder_task_applications_slack(instance, admin=True):
+    instance = clean_instance(instance, Task)
+
+    if not instance.is_task:
+        return
+    task_url = '{}/work/{}/'.format(TUNGA_URL, instance.id)
+    new_user = instance.source == TASK_SOURCE_NEW_USER
+
+    summary = "Reminder: No applications yet for {} {} | <{}|View on Tunga>".format(
+        instance.scope == TASK_SCOPE_TASK and 'task' or 'project',
+        new_user and admin and ' (New user)' or '',
+        task_url
+    )
+    slack_msg = create_task_slack_msg(
+        instance, summary=summary,
+        channel=admin and SLACK_STAFF_UPDATES_CHANNEL or SLACK_DEVELOPER_UPDATES_CHANNEL
+    )
+    slack_utils.send_incoming_webhook(
+        admin and SLACK_STAFF_INCOMING_WEBHOOK or SLACK_DEVELOPER_INCOMING_WEBHOOK,
+        slack_msg
+    )
+
+
+@job
+def send_review_task_admin(instance):
+    send_review_task_admin_slack(instance)
+
+
+@job
+def send_review_task_admin_slack(instance):
+    instance = clean_instance(instance, Task)
+    task_url = '{}/work/{}/'.format(TUNGA_URL, instance.id)
+    new_user = instance.source == TASK_SOURCE_NEW_USER
+
+    summary = "Reminder: Review {} {} | <{}|View on Tunga>\nCreated: {}".format(
+        instance.scope == TASK_SCOPE_TASK and 'task' or 'project',
+        new_user and ' (New user)' or '',
+        task_url,
+        instance.created_at.strftime("%d %b, %Y"),
+        instance.approved_at and 'Approved: {}'.format(instance.approved_at.strftime("%d %b, %Y")) or '',
+    )
+    slack_msg = create_task_slack_msg(
+        instance, summary=summary,
+        channel=SLACK_STAFF_UPDATES_CHANNEL
+    )
+    slack_utils.send_incoming_webhook(
+        SLACK_STAFF_INCOMING_WEBHOOK,
+        slack_msg
+    )
+
+
+@job
 def send_new_task_community(instance):
     send_new_task_community_email(instance)
     send_new_task_community_slack(instance)
@@ -267,7 +324,8 @@ def send_new_task_community_slack(instance):
     # Notify Devs or PMs via Slack
     if (not instance.is_developer_ready) or (instance.approved and instance.visibility == VISIBILITY_DEVELOPER):
         slack_msg = create_task_slack_msg(
-            instance, channel=instance.is_developer_ready and SLACK_DEVELOPER_UPDATES_CHANNEL or SLACK_PMS_UPDATES_CHANNEL
+            instance,
+            channel=instance.is_developer_ready and SLACK_DEVELOPER_UPDATES_CHANNEL or SLACK_PMS_UPDATES_CHANNEL
         )
         slack_utils.send_incoming_webhook(SLACK_DEVELOPER_INCOMING_WEBHOOK, slack_msg)
 
