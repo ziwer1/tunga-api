@@ -25,7 +25,7 @@ def notify_new_message_email(instance):
     if recipients:
         to = [recipient.email for recipient in recipients]
     if to and isinstance(to, (list, tuple)):
-        subject = "%s New message from %s" % (EMAIL_SUBJECT_PREFIX, instance.sender.short_name)
+        subject = "New message from {}".format(instance.sender.short_name)
         ctx = {
             'sender': instance.sender.short_name,
             'subject': instance.channel.subject,
@@ -98,8 +98,8 @@ def notify_new_message_developers(instance):
             bcc = recipients[1:] if len(recipients) > 1 else None
 
             if to and isinstance(to, (list, tuple)):
-                subject = "%s Developer Notification: %s" % (
-                    EMAIL_SUBJECT_PREFIX, instance.channel.subject or instance.sender.short_name
+                subject = "Developer Notification: {}".format(
+                    instance.channel.subject or instance.sender.short_name
                 )
                 ctx = {
                     'sender': instance.sender.short_name,

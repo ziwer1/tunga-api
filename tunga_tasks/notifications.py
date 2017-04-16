@@ -90,12 +90,12 @@ def notify_task_approved(instance, new_user=False):
 @job
 def send_new_task_client_receipt_email(instance, reminder=False):
     instance = clean_instance(instance, Task)
-    subject = "{} Your {} has been posted on Tunga".format(
-        EMAIL_SUBJECT_PREFIX, instance.scope == TASK_SCOPE_TASK and 'task' or 'project'
+    subject = "Your {} has been posted on Tunga".format(
+        instance.scope == TASK_SCOPE_TASK and 'task' or 'project'
     )
     if instance.is_task and not instance.approved:
-        subject = "{} {}Finalize your {}".format(
-            EMAIL_SUBJECT_PREFIX, reminder and 'Reminder: ' or '',
+        subject = "{}Finalize your {}".format(
+            reminder and 'Reminder: ' or '',
             instance.scope == TASK_SCOPE_TASK and 'task' or 'project'
         )
     to = [instance.user.email]
@@ -141,8 +141,7 @@ def send_new_task_admin(instance, new_user=False, completed=False):
 def send_new_task_admin_email(instance, new_user=False, completed=False):
     instance = clean_instance(instance, Task)
 
-    subject = "{} {} {} {} by {}{}".format(
-        EMAIL_SUBJECT_PREFIX,
+    subject = "{} {} {} by {}{}".format(
         completed and 'New wizard' or 'New',
         instance.scope == TASK_SCOPE_TASK and 'task' or 'project',
         completed and 'details completed' or 'created',
@@ -163,8 +162,7 @@ def send_new_task_admin_email(instance, new_user=False, completed=False):
 def send_new_task_admin_slack(instance, new_user=False, completed=False):
     instance = clean_instance(instance, Task)
     task_url = '{}/work/{}/'.format(TUNGA_URL, instance.id)
-    summary = "{} {} {} {} by {}{} | <{}|View on Tunga>".format(
-        EMAIL_SUBJECT_PREFIX,
+    summary = "{} {} {} by {}{} | <{}|View on Tunga>".format(
         completed and 'New wizard' or 'New',
         instance.scope == TASK_SCOPE_TASK and 'task' or 'project',
         completed and 'details completed' or 'created',
@@ -244,8 +242,9 @@ def send_new_task_community_email(instance):
         if queryset:
             community_receivers = queryset[:15]
 
-    subject = "{} New {} created by {}".format(
-        EMAIL_SUBJECT_PREFIX, instance.scope == TASK_SCOPE_TASK and 'task' or 'project', instance.user.first_name
+    subject = "New {} created by {}".format(
+        instance.scope == TASK_SCOPE_TASK and 'task' or 'project',
+        instance.user.first_name
     )
 
     if community_receivers:
@@ -311,8 +310,7 @@ def send_estimate_status_email(instance, estimate_type='estimate', target_admins
             # Notify staff in a separate email
             send_estimate_status_email.delay(instance.id, estimate_type=estimate_type, target_admins=True)
 
-    subject = "{} {} {} {}".format(
-        EMAIL_SUBJECT_PREFIX,
+    subject = "{} {} {}".format(
         actor.first_name,
         action_verb,
         estimate_type == 'estimate' and 'an estimate' or 'a quote'
@@ -346,8 +344,7 @@ def send_estimate_approved_client_email(instance, estimate_type='estimate'):
     instance = clean_instance(instance, estimate_type == 'quote' and Quote or Estimate)
     if instance.status != STATUS_APPROVED:
         return
-    subject = "{} {} submitted {}".format(
-        EMAIL_SUBJECT_PREFIX,
+    subject = "{} submitted {}".format(
         instance.user.first_name,
         estimate_type == 'estimate' and 'an estimate' or 'a quote'
     )
@@ -377,7 +374,7 @@ def send_estimate_approved_client_email(instance, estimate_type='estimate'):
 @job
 def send_new_task_invitation_email(instance):
     instance = clean_instance(instance, Participation)
-    subject = "%s Task invitation from %s" % (EMAIL_SUBJECT_PREFIX, instance.created_by.first_name)
+    subject = "Task invitation from {}".format(instance.created_by.first_name)
     to = [instance.user.email]
     ctx = {
         'inviter': instance.created_by,
@@ -400,8 +397,9 @@ def notify_task_invitation_response_email(instance):
     if instance.status not in [STATUS_ACCEPTED, STATUS_REJECTED]:
         return
 
-    subject = "%s Task invitation %s by %s" % (
-        EMAIL_SUBJECT_PREFIX, instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected', instance.user.first_name)
+    subject = "Task invitation {} by {}".format(
+        instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected', instance.user.first_name
+    )
     to = list({instance.task.user.email, instance.created_by.email})
     ctx = {
         'inviter': instance.created_by,
@@ -438,7 +436,7 @@ def notify_new_task_application(instance):
 @job
 def notify_new_task_application_email(instance):
     instance = clean_instance(instance, Application)
-    subject = "%s New application from %s" % (EMAIL_SUBJECT_PREFIX, instance.user.short_name)
+    subject = "New application from {}".format(instance.user.short_name)
     to = [instance.task.user.email]
     ctx = {
         'owner': instance.task.user,
@@ -488,7 +486,7 @@ def notify_new_task_application_slack(instance):
 @job
 def send_new_task_application_response_email(instance):
     instance = clean_instance(instance, Application)
-    subject = "%s Task application %s" % (EMAIL_SUBJECT_PREFIX, instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected')
+    subject = "Task application {}".format(instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected')
     to = [instance.user.email]
     ctx = {
         'owner': instance.task.user,
@@ -503,7 +501,7 @@ def send_new_task_application_response_email(instance):
 @job
 def send_new_task_application_applicant_email(instance):
     instance = clean_instance(instance, Application)
-    subject = "%s You applied for a task: %s" % (EMAIL_SUBJECT_PREFIX, instance.task.summary)
+    subject = "You applied for a task: {}".format(instance.task.summary)
     to = [instance.user.email]
     ctx = {
         'owner': instance.task.user,
@@ -521,7 +519,7 @@ def send_task_application_not_selected_email(instance):
         status=STATUS_REJECTED
     )
     if rejected_applicants:
-        subject = "%s Your application was not accepted for: %s" % (EMAIL_SUBJECT_PREFIX, instance.summary)
+        subject = "Your application was not accepted for: {}".format(instance.summary)
         to = [rejected_applicants[0].user.email]
         bcc = [dev.user.email for dev in rejected_applicants[1:]] if len(rejected_applicants) > 1 else None
         ctx = {
@@ -550,7 +548,7 @@ def send_progress_event_reminder_email(instance):
     if is_internal and not pm:
         return
 
-    subject = "{} Upcoming {} Update".format(EMAIL_SUBJECT_PREFIX, instance.task.is_task and 'Task' or 'Project')
+    subject = "Upcoming {} Update".format(instance.task.is_task and 'Task' or 'Project')
     participants = instance.task.participation_set.filter(status=STATUS_ACCEPTED)
     if participants:
         if is_internal:
@@ -578,7 +576,7 @@ def notify_new_progress_report(instance):
 @job
 def notify_new_progress_report_email(instance):
     instance = clean_instance(instance, ProgressReport)
-    subject = "%s %s submitted a Progress Report" % (EMAIL_SUBJECT_PREFIX, instance.user.display_name)
+    subject = "{} submitted a Progress Report".format(instance.user.display_name)
 
     is_internal = instance.event.type == PROGRESS_EVENT_TYPE_PM
     to = is_internal and TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS or [instance.event.task.user.email]
@@ -678,7 +676,7 @@ def notify_new_progress_report_slack(instance):
 @job
 def send_task_invoice_request_email(instance):
     instance = clean_instance(instance, Task)
-    subject = "%s %s requested for an invoice" % (EMAIL_SUBJECT_PREFIX, instance.user.display_name)
+    subject = "{} requested for an invoice".format(instance.user.display_name)
     to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
     ctx = {
         'owner': instance.user,

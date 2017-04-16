@@ -57,7 +57,7 @@ def send_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, *
 def send_contact_request_email(instance):
     instance = clean_instance(instance, ContactRequest)
 
-    subject = "%s New %s Request" % (EMAIL_SUBJECT_PREFIX, instance.item and 'Offer' or 'Contact')
+    subject = "New {} Request".format(instance.item and 'Offer' or 'Contact')
     msg_suffix = 'wants to know more about Tunga.'
     if instance.item:
         item_name = instance.get_item_display()

@@ -51,12 +51,13 @@ class Command(BaseCommand):
 
             to = [user_channel.user.email]
             if user_channel.channel.type == CHANNEL_TYPE_DIRECT:
-                conversation_subject = "New message%s from %s" % (
-                    user_channel.new_messages == 1 and '' or 's', channel_name
+                conversation_subject = "New message{} from {}".format(
+                    user_channel.new_messages == 1 and '' or 's',
+                    channel_name
                 )
             else:
-                conversation_subject = "Conversation: %s" % channel_name
-            subject = "%s %s" % (EMAIL_SUBJECT_PREFIX, conversation_subject)
+                conversation_subject = "Conversation: {}".format(channel_name)
+            subject = conversation_subject
             ctx = {
                 'receiver': user_channel.user,
                 'new_messages': user_channel.new_messages,

@@ -98,7 +98,7 @@ class Command(BaseCommand):
             task = user_task.content_object
 
             to = [user_task.user.email]
-            subject = "%s New activity for task: %s" % (EMAIL_SUBJECT_PREFIX, task.summary)
+            subject = "New activity for task: {}".format(task.summary)
             ctx = {
                 'receiver': user_task.user,
                 'new_activity': user_task.new_activity,

@@ -9,7 +9,7 @@ from tunga_utils.emails import send_mail
 @job
 def send_new_user_email(instance):
     instance = clean_instance(instance, get_user_model())
-    subject = "%s %s joined Tunga" % (EMAIL_SUBJECT_PREFIX, instance.display_name)
+    subject = "{} joined Tunga".format(instance.display_name)
     to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
     ctx = {
         'user': instance,

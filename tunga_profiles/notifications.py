@@ -13,7 +13,7 @@ from tunga_utils.emails import send_mail
 @job
 def send_new_developer_email(instance):
     instance = clean_instance(instance, DeveloperApplication)
-    subject = "%s %s has applied to become a Tunga developer" % (EMAIL_SUBJECT_PREFIX, instance.display_name)
+    subject = "{} has applied to become a Tunga developer".format(instance.display_name)
     to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
     ctx = {
         'application': instance,
@@ -24,7 +24,7 @@ def send_new_developer_email(instance):
 @job
 def send_developer_application_received_email(instance):
     instance = clean_instance(instance, DeveloperApplication)
-    subject = "%s Your application to become a Tunga developer has been received" % EMAIL_SUBJECT_PREFIX
+    subject = "Your application to become a Tunga developer has been received"
     to = [instance.email]
     ctx = {
         'application': instance
@@ -35,7 +35,7 @@ def send_developer_application_received_email(instance):
 @job
 def send_developer_accepted_email(instance):
     instance = clean_instance(instance, DeveloperApplication)
-    subject = "%s Your application to become a Tunga developer has been accepted" % EMAIL_SUBJECT_PREFIX
+    subject = "Your application to become a Tunga developer has been accepted"
     to = [instance.email]
     ctx = {
         'application': instance,
@@ -49,7 +49,7 @@ def send_developer_accepted_email(instance):
 @job
 def send_new_skill_email(instance):
     instance = clean_instance(instance, Skill)
-    subject = "%s New skill created" % EMAIL_SUBJECT_PREFIX
+    subject = "New skill created"
     to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
 
     users = get_user_model().objects.filter(userprofile__skills=instance)
@@ -65,8 +65,7 @@ def send_new_skill_email(instance):
 @job
 def send_developer_invited_email(instance, resend=False):
     instance = clean_instance(instance, DeveloperInvitation)
-    subject = "{} You have been invited to become a Tunga {}".format(
-        EMAIL_SUBJECT_PREFIX,
+    subject = "You have been invited to become a Tunga {}".format(
         instance.get_type_display().lower()
     )
     to = [instance.email]
@@ -90,9 +89,10 @@ def send_developer_invited_email(instance, resend=False):
 @job
 def send_new_developer_invitation_sent_email(instance):
     instance = clean_instance(instance, DeveloperInvitation)
-    subject = "{} {} has been invited to become a Tunga {}".format(
-        EMAIL_SUBJECT_PREFIX, instance.first_name,
-        instance.get_type_display().lower())
+    subject = "{} has been invited to become a Tunga {}".format(
+        instance.first_name,
+        instance.get_type_display().lower()
+    )
     to = [instance.created_by.email]
     to.extend(TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS)
     ctx = {
@@ -104,8 +104,7 @@ def send_new_developer_invitation_sent_email(instance):
 @job
 def send_developer_invitation_accepted_email(instance):
     instance = clean_instance(instance, DeveloperInvitation)
-    subject = "{} {} has accepted your invitation to become a Tunga {}".format(
-        EMAIL_SUBJECT_PREFIX,
+    subject = "{} has accepted your invitation to become a Tunga {}".format(
         instance.first_name,
         instance.get_type_display().lower()
     )
