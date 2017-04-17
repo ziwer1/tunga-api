@@ -3,6 +3,7 @@ import json
 from allauth.socialaccount.providers.github.provider import GitHubProvider
 from django.db.models.query_utils import Q
 from django.shortcuts import get_object_or_404
+from django.utils import six
 from django_countries.fields import CountryField
 from dry_rest_permissions.generics import DRYObjectPermissions, DRYPermissions
 from rest_framework import viewsets, generics, views, status
@@ -202,7 +203,7 @@ class NotificationView(views.APIView):
         }
 
         channel_type_summary_updates = dict()
-        for channel_type_name in channel_type_map.itervalues():
+        for channel_type_name in six.itervalues(channel_type_map):
             channel_type_summary_updates[channel_type_name] = 0
 
         for channel in channel_updates:

@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 from django.db import models
+from django.utils.encoding import python_2_unicode_compatible
 
 from tunga import settings
 from tunga_utils.constants import VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM, VISIBILITY_ONLY_ME
@@ -13,6 +14,7 @@ VISIBILITY_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class Setting(models.Model):
     slug = models.CharField(max_length=100, primary_key=True)
     name = models.CharField(max_length=100, verbose_name='display name')
@@ -22,33 +24,37 @@ class Setting(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s - %s' % (self.slug, self.name)
 
     class Meta:
         abstract = True
 
 
+@python_2_unicode_compatible
 class SwitchSetting(Setting):
     default_value = models.BooleanField()
 
 
+@python_2_unicode_compatible
 class VisibilitySetting(Setting):
     default_value = models.PositiveSmallIntegerField(choices=VISIBILITY_CHOICES)
 
 
+@python_2_unicode_compatible
 class UserSetting(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return 'Settings - %s' % self.user.get_short_name()
 
     class Meta:
         abstract = True
 
 
+@python_2_unicode_compatible
 class UserSwitchSetting(UserSetting):
     setting = models.ForeignKey(SwitchSetting)
     value = models.BooleanField()
@@ -57,6 +63,7 @@ class UserSwitchSetting(UserSetting):
         unique_together = ('user', 'setting')
 
 
+@python_2_unicode_compatible
 class UserVisibilitySetting(UserSetting):
     setting = models.ForeignKey(VisibilitySetting)
     value = models.PositiveSmallIntegerField(choices=VISIBILITY_CHOICES)

@@ -1,5 +1,5 @@
-import re
 import json
+import re
 from decimal import Decimal
 
 from allauth.socialaccount.models import SocialToken
@@ -7,7 +7,7 @@ from django.apps import apps as django_apps
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponseRedirect
 from django.template.defaultfilters import urlizetrunc, safe, striptags
-from django.utils.html import strip_tags
+from django.utils import six
 
 
 def get_tunga_model(model):
@@ -54,7 +54,7 @@ class Echo(object):
 
 class GenericObject:
     def __init__(self, **kwargs):
-        for k, v in kwargs.iteritems():
+        for k, v in six.iteritems(kwargs):
             setattr(self, k, v)
 
 

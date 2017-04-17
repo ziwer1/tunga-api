@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.tokens import default_token_generator
 from django.db import models
-from django.utils.encoding import force_bytes
+from django.utils.encoding import force_bytes, python_2_unicode_compatible
 from django.utils.http import urlsafe_base64_encode
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
@@ -152,13 +152,14 @@ class TungaUser(AbstractUser):
         return default_token_generator.make_token(self)
 
 
+@python_2_unicode_compatible
 class EmailVisitor(models.Model):
     email = models.EmailField(unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_login_at = models.DateTimeField(auto_now=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.email
 
     class Meta:

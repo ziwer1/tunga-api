@@ -1,4 +1,5 @@
 import requests
+from django.utils import six
 
 from tunga.settings import HUBSPOT_API_KEY
 
@@ -24,7 +25,7 @@ def create_hubspot_contact(email=None, **kwargs):
         dict(property='email', value=email)
     ]
     if kwargs:
-        for key, value in kwargs.iteritems():
+        for key, value in six.iteritems(kwargs):
             properties.append(
                 dict(property=key, value=value)
             )

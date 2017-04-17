@@ -14,6 +14,7 @@ from django.db import models
 from django.db.models.query_utils import Q
 from django.template.defaultfilters import floatformat, truncatewords
 from django.utils.crypto import get_random_string
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.html import strip_tags
 from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
@@ -62,6 +63,7 @@ UPDATE_SCHEDULE_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class Project(models.Model):
     # This model is deprecated ... the task model is now used for both tasks and projects
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='projects_created', on_delete=models.DO_NOTHING)
@@ -75,7 +77,7 @@ class Project(models.Model):
     archived = models.BooleanField(default=False)
     archived_at = models.DateTimeField(blank=True, null=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.title
 
     class Meta:
@@ -142,6 +144,7 @@ TASK_SOURCE_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class Task(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='tasks_created', on_delete=models.DO_NOTHING)
     title = models.CharField(max_length=200, blank=True, null=True, default='')
@@ -277,7 +280,7 @@ class Task(models.Model):
     )
     read_logs = GenericRelation(ActivityReadLog, related_query_name='tasks')
 
-    def __unicode__(self):
+    def __str__(self):
         return self.summary
 
     class Meta:
@@ -624,13 +627,14 @@ class Task(models.Model):
         return 0
 
 
+@python_2_unicode_compatible
 class TaskAccess(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='admins_added')
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.summary)
 
     class Meta:
@@ -644,6 +648,7 @@ REQUEST_STATUS_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class Application(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
@@ -663,7 +668,7 @@ class Application(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     channels = GenericRelation(Channel, related_query_name='task_applications')
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.summary)
 
     class Meta:
@@ -698,6 +703,7 @@ class Application(models.Model):
         return request.user == self.user or request.user == self.task.user
 
 
+@python_2_unicode_compatible
 class Participation(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
@@ -720,7 +726,7 @@ class Participation(models.Model):
 
     ratings = GenericRelation(Rating, related_query_name='participants')
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.title)
 
     class Meta:
@@ -740,6 +746,7 @@ class Participation(models.Model):
         return self.task.get_user_payment_share(participation_id=self.id) or 0
 
 
+@python_2_unicode_compatible
 class WorkActivity(models.Model):
     # The target of the activity (estimate or quote)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name=_('content type'))
@@ -754,10 +761,11 @@ class WorkActivity(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return 'Activity | {}'.format(self.content_object)
 
 
+@python_2_unicode_compatible
 class WorkPlan(models.Model):
     # The target of the activity (estimate or quote)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name=_('content type'))
@@ -772,7 +780,7 @@ class WorkPlan(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return 'WorkPlan | {}'.format(self.content_object)
 
 
@@ -788,6 +796,7 @@ ESTIMATE_STATUS_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class AbstractEstimate(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
@@ -830,7 +839,7 @@ class AbstractEstimate(models.Model):
     )
     activities = GenericRelation(WorkActivity, related_query_name='%(class)s')
 
-    def __unicode__(self):
+    def __str__(self):
         return '{} | {}'.format('%(class)'.title(), self.task.summary)
 
     class Meta:
@@ -896,12 +905,14 @@ class AbstractEstimate(models.Model):
         )
 
 
+@python_2_unicode_compatible
 class Estimate(AbstractEstimate):
     pass
 
 QUOTE_STATUS_CHOICES = ESTIMATE_STATUS_CHOICES
 
 
+@python_2_unicode_compatible
 class Quote(AbstractEstimate):
     # Scope
     in_scope = models.TextField()
@@ -919,6 +930,7 @@ class Quote(AbstractEstimate):
     plan = GenericRelation(WorkPlan, related_query_name='quotes')
 
 
+@python_2_unicode_compatible
 class TimeEntry(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
@@ -928,7 +940,7 @@ class TimeEntry(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return '{} hrs | {} - {}'.format(self.hours, self.task.summary, self.user.get_short_name() or self.user.username)
 
     class Meta:
@@ -963,6 +975,7 @@ PROGRESS_EVENT_TYPE_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class ProgressEvent(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     type = models.PositiveSmallIntegerField(
@@ -983,7 +996,7 @@ class ProgressEvent(models.Model):
         related_query_name='progress_events'
     )
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s | %s - %s' % (self.get_type_display(), self.task.summary, self.due_at)
 
     class Meta:
@@ -1033,6 +1046,7 @@ PROGRESS_REPORT_STATUS_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class ProgressReport(models.Model):
     event = models.ForeignKey(ProgressEvent, on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
@@ -1055,7 +1069,7 @@ class ProgressReport(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     uploads = GenericRelation(Upload, related_query_name='progress_reports')
 
-    def __unicode__(self):
+    def __str__(self):
         return '{0} - {1}%'.format(self.event, self.percentage)
 
     @staticmethod
@@ -1077,6 +1091,7 @@ class ProgressReport(models.Model):
         return request.user == self.user
 
 
+@python_2_unicode_compatible
 class IntegrationEvent(models.Model):
     id = models.CharField(max_length=30, primary_key=True)
     name = models.CharField(max_length=30)
@@ -1088,7 +1103,7 @@ class IntegrationEvent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s - %s' % (self.id, self.name)
 
     class Meta:
@@ -1108,6 +1123,7 @@ INTEGRATION_TYPE_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class Integration(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     provider = models.CharField(
@@ -1125,7 +1141,7 @@ class Integration(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s - %s' % (self.get_provider_display(), self.task.summary)
 
     class Meta:
@@ -1223,6 +1239,7 @@ class Integration(models.Model):
             return None
 
 
+@python_2_unicode_compatible
 class IntegrationMeta(models.Model):
     integration = models.ForeignKey(Integration, on_delete=models.CASCADE)
     meta_key = models.CharField(max_length=30)
@@ -1234,13 +1251,14 @@ class IntegrationMeta(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s | %s - %s' % (self.integration, self.meta_key, self.meta_value)
 
     class Meta:
         ordering = ['created_at']
 
 
+@python_2_unicode_compatible
 class IntegrationActivity(models.Model):
     integration = models.ForeignKey(Integration, on_delete=models.CASCADE, related_name='activities')
     event = models.ForeignKey(IntegrationEvent, related_name='integration_activities')
@@ -1256,13 +1274,14 @@ class IntegrationActivity(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s | ' % (self.integration, )
 
     class Meta:
         ordering = ['created_at']
 
 
+@python_2_unicode_compatible
 class TaskPayment(models.Model):
     task = models.ForeignKey(Task)
     btc_address = models.CharField(max_length=40, validators=[validate_btc_address])
@@ -1274,7 +1293,7 @@ class TaskPayment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     received_at = models.DateTimeField(blank=True, null=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return 'bitcoin:%s - %s' % (self.btc_address, self.task.summary)
 
     class Meta:
@@ -1291,6 +1310,7 @@ PAYMENT_STATUS_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class ParticipantPayment(models.Model):
     participant = models.ForeignKey(Participation)
     source = models.ForeignKey(TaskPayment)
@@ -1309,7 +1329,7 @@ class ParticipantPayment(models.Model):
     description = models.CharField(max_length=200, blank=True, null=True)
     extra = models.TextField(blank=True, null=True)  # JSON formatted extra details
 
-    def __unicode__(self):
+    def __str__(self):
         return 'bitcoin:%s - %s | %s' % (self.destination, self.participant.user, self.description)
 
     class Meta:
@@ -1317,6 +1337,7 @@ class ParticipantPayment(models.Model):
         ordering = ['created_at']
 
 
+@python_2_unicode_compatible
 class TaskInvoice(models.Model):
     task = models.ForeignKey(Task)
     title = models.CharField(max_length=200)
@@ -1334,7 +1355,7 @@ class TaskInvoice(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.summary
 
     class Meta:

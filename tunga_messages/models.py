@@ -8,6 +8,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelatio
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models.query_utils import Q
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.html import strip_tags
 from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
@@ -28,6 +29,7 @@ CHANNEL_TYPE_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class Channel(models.Model):
     subject = models.CharField(max_length=100, blank=True, null=True)
     participants = models.ManyToManyField(
@@ -59,7 +61,7 @@ class Channel(models.Model):
         related_query_name='channels'
     )
 
-    def __unicode__(self):
+    def __str__(self):
         return '{0} - {1}'.format(self.get_type_display(), self.subject or self.created_by or self.id)
 
     class Meta:
@@ -146,6 +148,7 @@ class Channel(models.Model):
         return None
 
 
+@python_2_unicode_compatible
 class ChannelUser(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -153,13 +156,14 @@ class ChannelUser(models.Model):
     last_read = models.IntegerField(default=0)
     last_email_at = models.DateTimeField(blank=True, null=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s - %s' % (self.channel, self.user.get_short_name() or self.user.username)
 
     class Meta:
         unique_together = ('user', 'channel')
 
 
+@python_2_unicode_compatible
 class Message(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.CASCADE, related_name='messages')
     user = models.ForeignKey(
@@ -180,7 +184,7 @@ class Message(models.Model):
         related_query_name='messages'
     )
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s - %s' % (self.user and self.user.get_short_name() or 'Anonymous', self.body)
 
     class Meta:

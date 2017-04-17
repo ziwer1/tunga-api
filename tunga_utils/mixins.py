@@ -1,3 +1,4 @@
+from django.utils import six
 from rest_framework.mixins import CreateModelMixin, UpdateModelMixin
 
 from tunga_utils.models import Upload
@@ -38,6 +39,6 @@ class SaveUploadsMixin(CreateModelMixin, UpdateModelMixin):
                     user = content_object.user
                 except:
                     pass
-            for uploaded_file in uploads.itervalues():
+            for uploaded_file in six.itervalues(uploads):
                 upload = Upload(content_object=content_object, file=uploaded_file, user=user)
                 upload.save()

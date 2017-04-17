@@ -33,4 +33,4 @@ class Command(BaseCommand):
         for event in events:
             IntegrationEvent.objects.update_or_create(id=event['id'], defaults=event)
 
-        print "%s integration events added or edited" % len(events)
+        print("%s integration events added or edited" % len(events))

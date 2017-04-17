@@ -1,3 +1,4 @@
+from django.utils import six
 from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -46,8 +47,8 @@ class UserSettingsView(generics.GenericAPIView):
         switches = request.data.get('switches', None)
         visibility = request.data.get('visibility', None)
         settings = {
-            'switches': [{'setting': k, 'value': v} for k, v in switches.iteritems()] if isinstance(switches, dict) else [],
-            'visibility': [{'setting': k, 'value': v} for k, v in visibility.iteritems()] if isinstance(visibility, dict) else []
+            'switches': [{'setting': k, 'value': v} for k, v in six.iteritems(switches)] if isinstance(switches, dict) else [],
+            'visibility': [{'setting': k, 'value': v} for k, v in six.iteritems(visibility)] if isinstance(visibility, dict) else []
         }
 
         serializer = UserSettingsUpdateSerializer(data=settings, context={'request': request})

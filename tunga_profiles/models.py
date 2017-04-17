@@ -4,6 +4,7 @@ import uuid
 
 import tagulous.models
 from django.db import models
+from django.utils.encoding import python_2_unicode_compatible
 from django_countries.fields import CountryField
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
@@ -45,6 +46,7 @@ BTC_WALLET_PROVIDER_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class BTCWallet(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     provider = models.CharField(
@@ -63,7 +65,7 @@ class BTCWallet(models.Model):
         unique_together = ('user', 'provider')
         verbose_name = 'bitcoin wallet'
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s - %s' % (self.user.get_short_name(), self.get_provider_display())
 
 
@@ -73,6 +75,7 @@ APP_INTEGRATION_PROVIDER_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class AppIntegration(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     provider = models.CharField(
@@ -93,7 +96,7 @@ class AppIntegration(models.Model):
         verbose_name = 'app integration'
         verbose_name_plural = 'app integrations'
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s - %s' % (self.user.get_short_name(), self.get_provider_display())
 
 
@@ -110,6 +113,7 @@ MOBILE_MONEY_CC_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class UserProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     bio = models.TextField(blank=True, null=True)
@@ -145,7 +149,7 @@ class UserProfile(models.Model):
         blank=True, null=True)
     mobile_money_number = models.CharField(max_length=15, blank=True, null=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.user.get_short_name()
 
     @property
@@ -165,22 +169,24 @@ class UserProfile(models.Model):
         return request.user == self.user
 
 
+@python_2_unicode_compatible
 class Education(AbstractExperience):
     institution = models.CharField(max_length=200)
     award = models.CharField(max_length=200)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s - %s' % (self.user.get_short_name, self.institution)
 
     class Meta:
         verbose_name_plural = 'education'
 
 
+@python_2_unicode_compatible
 class Work(AbstractExperience):
     company = models.CharField(max_length=200)
     position = models.CharField(max_length=200)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s - %s' % (self.user.get_short_name, self.company)
 
     class Meta:
@@ -193,6 +199,7 @@ CONNECTION_STATUS_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class Connection(models.Model):
     from_user = models.ForeignKey(
             settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='connections_initiated')
@@ -205,7 +212,7 @@ class Connection(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s -> %s' % (self.from_user.get_short_name, self.to_user.get_short_name)
 
     class Meta:
@@ -227,6 +234,7 @@ APPLICATION_STATUS_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class DeveloperApplication(models.Model):
     first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30)
@@ -248,7 +256,7 @@ class DeveloperApplication(models.Model):
     used = models.BooleanField(default=False)
     used_at = models.DateTimeField(blank=True, null=True, editable=False)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.display_name
 
     @property
@@ -268,6 +276,7 @@ USER_TYPE_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class DeveloperInvitation(models.Model):
     first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30)
@@ -285,7 +294,7 @@ class DeveloperInvitation(models.Model):
     class Meta:
         verbose_name = 'user invitation'
 
-    def __unicode__(self):
+    def __str__(self):
         return self.display_name
 
     @property
@@ -293,6 +302,7 @@ class DeveloperInvitation(models.Model):
         return '%s %s' % (self.first_name, self.last_name)
 
 
+@python_2_unicode_compatible
 class UserNumber(models.Model):
     """
     Helper table for generating user numbers in a sequence
@@ -300,7 +310,7 @@ class UserNumber(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.number
 
     class Meta:
@@ -325,12 +335,13 @@ class DeveloperNumber(UserNumber):
     pass
 
 
+@python_2_unicode_compatible
 class Inquirer(models.Model):
     name = models.CharField(max_length=50)
     email = models.EmailField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s (%s)' % (self.name, self.email or self.id)
 
     class Meta:

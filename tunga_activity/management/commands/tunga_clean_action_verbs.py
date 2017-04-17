@@ -1,3 +1,4 @@
+import six
 from actstream.models import Action
 from django.core.management.base import BaseCommand
 from django.db.models.query_utils import Q
@@ -34,7 +35,7 @@ class Command(BaseCommand):
             verbs.REPORT: ['created a progress report', 'new integration activity']
         }
 
-        for new_verb, old_verbs in verb_map.iteritems():
+        for new_verb, old_verbs in six.iteritems(verb_map):
             if isinstance(old_verbs, list):
                 q_filter = Q(verb=old_verbs[0])
                 for old_verb in old_verbs[1:]:

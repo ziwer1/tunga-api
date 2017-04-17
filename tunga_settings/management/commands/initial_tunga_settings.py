@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+from django.utils import six
 
 from tunga_settings import slugs
 from tunga_settings.models import VISIBILITY_CHOICES, SwitchSetting, VisibilitySetting, UserSwitchSetting
@@ -74,7 +75,7 @@ class Command(BaseCommand):
             if created:
                 num_created += 1
 
-        print "%s settings added" % num_created
+        print("%s settings added" % num_created)
 
         slug_map = {
             slugs.TASK_APPLICATION_RESPONSE_EMAIL: 'new_task_application_response_email',
@@ -82,10 +83,10 @@ class Command(BaseCommand):
             slugs.TASK_ACTIVITY_UPDATE_EMAIL: 'task_update_email'
         }
 
-        for new_slug, old_slug in slug_map.iteritems():
+        for new_slug, old_slug in six.iteritems(slug_map):
             r = UserSwitchSetting.objects.filter(setting__slug=old_slug).update(setting=new_slug)
-            print (r, new_slug)
+            print(r, new_slug)
 
         if slug_map:
-            old_slugs = [slug for slug in slug_map.itervalues()]
-            print SwitchSetting.objects.filter(slug__in=old_slugs).delete()
+            old_slugs = [slug for slug in six.itervalues(slug_map)]
+            print(SwitchSetting.objects.filter(slug__in=old_slugs).delete())

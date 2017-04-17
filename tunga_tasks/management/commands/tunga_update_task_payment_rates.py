@@ -17,7 +17,7 @@ class Command(BaseCommand):
         tasks = Task.objects.filter(closed=False)
         for task in tasks:
             active_participants = task.participation_set.filter(accepted=True).count()
-            print task.id, active_participants
+            print(task.id, active_participants)
             if not active_participants:
                 task.dev_rate = Decimal(19)
                 task.pm_rate = Decimal(39)

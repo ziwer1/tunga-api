@@ -33,7 +33,6 @@ def store_token(token, **kwargs):
     }
     user = kwargs.get('user', None)
     if user:
-        print AppIntegration.objects.update_or_create(
+        AppIntegration.objects.update_or_create(
             user=user, provider=APP_INTEGRATION_PROVIDER_HARVEST, defaults=defaults
         )
-    print 'new token', user, token

@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import tagulous
 from django.db import models
+from django.utils.encoding import python_2_unicode_compatible
 
 from tunga import settings
 from tunga_utils.constants import VISIBILITY_ALL, VISIBILITY_DEVELOPERS, VISIBILITY_PROJECT_OWNERS
@@ -13,6 +14,7 @@ VISIBILITY_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class SupportSection(models.Model):
     title = models.CharField(max_length=200, unique=True)
     slug = models.SlugField(max_length=20, unique=True, help_text='url path for this section')
@@ -24,7 +26,7 @@ class SupportSection(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='support_sections_created')
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.title
 
     class Meta:
@@ -43,6 +45,7 @@ class SupportTag(tagulous.models.TagModel):
         space_delimiter = False
 
 
+@python_2_unicode_compatible
 class SupportPage(models.Model):
     section = models.ForeignKey(SupportSection, related_name='pages', on_delete=models.CASCADE)
     title = models.CharField(max_length=200)
@@ -57,7 +60,7 @@ class SupportPage(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='support_pages_created')
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.title
 
     class Meta:

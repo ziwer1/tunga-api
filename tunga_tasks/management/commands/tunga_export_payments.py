@@ -17,7 +17,7 @@ class Command(BaseCommand):
 
         participant_payments = ParticipantPayment.objects.filter(participant__task__paid=True)
 
-        print 'participant_payments', len(participant_payments)
+        print('participant_payments', len(participant_payments))
         with open('developer_payments.csv', 'wb') as csvfile:
             spamwriter = csv.writer(csvfile, delimiter=',',
                                     quotechar='"', quoting=csv.QUOTE_MINIMAL)

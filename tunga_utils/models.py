@@ -7,6 +7,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelatio
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.html import strip_tags
 from django.utils.translation import ugettext_lazy as _
 from dry_rest_permissions.generics import allow_staff_or_superuser
@@ -18,6 +19,7 @@ from tunga_utils.constants import USER_TYPE_DEVELOPER, RATING_CRITERIA_CODING, R
 from tunga_utils.validators import validate_year
 
 
+@python_2_unicode_compatible
 class AbstractExperience(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     start_month = models.PositiveSmallIntegerField(choices=MONTHS)
@@ -27,7 +29,7 @@ class AbstractExperience(models.Model):
     details = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s' % self.user.get_short_name
 
     class Meta:
@@ -52,6 +54,7 @@ class AbstractExperience(models.Model):
         return request.user == self.user
 
 
+@python_2_unicode_compatible
 class GenericUpload(models.Model):
     file = models.FileField(verbose_name='Upload', upload_to='uploads/%Y/%m/%d')
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name=_('content type'))
@@ -59,7 +62,7 @@ class GenericUpload(models.Model):
     content_object = GenericForeignKey('content_type', 'object_id')
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.file.name
 
     class Meta:
@@ -67,6 +70,7 @@ class GenericUpload(models.Model):
         abstract = True
 
 
+@python_2_unicode_compatible
 class Upload(GenericUpload):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, blank=True, null=True)
 
@@ -89,6 +93,7 @@ CONTACT_REQUEST_ITEM_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class ContactRequest(models.Model):
     email = models.EmailField()
     item = models.CharField(
@@ -98,7 +103,7 @@ class ContactRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     email_sent_at = models.DateTimeField(blank=True, null=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return '%s on %s' % (self.email, self.created_at)
 
 
@@ -109,6 +114,7 @@ RATING_CRITERIA_CHOICES = (
 )
 
 
+@python_2_unicode_compatible
 class Rating(models.Model):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name=_('content type'))
     object_id = models.PositiveIntegerField()
@@ -121,7 +127,7 @@ class Rating(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='ratings_created', on_delete=models.DO_NOTHING)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __unicode__(self):
+    def __str__(self):
         criteria = self.get_criteria_display()
         return '{}{} - {:0,.0f}%'.format(
             self.content_object, (criteria and ' - {0}'.format(criteria) or ''), self.score*10
