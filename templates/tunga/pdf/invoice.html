@@ -165,8 +165,11 @@
             <tr class="top-border">
                 <td>Subtotal</td>
                 <td>{{ invoice.amount.currency | safe }}
-                    {% if context.is_developer %}{{ developer_info.amount.total_dev | floatformat:2 }}{% else %}
-                        {{ developer_info.amount.total | floatformat:2 }}{% endif %}</td>
+                    {% if context.is_developer %}
+                        {{ developer_info.amount.total_dev | floatformat:2 }}
+                    {% else %}
+                        {{ developer_info.amount.total | floatformat:2 }}
+                    {% endif %}</td>
             </tr>
 
             <tr class="top-border">

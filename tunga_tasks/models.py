@@ -1406,8 +1406,8 @@ class TaskInvoice(models.Model):
 
         amount_details['tunga'] = round_decimal(fee_portion - (amount_details['developer'] + amount_details['pm']), 2)
         amount_details['total'] = round_decimal(fee_portion + amount_details['processing'], 2)
-        amount_details['total_dev'] = round_decimal(fee_portion_dev + (processing_share * fee_portion_dev), 2)
-        amount_details['total_pm'] = round_decimal(fee_portion_pm + (processing_share * fee_portion_pm), 2)
+        amount_details['total_dev'] = round_decimal(Decimal(self.task.tunga_ratio_dev)*fee_portion_dev + (processing_share * fee_portion_dev), 2)
+        amount_details['total_pm'] = round_decimal(Decimal(self.task.tunga_ratio_dev)*fee_portion_pm + (processing_share * fee_portion_pm), 2)
         return amount_details
 
     @property
