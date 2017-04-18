@@ -31,12 +31,12 @@ class Setting(models.Model):
         abstract = True
 
 
-@python_2_unicode_compatible
+# @python_2_unicode_compatible
 class SwitchSetting(Setting):
     default_value = models.BooleanField()
 
 
-@python_2_unicode_compatible
+# @python_2_unicode_compatible
 class VisibilitySetting(Setting):
     default_value = models.PositiveSmallIntegerField(choices=VISIBILITY_CHOICES)
 
@@ -54,7 +54,7 @@ class UserSetting(models.Model):
         abstract = True
 
 
-@python_2_unicode_compatible
+# @python_2_unicode_compatible
 class UserSwitchSetting(UserSetting):
     setting = models.ForeignKey(SwitchSetting)
     value = models.BooleanField()
@@ -63,7 +63,7 @@ class UserSwitchSetting(UserSetting):
         unique_together = ('user', 'setting')
 
 
-@python_2_unicode_compatible
+# @python_2_unicode_compatible
 class UserVisibilitySetting(UserSetting):
     setting = models.ForeignKey(VisibilitySetting)
     value = models.PositiveSmallIntegerField(choices=VISIBILITY_CHOICES)

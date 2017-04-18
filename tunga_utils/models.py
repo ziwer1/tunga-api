@@ -70,7 +70,7 @@ class GenericUpload(models.Model):
         abstract = True
 
 
-@python_2_unicode_compatible
+# @python_2_unicode_compatible
 class Upload(GenericUpload):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, blank=True, null=True)
 

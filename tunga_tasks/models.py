@@ -905,14 +905,14 @@ class AbstractEstimate(models.Model):
         )
 
 
-@python_2_unicode_compatible
+# @python_2_unicode_compatible
 class Estimate(AbstractEstimate):
     pass
 
 QUOTE_STATUS_CHOICES = ESTIMATE_STATUS_CHOICES
 
 
-@python_2_unicode_compatible
+# @python_2_unicode_compatible
 class Quote(AbstractEstimate):
     # Scope
     in_scope = models.TextField()
