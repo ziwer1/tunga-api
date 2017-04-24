@@ -87,6 +87,10 @@ def activity_handler_new_application(sender, instance, created, **kwargs):
         # send slack notification to tunga admin
         send_new_task_app_admin_notif_slack(instance.id)
 
+        # send email notification to tunga admin
+        send_new_task_app_admin_notif_email(instance.id)
+        
+
 
 @receiver(application_response, sender=Application)
 def activity_handler_application_response(sender, application, **kwargs):

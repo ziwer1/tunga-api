@@ -755,3 +755,16 @@ def send_new_task_app_admin_notif_slack(instance):
     slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_UPDATES_CHANNEL)
     slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, slack_msg)
 
+
+@job
+def send_new_task_app_admin_notif_email(instance):
+    instance = clean_instance(instance, Application)
+    subject = "Developer sent in an application"
+    to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+    ctx = {
+        'owner': instance.user,
+        'application': instance,
+        'application_url': '%s/work/%s/' % (TUNGA_URL, instance.id)
+    }
+    send_mail(subject, 'tunga/email/email_task_application', to, ctx)
+
