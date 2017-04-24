@@ -101,6 +101,8 @@ def activity_handler_application_response(sender, application, **kwargs):
         )
         send_new_task_application_response_email.delay(application.id)
 
+        send_new_task_application_response_admin_email.delay(application.id)
+
         if application.status == STATUS_ACCEPTED and application.hours_needed and application.task.is_task:
             task = application.task
             task.bid = Decimal(application.hours_needed)*application.task.dev_rate

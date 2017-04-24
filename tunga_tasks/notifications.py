@@ -768,3 +768,17 @@ def send_new_task_app_admin_notif_email(instance):
     }
     send_mail(subject, 'tunga/email/email_task_application', to, ctx)
 
+
+@job
+def send_new_task_application_response_admin_email(instance):
+    instance = clean_instance(instance, Application)
+    subject = "Task application {}".format(instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected')
+    to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+    ctx = {
+        'owner': instance.task.user,
+        'applicant': instance.user,
+        'accepted': instance.status == STATUS_ACCEPTED,
+        'task': instance.task,
+        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
+    }
+    send_mail(subject, 'tunga/email/email_task_application_response', to, ctx)
