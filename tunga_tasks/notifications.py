@@ -743,3 +743,15 @@ def send_task_invoice_request_email(instance):
         'invoice_url': '%s/api/task/%s/download/invoice/?format=pdf' % (TUNGA_URL, instance.id)
     }
     send_mail(subject, 'tunga/email/email_task_invoice_request', to, ctx)
+
+@job
+def send_new_task_app_admin_notif_slack(instance):
+    instance = clean_instance(instance, Application)
+    application_url = '{}/work/{}/'.format(TUNGA_URL, instance.id)
+    summary = "New task application recieved from {} | <{}|View on Tunga>".format(
+        'Developer', 
+        application_url
+    )
+    slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_UPDATES_CHANNEL)
+    slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, slack_msg)
+
