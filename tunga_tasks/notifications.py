@@ -782,3 +782,16 @@ def send_new_task_application_response_admin_email(instance):
         'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
     }
     send_mail(subject, 'tunga/email/email_task_application_response', to, ctx)
+
+@job
+def send_new_task_application_response_admin_slack(instance):
+    instance = clean_instance(instance, Application)
+    task_url = '%s/work/%s/' % (TUNGA_URL, instance.task.id)
+    summary = "Task Application {} | <{}|View on Tunga>".format(
+        instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected', 
+        task_url
+    )
+    slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_UPDATES_CHANNEL)
+    slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, slack_msg)
+
+
