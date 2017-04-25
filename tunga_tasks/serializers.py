@@ -346,7 +346,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                     errors.update({'title': 'This field is required.'})
                 if not skills and not self.partial:
                     errors.update({'skills': 'This field is required.'})
-                if not pm_required and not self.partial:
+                if pm_required is None and not self.partial:
                     errors.update({'pm_required': 'This field is required.'})
         else:
             if not description:
