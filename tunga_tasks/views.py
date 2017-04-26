@@ -41,7 +41,8 @@ from tunga_tasks.notifications import send_task_invoice_request_email
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
-    IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer, TrelloBoardUrlSerializer
+    IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer, \
+    TrelloBoardUrlSerializer, GoogleDriveUrlSerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
 from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa
@@ -108,6 +109,20 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         serializer = TrelloBoardUrlSerializer(data=request.data)
         if serializer.is_valid():
             task.trello_board_url = serializer.data['trello_board_url']
+            task.save()
+            return Response(serializer.data)
+        else:
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
+
+    @detail_route(methods=['post'],
+        permission_classes=[IsAuthenticated])
+    def add_google_drive_url(self, request, pk=None):
+        
+        task = get_object_or_404(self.get_queryset(), pk=pk)
+        serializer = GoogleDriveUrlSerializer(data=request.data)
+        if serializer.is_valid():
+            task.google_drive_url = serializer.data['google_drive_url']
             task.save()
             return Response(serializer.data)
         else:

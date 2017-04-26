@@ -1077,3 +1077,7 @@ class TrelloBoardUrlSerializer(serializers.ModelSerializer):
         model = Task
         fields = ('trello_board_url',)
 
+class GoogleDriveUrlSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Task
+        fields = ('google_drive_url',)
