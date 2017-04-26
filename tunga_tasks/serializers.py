@@ -1070,3 +1070,10 @@ class SimpleIntegrationActivitySerializer(ContentTypeAnnotatedModelSerializer):
             }
             return 'commented on %s' % msg_map[event_name]
         return None
+
+
+class TrelloBoardUrlSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Task
+        fields = ('trello_board_url',)
+

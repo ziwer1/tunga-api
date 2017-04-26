@@ -224,6 +224,8 @@ class Task(models.Model):
     url = models.URLField(blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
     satisfaction = models.SmallIntegerField(blank=True, null=True, help_text="Client's rating of task developers")
+    trello_board_url = models.URLField(blank=True, null=True)
+    
 
     # Task state modifiers
     approved = models.BooleanField(

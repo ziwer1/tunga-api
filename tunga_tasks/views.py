@@ -41,7 +41,7 @@ from tunga_tasks.notifications import send_task_invoice_request_email
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
-    IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer
+    IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer, TrelloBoardUrlSerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
 from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa
@@ -99,6 +99,21 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         instance.archived = True
         instance.archived_at = datetime.datetime.utcnow()
         instance.save()
+
+    @detail_route(methods=['post'],
+        permission_classes=[IsAuthenticated])
+    def add_trello_board_url(self, request, pk=None):
+        
+        task = get_object_or_404(self.get_queryset(), pk=pk)
+        serializer = TrelloBoardUrlSerializer(data=request.data)
+        if serializer.is_valid():
+            task.trello_board_url = serializer.data['trello_board_url']
+            task.save()
+            return Response(serializer.data)
+        else:
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
+        
 
     @detail_route(
         methods=['post'], url_path='read',
