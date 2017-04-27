@@ -255,6 +255,8 @@ class Task(models.Model):
     invoice_date = models.DateTimeField(blank=True, null=True)
     complete_task_email_at = models.DateTimeField(blank=True, null=True)
     check_task_email_at = models.DateTimeField(blank=True, null=True)
+    schedule_call_start = models.DateTimeField(blank=True, null=True)
+    schedule_call_end = models.DateTimeField(blank=True, null=True)
 
     # Applications and participation info
     pm = models.ForeignKey(
