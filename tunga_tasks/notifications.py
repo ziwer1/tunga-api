@@ -236,68 +236,79 @@ def send_new_task_community(instance):
     send_new_task_community_slack(instance)
 
 
+def get_suggested_community_receivers(instance, user_type=USER_TYPE_DEVELOPER, respect_visibility=True):
+    # Filter users based on nature of work
+    queryset = get_user_model().objects.filter(
+        type=user_type
+    )
+
+    # Only developers on client's team
+    if respect_visibility and instance.visibility == VISIBILITY_MY_TEAM and user_type == USER_TYPE_DEVELOPER:
+        queryset = queryset.filter(
+            my_connections_q_filter(instance.user)
+        )
+
+    ordering = []
+
+    # Order by matching skills
+    task_skills = instance.skills.all()
+    if task_skills:
+        when = []
+        for skill in task_skills:
+            new_when = When(
+                userprofile__skills=skill,
+                then=1
+            )
+            when.append(new_when)
+        queryset = queryset.annotate(matches=Sum(
+            Case(
+                *when,
+                default=0,
+                output_field=IntegerField()
+            )
+        ))
+        ordering.append('-matches')
+
+    # Order developers by tasks completed
+    if user_type == USER_TYPE_DEVELOPER:
+        queryset = queryset.annotate(
+            tasks_completed=Sum(
+                Case(
+                    When(
+                        participation__task__closed=True,
+                        participation__user__id=F('id'),
+                        participation__status=STATUS_ACCEPTED,
+                        then=1
+                    ),
+                    default=0,
+                    output_field=IntegerField()
+                )
+            )
+        )
+        ordering.append('-tasks_completed')
+
+    if ordering:
+        queryset = queryset.order_by(*ordering)
+    if queryset:
+        return queryset[:15]
+    return
+
+
 @job
 def send_new_task_community_email(instance):
     instance = clean_instance(instance, Task)
 
     # Notify Devs or PMs
     community_receivers = None
-    if (not instance.is_developer_ready) or (instance.approved and instance.visibility in [VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM]):
+    if instance.is_developer_ready:
+        # Notify developers
+        if instance.approved and instance.visibility in [VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM]:
+            community_receivers = get_suggested_community_receivers(instance, user_type=USER_TYPE_DEVELOPER)
+    elif instance.is_project and not instance.pm:
+        community_receivers = get_suggested_community_receivers(instance, user_type=USER_TYPE_PROJECT_MANAGER)
 
-        # Filter users based on nature of work
-        queryset = get_user_model().objects.filter(
-            type=instance.is_developer_ready and USER_TYPE_DEVELOPER or USER_TYPE_PROJECT_MANAGER
-        )
-
-        # Only developers on client's team
-        if instance.is_developer_ready and instance.visibility == VISIBILITY_MY_TEAM:
-            queryset = queryset.filter(
-                my_connections_q_filter(instance.user)
-            )
-
-        ordering = []
-
-        # Order by matching skills
-        task_skills = instance.skills.all()
-        if task_skills:
-            when = []
-            for skill in task_skills:
-                new_when = When(
-                        userprofile__skills=skill,
-                        then=1
-                    )
-                when.append(new_when)
-            queryset = queryset.annotate(matches=Sum(
-                Case(
-                    *when,
-                    default=0,
-                    output_field=IntegerField()
-                )
-            ))
-            ordering.append('-matches')
-
-        # Order developers by tasks completed
-        if instance.is_developer_ready:
-            queryset = queryset.annotate(
-                tasks_completed=Sum(
-                    Case(
-                        When(
-                            participation__task__closed=True,
-                            participation__user__id=F('id'),
-                            participation__status=STATUS_ACCEPTED,
-                            then=1
-                        ),
-                        default=0,
-                        output_field=IntegerField()
-                    )
-                )
-            )
-            ordering.append('-tasks_completed')
-
-        if ordering:
-            queryset = queryset.order_by(*ordering)
-        if queryset:
-            community_receivers = queryset[:15]
+    if instance.is_project and instance.pm:
+        community_receivers = [instance.pm]
 
     subject = "New {} created by {}".format(
         instance.scope == TASK_SCOPE_TASK and 'task' or 'project',
@@ -607,19 +618,22 @@ def send_progress_event_reminder_email(instance):
         return
 
     subject = "Upcoming {} Update".format(instance.task.is_task and 'Task' or 'Project')
-    participants = instance.task.participation_set.filter(status=STATUS_ACCEPTED)
-    if participants:
-        if is_internal:
-            to = [pm.email]
-            bcc = None
-        else:
+
+    to = []
+    if is_internal:
+        to = [pm.email]
+        bcc = None
+    else:
+        participants = instance.task.participation_set.filter(status=STATUS_ACCEPTED)
+        if participants:
             to = [participants[0].user.email]
             bcc = [participant.user.email for participant in participants[1:]] if participants.count() > 1 else None
-        ctx = {
-            'owner': instance.task.user,
-            'event': instance,
-            'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.task.id, instance.id)
+    ctx = {
+        'owner': instance.task.user,
+        'event': instance,
+        'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.task.id, instance.id)
         }
+    if to:
         if send_mail(subject, 'tunga/email/email_progress_event_reminder', to, ctx, bcc=bcc):
             instance.last_reminder_at = datetime.datetime.utcnow()
             instance.save()
