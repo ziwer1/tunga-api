@@ -739,6 +739,7 @@ def notify_new_progress_report_slack(instance):
     if is_internal:
         slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
             slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
             slack_utils.KEY_ATTACHMENTS: attachments
         })
     else:
