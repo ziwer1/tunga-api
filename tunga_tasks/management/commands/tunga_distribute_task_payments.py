@@ -21,4 +21,4 @@ class Command(BaseCommand):
         # Distribute payments for tasks which where paid at least 10 mins ago
         tasks = Task.objects.filter(closed=True, pay_distributed=False, paid_at__lte=min_date)
         for task in tasks:
-            distribute_task_payment(task.id)
+            distribute_task_payment.delay(task.id)

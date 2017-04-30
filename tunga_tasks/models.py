@@ -257,6 +257,8 @@ class Task(models.Model):
     invoice_date = models.DateTimeField(blank=True, null=True)
     complete_task_email_at = models.DateTimeField(blank=True, null=True)
     check_task_email_at = models.DateTimeField(blank=True, null=True)
+    schedule_call_start = models.DateTimeField(blank=True, null=True)
+    schedule_call_end = models.DateTimeField(blank=True, null=True)
 
     # Applications and participation info
     pm = models.ForeignKey(
@@ -1002,7 +1004,7 @@ class ProgressEvent(models.Model):
         return '%s | %s - %s' % (self.get_type_display(), self.task.summary, self.due_at)
 
     class Meta:
-        unique_together = ('task', 'due_at')
+        # unique_together = ('task', 'due_at')
         ordering = ['-due_at']
 
     @staticmethod
@@ -1024,7 +1026,13 @@ class ProgressEvent(models.Model):
         return request.user == self.task.user
 
     def user_report(self, user):
-        return self.progressreport_set.filter(user=user)
+        try:
+            reports = self.progressreport_set.filter(user=user)
+            if reports:
+                return reports[0]
+        except:
+            pass
+        return
 
     def get_is_participant(self, user, active_only=True):
         if self.type == PROGRESS_EVENT_TYPE_PM:

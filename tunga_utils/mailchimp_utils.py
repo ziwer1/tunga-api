@@ -14,3 +14,12 @@ def subscribe_new_user(email, **kwargs):
         'status': 'subscribed',
         'merge_fields': kwargs
     })
+
+
+def add_email_to_automation_queue(email_address, workflow_id, email_id, **kwargs):
+    client = get_client()
+    client.automations.emails.queues.create(workflow_id=workflow_id, email_id=email_id, data={
+        'email_address': email_address,
+        #'status': 'subscribed',
+        'merge_fields': kwargs
+    })

@@ -238,10 +238,15 @@ class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
     applications = SimpleApplicationSerializer(many=True, source='application_set')
     participation = SimpleParticipationSerializer(many=True, source='participation_set')
     participation_shares = ParticipantShareSerializer(many=True, source='get_participation_shares')
+    pm = SimpleUserSerializer()
 
     class Meta:
         model = Task
-        fields = ('project', 'is_project', 'parent', 'amount', 'skills', 'applications', 'participation', 'participation_shares')
+        fields = (
+            'project', 'is_project', 'parent',
+            'amount', 'skills', 'applications',
+            'participation', 'participation_shares', 'pm'
+        )
 
 
 class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer,
@@ -283,7 +288,6 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     invoice = TaskInvoiceSerializer(required=False, read_only=True)
     estimate = SimpleEstimateSerializer(required=False, read_only=True)
     quote = SimpleQuoteSerializer(required=False, read_only=True)
-    pm = SimpleUserSerializer(required=False, read_only=True)
 
     class Meta:
         model = Task
@@ -314,6 +318,9 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         email = self.initial_data.get('email', None)
         first_name = self.initial_data.get('first_name', None)
         last_name = self.initial_data.get('last_name', None)
+
+        schedule_call_start = attrs.get('schedule_call_start', None)
+        schedule_call_end = attrs.get('schedule_call_end', None)
 
         current_user = self.get_current_user()
 
@@ -346,21 +353,16 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                     errors.update({'title': 'This field is required.'})
                 if not skills and not self.partial:
                     errors.update({'skills': 'This field is required.'})
-                if not pm_required and not self.partial:
+                if pm_required is None and not self.partial:
                     errors.update({'pm_required': 'This field is required.'})
         else:
-            if not description:
-                errors.update({'description': 'This field is required.'})
-            if email:
-                try:
-                    get_user_model().objects.get(email=email)
-                    errors.update({
-                        'form': 'Looks like you already have a Tunga account. Please login to create new tasks.',
-                        'email': 'This email address is already attached to an account on Tunga'
-                    })
-                except get_user_model().DoesNotExist:
-                    pass
-            else:
+            #if not description:
+            #    errors.update({'description': 'This field is required.'})
+            if not schedule_call_start:
+                errors.update({'schedule_call_start': 'Please select a day and start time.'})
+            if not schedule_call_end:
+                errors.update({'schedule_call_end': 'Please select a day and end time.'})
+            if not email:
                 errors.update({'email': 'This field is required.'})
             if not first_name:
                 errors.update({'first_name': 'This field is required.'})
@@ -429,14 +431,24 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                 first_name = self.initial_data.get('first_name', None)
                 last_name = self.initial_data.get('last_name', None)
 
-                new_user = get_user_model().objects.create_user(
-                    username=email, email=email, password=get_user_model().objects.make_random_password(),
-                    first_name=first_name, last_name=last_name,
-                    type=USER_TYPE_PROJECT_OWNER, source=USER_SOURCE_TASK_WIZARD
-                )
+                new_user = None
+                is_new_user = False
+                if email:
+                    try:
+                        new_user = get_user_model().objects.get(email=email)
+                        is_new_user = False
+                    except get_user_model().DoesNotExist:
+                        new_user = get_user_model().objects.create_user(
+                            username=email, email=email, password=get_user_model().objects.make_random_password(),
+                            first_name=first_name, last_name=last_name,
+                            type=USER_TYPE_PROJECT_OWNER, source=USER_SOURCE_TASK_WIZARD
+                        )
+                        is_new_user = True
+
                 if new_user:
                     validated_data.update({'user': new_user})
-                    user_signed_up.send(sender=get_user_model(), request=None, user=new_user)
+                    if is_new_user:
+                        user_signed_up.send(sender=get_user_model(), request=None, user=new_user)
 
             instance = super(TaskSerializer, self).create(validated_data)
 
