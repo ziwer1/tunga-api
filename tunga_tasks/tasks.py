@@ -158,7 +158,8 @@ def update_task_pm_updates(task):
                     if num_updates_within_on_same_day == 0:
                         # Schedule at most one periodic update for any day
                         ProgressEvent.objects.update_or_create(
-                            task=target_task, type=PROGRESS_EVENT_TYPE_PERIODIC, due_at=next_update_at
+                            task=target_task, type=PROGRESS_EVENT_TYPE_PM,
+                            due_at=next_update_at, defaults={'title': 'PM Report'}
                         )
                 if next_update_at > now:
                     break

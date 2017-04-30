@@ -238,10 +238,15 @@ class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
     applications = SimpleApplicationSerializer(many=True, source='application_set')
     participation = SimpleParticipationSerializer(many=True, source='participation_set')
     participation_shares = ParticipantShareSerializer(many=True, source='get_participation_shares')
+    pm = SimpleUserSerializer()
 
     class Meta:
         model = Task
-        fields = ('project', 'is_project', 'parent', 'amount', 'skills', 'applications', 'participation', 'participation_shares')
+        fields = (
+            'project', 'is_project', 'parent',
+            'amount', 'skills', 'applications',
+            'participation', 'participation_shares', 'pm'
+        )
 
 
 class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer,
@@ -283,7 +288,6 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     invoice = TaskInvoiceSerializer(required=False, read_only=True)
     estimate = SimpleEstimateSerializer(required=False, read_only=True)
     quote = SimpleQuoteSerializer(required=False, read_only=True)
-    pm = SimpleUserSerializer(required=False, read_only=True)
 
     class Meta:
         model = Task
