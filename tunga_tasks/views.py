@@ -475,6 +475,73 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
 
 
+
+    @detail_route(
+        methods=['get'], url_path='download/task_quote',
+        renderer_classes=[PDFRenderer, StaticHTMLRenderer],
+        permission_classes=[AllowAny]
+    )
+    def download_task_estimate(self, request, pk=None):
+        """
+        Download Task Estimate Endpoint
+        ---
+        omit_serializer: True
+        omit_parameters:
+            - query
+        """
+        current_url = '%s?%s' % (
+            reverse(request.resolver_match.url_name, kwargs={'pk': pk}),
+            urlencode(request.query_params)
+        )
+        login_url = '/signin?next=%s' % quote_plus(current_url)
+        if not request.user.is_authenticated():
+            return redirect(login_url)
+
+        task = get_object_or_404(self.get_queryset(), pk=pk)
+    
+        quote = task.quote
+        
+        
+        try:
+            self.check_object_permissions(request, quote)
+        except NotAuthenticated:
+            return redirect(login_url)
+        except PermissionDenied:
+            return HttpResponse("You do not have permission to access this quote")
+        
+
+        
+        
+
+        if quote:
+            
+            ctx = {
+                'user': request.user,
+                'quote': quote
+                
+
+            }
+
+            rendered_html = render_to_string("tunga/pdf/task_quote.html", context=ctx).encode(encoding="UTF-8")
+            
+            if request.accepted_renderer.format == 'html':
+                return HttpResponse(rendered_html)
+            
+            
+            pdf_file = HTML(string=rendered_html, encoding='utf-8').write_pdf()
+            http_response = HttpResponse(pdf_file, content_type='application/pdf')
+            http_response['Content-Disposition'] = 'filename="task_quote.pdf"'
+            return http_response
+
+        
+
+        return HttpResponse("Could not generate the quote, Please contact support@tunga.io")
+
+
+
+
+
+
     @detail_route(
         methods=['get', 'post', 'put', 'patch'], url_path='integration/(?P<provider>[^/]+)',
         serializer_class=IntegrationSerializer
