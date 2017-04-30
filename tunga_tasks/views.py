@@ -447,21 +447,14 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         
 
         
-        total_hours = 0
-
-        for activity in estimate.activities.all():
-
-            total_hours += activity.hours
-
         
 
         if estimate:
             
             ctx = {
                 'user': request.user,
-                'estimate': estimate,
-                'total_hours': total_hours
-
+                'estimate': estimate
+                
 
             }
 

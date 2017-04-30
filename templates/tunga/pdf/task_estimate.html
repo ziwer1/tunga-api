@@ -40,12 +40,12 @@
         <h4>Activities:</h4>
         	
         
-		<table class="tg" style="undefined;table-layout: fixed; width: 802px">
+		<table class="tg" style="undefined;table-layout: fixed; width: 650px">
 		<colgroup>
 		<col style="width: 205px">
 		<col style="width: 79px">
 		<col style="width: 75px">
-		<col style="width: 443px">
+		<col style="width: 291px">
 		</colgroup>
 		  <tr>
 		    <th class="tg-9hbo">Title<br></th>
@@ -60,7 +60,7 @@
 		    <td class="tg-yw4l">{{activity.title}}<br></td>
 		    <td class="tg-yw4l">{{activity.hours}}</td>
 		    {% if user.is_project_owner or user.is_admin %}
-		    <td class="tg-yw4l">€{% widthratio estimate.dev_fee 1 activity.hours %}</td>
+		    <td class="tg-yw4l">€{{estimate.dev_fee | floatformat:2}}</td>
 		    {% endif %}
 		    <td class="tg-yw4l">{{activity.description}}</td>
 		  </tr>
@@ -70,25 +70,25 @@
 		  </tr>
 		  <tr>
 		    <td class="tg-yw4l">Development</td>
-		    <td class="tg-yw4l">/total dev hours/<br></td>
+		    <td class="tg-yw4l">{{estimate.dev_hours}}<br></td>
 		    {% if user.is_project_owner or user.is_admin %}
-		    <td class="tg-yw4l">/total dev fee/<br></td>
+		    <td class="tg-yw4l">{{estimate.dev_fee | floatformat:2}}<br></td>
 		    {% endif %}
 		    <td class="tg-yw4l"><br></td>
 		  </tr>
 		  <tr>
 		    <td class="tg-yw4l">Project management<br></td>
-		    <td class="tg-yw4l">/total pm hours/<br></td>
+		    <td class="tg-yw4l">{{estimate.pm_hours}}<br></td>
 		    {% if user.is_project_owner or user.is_admin %}
-		    <td class="tg-yw4l">/total pm fee/<br></td>
+		    <td class="tg-yw4l">{{estimate.pm_fee | floatformat:2}}<br></td>
 		    {% endif %}
 		    <td class="tg-yw4l"><br></td>
 		  </tr>
 		  <tr>
 		    <td class="tg-9hbo">Total</td>
-		    <td class="tg-yw4l">{{total_hours}}<br></td>
+		    <td class="tg-yw4l">{{estimate.hours}}<br></td>
 		    {% if user.is_project_owner or user.is_admin %}
-		    <td class="tg-yw4l">{{total_fee}}<br></td>
+		    <td class="tg-yw4l">{{estimate.fee | floatformat:2}}<br></td>
 		    {% endif %}
 		    <td class="tg-yw4l"></td>
 		  </tr>
@@ -99,10 +99,10 @@
 		<br><br><br><br><br>
 
 
-		<table class="tg" style="undefined;table-layout: fixed; width: 802px">
+		<table class="tg" style="undefined;table-layout: fixed; width: 650px">
 		<colgroup>
-		<col style="width: 401px">
-		<col style="width: 401px">
+		<col style="width: 325px">
+		<col style="width: 325px">
 		</colgroup>
 		  <tr>
 		    <th class="tg-9hbo">Planning</th>
