@@ -486,7 +486,7 @@ class Task(models.Model):
     @property
     def summary(self):
         try:
-            return self.title or truncatewords(strip_tags(self.description).strip(), 10)
+            return self.title or truncatewords(strip_tags(self.description or '').strip(), 10)
         except:
             return '{} #{}'.format(self.is_task and 'Task' or 'Project', self.id)
 
@@ -768,6 +768,10 @@ class WorkActivity(models.Model):
     def __str__(self):
         return 'Activity | {}'.format(self.content_object)
 
+    @property
+    def dev_fee(self):
+        return Decimal(self.hours) * self.content_object.task.dev_rate
+
 
 @python_2_unicode_compatible
 class WorkPlan(models.Model):
@@ -873,11 +877,11 @@ class AbstractEstimate(models.Model):
 
     @property
     def pm_hours(self):
-        return self.dev_hours*self.task.pm_time_ratio
+        return Decimal(self.dev_hours)*self.task.pm_time_ratio
 
     @property
     def hours(self):
-        return self.dev_hours + self.pm_hours
+        return Decimal(self.dev_hours) + self.pm_hours
 
     @property
     def dev_fee(self):

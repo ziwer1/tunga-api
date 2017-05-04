@@ -411,9 +411,8 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
         return HttpResponse("Could not generate an invoice, Please contact support@tunga.io")
 
-
     @detail_route(
-        methods=['get'], url_path='download/task_estimate',
+        methods=['get'], url_path='download/estimate',
         renderer_classes=[PDFRenderer, StaticHTMLRenderer],
         permission_classes=[AllowAny]
     )
@@ -436,52 +435,37 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         task = get_object_or_404(self.get_queryset(), pk=pk)
     
         estimate = task.estimate
-        
-        
+
         try:
             self.check_object_permissions(request, estimate)
         except NotAuthenticated:
             return redirect(login_url)
         except PermissionDenied:
             return HttpResponse("You do not have permission to access this estimate")
-        
-
-        
-        
 
         if estimate:
-            
             ctx = {
                 'user': request.user,
                 'estimate': estimate
-                
-
             }
 
-            rendered_html = render_to_string("tunga/pdf/task_estimate.html", context=ctx).encode(encoding="UTF-8")
+            rendered_html = render_to_string("tunga/pdf/estimate.html", context=ctx).encode(encoding="UTF-8")
             
             if request.accepted_renderer.format == 'html':
                 return HttpResponse(rendered_html)
-            
-            
+
             pdf_file = HTML(string=rendered_html, encoding='utf-8').write_pdf()
             http_response = HttpResponse(pdf_file, content_type='application/pdf')
-            http_response['Content-Disposition'] = 'filename="task_estimate.pdf"'
+            http_response['Content-Disposition'] = 'filename="estimate.pdf"'
             return http_response
-
-        
-
         return HttpResponse("Could not generate the estimate, Please contact support@tunga.io")
 
-
-
-
     @detail_route(
-        methods=['get'], url_path='download/task_quote',
+        methods=['get'], url_path='download/quote',
         renderer_classes=[PDFRenderer, StaticHTMLRenderer],
         permission_classes=[AllowAny]
     )
-    def download_task_estimate(self, request, pk=None):
+    def download_task_quote(self, request, pk=None):
         """
         Download Task Estimate Endpoint
         ---
@@ -500,47 +484,29 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         task = get_object_or_404(self.get_queryset(), pk=pk)
     
         quote = task.quote
-        
-        
+
         try:
             self.check_object_permissions(request, quote)
         except NotAuthenticated:
             return redirect(login_url)
         except PermissionDenied:
             return HttpResponse("You do not have permission to access this quote")
-        
-
-        
-        
 
         if quote:
-            
             ctx = {
                 'user': request.user,
                 'quote': quote
-                
-
             }
 
-            rendered_html = render_to_string("tunga/pdf/task_quote.html", context=ctx).encode(encoding="UTF-8")
+            rendered_html = render_to_string("tunga/pdf/quote.html", context=ctx).encode(encoding="UTF-8")
             
             if request.accepted_renderer.format == 'html':
                 return HttpResponse(rendered_html)
-            
-            
             pdf_file = HTML(string=rendered_html, encoding='utf-8').write_pdf()
             http_response = HttpResponse(pdf_file, content_type='application/pdf')
             http_response['Content-Disposition'] = 'filename="task_quote.pdf"'
             return http_response
-
-        
-
         return HttpResponse("Could not generate the quote, Please contact support@tunga.io")
-
-
-
-
-
 
     @detail_route(
         methods=['get', 'post', 'put', 'patch'], url_path='integration/(?P<provider>[^/]+)',

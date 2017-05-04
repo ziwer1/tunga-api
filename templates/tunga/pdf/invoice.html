@@ -1,101 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
-    <!--<link href='https://fonts.googleapis.com/css?family=Roboto:100,100i,300,300i,400,400i,500,500i,700,700i' rel='stylesheet' type='text/css'>-->
-    <style>
-        body {
-            font-size: 14px;
-            font-family: 'Roboto', sans-serif;
-            padding: 0;
-            margin: 0;
-        }
-
-        table {
-            width: 100%;
-            border-width: 0;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 50px auto 0;
-            page-break-after: always;
-        }
-
-        .text-right {
-            text-align: right;
-        }
-
-        .bold {
-            font-weight: bold;
-        }
-
-        .top-border {
-            border-top: 1px solid #000;
-        }
-
-        .pull-left {
-            float: left;
-        }
-
-        .pull-right {
-            float: right;
-        }
-
-        .clearfix {
-            float: none;
-            clear: both;
-        }
-
-        a, .highlight {
-            color: #ee1f54;
-        }
-
-        a:link, a:visited, a:focus, a:hover, a:active {
-            text-decoration: none;
-        }
-
-        table th,
-        table td {
-            padding: 5px 0;
-        }
-
-        table th:last-child,
-        table td:last-child {
-            border-left: 1px solid #000;
-            padding-left: 5px;
-        }
-
-        footer {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 20px;
-            width: 100%;
-            /*text-align: center;*/
-        }
-    </style>
-    <script>
-        var WebFontConfig = {
-            google: {families: ['Roboto:100,100i,300,300i,400,400i,500,500i,700,700i:latin']}
-        };
-        (function () {
-            var wf = document.createElement('script');
-            wf.src = ('https:' == document.location.protocol ? 'https' : 'http') +
-                    '://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js';
-            wf.type = 'text/javascript';
-            wf.async = 'true';
-            var s = document.getElementsByTagName('script')[0];
-            s.parentNode.insertBefore(wf, s);
-        })();
-    </script>
-</head>
-<body>
-{% for developer_info in invoice.developers %}
+{% extends "tunga/pdf/base.html" %}
+{% block pdf_style %}
+    table th:last-child,
+    table td:last-child {
+        border-left: 1px solid #000;
+        padding-left: 5px;
+    }
+{% endblock %}
+{% block pdf_content %}
+    {% for developer_info in invoice.developers %}
 <div class="container">
     <div style="margin: 20px 0 10px;text-align: left;">
         {% if context.is_developer %}
@@ -211,5 +123,4 @@
     </footer>
 </div>
 {% endfor %}
-</body>
-</html>
+{% endblock %}

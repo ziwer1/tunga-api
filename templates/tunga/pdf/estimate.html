@@ -1,0 +1,90 @@
+{% extends "tunga/pdf/base_headed.html" %}
+{% block pdf_style %}
+    table tr,
+    table tr {
+        border-bottom: 1px solid #666;
+    }
+    table tfoot tr:last-child {
+        border-bottom-width: 0;
+    }
+    section {
+        margin-bottom: 10px;
+    }
+{% endblock %}
+{% block pdf_content %}
+    <div class="container">
+        <div class="section">
+            <h2>{{ estimate.task }}</h2>
+        </div>
+
+        <div class="section">
+            <h4>Introduction:</h4>
+            <div>{{ estimate.introduction }}</div>
+        </div>
+
+        <div class="section">
+            <h4>Activities:</h4>
+            {% if estimate.activities.count %}
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Hours</th>
+                        <th>Fee</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+
+                    {% for activity in estimate.activities.all %}
+                        <tr>
+                            <td>{{ activity.title }}</td>
+                            <td>{{ activity.hours | floatformat:-2 }} hrs</td>
+                            <td>€{{ activity.dev_fee | floatformat:-2 }}</td>
+                            <td>{{ activity.description }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                    <tfoot>
+                    <tr>
+                        <th colSpan="4">Sub Totals</th>
+                    </tr>
+                    <tr>
+                        <th>Development</th>
+                        <th>{{ estimate.dev_hours | floatformat:-2 }} hrs</th>
+                        <th>€{{ estimate.dev_fee | floatformat:-2 }}</th>
+                        <th></th>
+                    </tr>
+                    <tr>
+                        <th>Project Management</th>
+                        <th>{{ estimate.pm_hours | floatformat:-2 }} hrs</th>
+                        <th>€{{ estimate.pm_fee | floatformat:-2 }}</th>
+                        <th></th>
+                    </tr>
+                    <tr>
+                        <th>Total</th>
+                        <th>{{ estimate.hours | floatformat:-2 }} hrs</th>
+                        <th>€{{ estimate.fee | floatformat:-2 }}</th>
+                        <th></th>
+                    </tr>
+                    </tfoot>
+                </table>
+            {% endif %}
+
+
+        </div>
+
+        <div class="section">
+            <h4>Planning:</h4>
+            <div class="pull-left half-width">
+                    <h5>Start Date</h5>
+                    {{ estimate.start_date | date:'jS F Y' }}
+                </div>
+                <div class="pull-left half-width">
+                    <h5>End Date</h5>
+                    {{ estimate.end_date | date:'jS F Y' }}
+                </div>
+            <div class="clearfix"></div>
+        </div>
+    </div>
+{% endblock %}
