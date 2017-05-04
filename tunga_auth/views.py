@@ -2,6 +2,8 @@ import json
 import re
 
 import datetime
+from urllib import quote_plus, urlencode
+
 import requests
 from allauth.socialaccount.providers.facebook.provider import FacebookProvider
 from allauth.socialaccount.providers.github.provider import GitHubProvider
@@ -9,11 +11,18 @@ from allauth.socialaccount.providers.google.provider import GoogleProvider
 from allauth.socialaccount.providers.slack.provider import SlackProvider
 from django.contrib.auth import get_user_model
 from django.core.urlresolvers import reverse
+from django.http.response import HttpResponse
 from django.shortcuts import redirect
+from django.template.loader import render_to_string
 from dry_rest_permissions.generics import DRYPermissions
 from rest_framework import views, status, generics, viewsets
+from rest_framework.decorators import detail_route
+from rest_framework.exceptions import NotAuthenticated, PermissionDenied
+from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.renderers import StaticHTMLRenderer
 from rest_framework.response import Response
+from weasyprint import HTML
 
 from tunga.settings import GITHUB_SCOPES, COINBASE_CLIENT_ID, COINBASE_CLIENT_SECRET, SOCIAL_CONNECT_ACTION, SOCIAL_CONNECT_NEXT, SOCIAL_CONNECT_USER_TYPE, SOCIAL_CONNECT_ACTION_REGISTER, \
     SOCIAL_CONNECT_ACTION_CONNECT, SLACK_CLIENT_ID, SLACK_CLIENT_SECRET, SOCIAL_CONNECT_TASK, HARVEST_CLIENT_ID, \
@@ -24,6 +33,7 @@ from tunga_auth.models import EmailVisitor
 from tunga_auth.permissions import IsAuthenticatedOrEmailVisitorReadOnly
 from tunga_auth.serializers import UserSerializer, AccountInfoSerializer, EmailVisitorSerializer
 from tunga_profiles.models import BTCWallet, UserProfile, AppIntegration
+from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.utils import save_task_integration_meta
 from tunga_utils import coinbase_utils, slack_utils, harvest_utils
 from tunga_utils.constants import BTC_WALLET_PROVIDER_COINBASE, PAYMENT_METHOD_BTC_WALLET, USER_TYPE_DEVELOPER, \
@@ -96,6 +106,53 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         if re.match(r'[^\d]', user_id):
             self.lookup_field = 'username'
         return super(UserViewSet, self).get_object()
+
+    @detail_route(
+        methods=['get'], url_path='download/profile',
+        renderer_classes=[PDFRenderer, StaticHTMLRenderer],
+        permission_classes=[AllowAny]
+    )
+    def download_profile(self, request, user_id=None):
+        """
+        Download User Profile Endpoint
+        ---
+        omit_serializer: True
+        omit_parameters:
+            - query
+        """
+        current_url = '%s?%s' % (
+            reverse(request.resolver_match.url_name, kwargs={'user_id': user_id}),
+            urlencode(request.query_params)
+        )
+        login_url = '/signin?next=%s' % quote_plus(current_url)
+        if not request.user.is_authenticated():
+            return redirect(login_url)
+
+        user = get_object_or_404(self.get_queryset(), pk=user_id)
+
+        try:
+            self.check_object_permissions(request, user)
+        except NotAuthenticated:
+            return redirect(login_url)
+        except PermissionDenied:
+            return HttpResponse("You do not have permission to access this estimate")
+
+        ctx = {
+            'user': user,
+            'profile': user.profile,
+            'work': user.work_set.all(),
+            'education': user.education_set.all()
+        }
+
+        rendered_html = render_to_string("tunga/pdf/profile.html", context=ctx).encode(encoding="UTF-8")
+
+        if request.accepted_renderer.format == 'html':
+            return HttpResponse(rendered_html)
+
+        pdf_file = HTML(string=rendered_html, encoding='utf-8').write_pdf()
+        http_response = HttpResponse(pdf_file, content_type='application/pdf')
+        http_response['Content-Disposition'] = 'filename="developer_profile.pdf"'
+        return http_response
 
 
 class EmailVisitorView(generics.CreateAPIView, generics.RetrieveAPIView):

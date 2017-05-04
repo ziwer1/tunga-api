@@ -1,0 +1,140 @@
+{% extends "tunga/pdf/base_headed.html" %}
+{% block pdf_style %}
+    table tr,
+    table tr {
+        border-bottom: 1px solid #666;
+    }
+    table tfoot tr:last-child,
+    table.plan tbody tr:last-child {
+        border-bottom-width: 0;
+    }
+    section {
+        margin-bottom: 10px;
+    }
+{% endblock %}
+{% block pdf_content %}
+    <div class="container">
+        <div class="section">
+            <h2>{{ quote.task }}</h2>
+        </div>
+
+        <div class="section">
+            <h4>Introduction:</h4>
+            <div>{{ quote.introduction }}</div>
+        </div>
+
+        <div class="section">
+            <h4>Scope:</h4>
+            <h5>In scope:</h5>
+            <div>{{ quote.in_scope }}</div>
+
+            <h5>Out of scope:</h5>
+            <div>{{ quote.out_scope }}</div>
+
+            <h5>Assumptions:</h5>
+            <div>{{ quote.assumptions }}</div>
+
+            <h5>Deliverables:</h5>
+            <div>{{ quote.deliverables }}</div>
+        </div>
+
+        <div class="section">
+            <h4>Solution:</h4>
+            <h5>Architecture:</h5>
+            <div>{{ quote.architecture }}</div>
+
+            <h4>Technology:</h4>
+            <div>{{ quote.technology }}</div>
+        </div>
+
+        <div class="section">
+            <h4>Methodology</h4>
+            <h5>Process:</h5>
+            <div>{{ quote.process }}</div>
+
+            <h5>Reporting:</h5>
+            <div>{{ quote.reporting }}</div>
+        </div>
+
+        <div class="section">
+            <h4>Activities:</h4>
+            {% if quote.activities.count %}
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Hours</th>
+                        <th>Fee</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+
+                    {% for activity in quote.activities.all %}
+                        <tr>
+                            <td>{{ activity.title }}</td>
+                            <td>{{ activity.hours | floatformat:-2 }} hrs</td>
+                            <td>€{{ activity.dev_fee | floatformat:-2 }}</td>
+                            <td>{{ activity.description }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                    <tfoot>
+                    <tr>
+                        <th colSpan="4">Sub Totals</th>
+                    </tr>
+                    <tr>
+                        <th>Development</th>
+                        <th>{{ quote.dev_hours | floatformat:-2 }} hrs</th>
+                        <th>€{{ quote.dev_fee | floatformat:-2 }}</th>
+                        <th></th>
+                    </tr>
+                    <tr>
+                        <th>Project Management</th>
+                        <th>{{ quote.pm_hours | floatformat:-2 }} hrs</th>
+                        <th>€{{ quote.pm_fee | floatformat:-2 }}</th>
+                        <th></th>
+                    </tr>
+                    <tr>
+                        <th>Total</th>
+                        <th>{{ quote.hours | floatformat:-2 }} hrs</th>
+                        <th>€{{ quote.fee | floatformat:-2 }}</th>
+                        <th></th>
+                    </tr>
+                    </tfoot>
+                </table>
+            {% endif %}
+
+
+        </div>
+
+        <div class="section">
+            <h4>Planning:</h4>
+            {% if quote.plan.count %}
+                <table class="plan">
+                    <thead>
+                    <tr>
+                        <th>Milestone</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+
+                    {% for plan in quote.plan.all %}
+                        <tr>
+                            <td>{{ plan.title }}</td>
+                            <td>{{ plan.start_date | date:'jS F Y' }}</td>
+                            <td>{{ plan.end_date | date:'jS F Y' }}</td>
+                            <td>{{ plan.description }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+
+
+        </div>
+    </div>
+{% endblock %}

@@ -160,6 +160,13 @@ class UserProfile(models.Model):
     def country_name(self):
         return str(self.country.name)
 
+    @property
+    def location(self):
+        location = self.city_name
+        if self.country_name:
+            location = '{}{}{}'.format(location, location and ', ' or '', self.country_name)
+        return location
+
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):
         return True

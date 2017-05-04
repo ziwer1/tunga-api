@@ -1,0 +1,90 @@
+{% extends "tunga/pdf/base_headed.html" %}
+{% block pdf_style %}
+    section {
+        margin: 10px auto;
+    }
+    .avatar {
+        vertical-align: middle;
+        width: 100px;
+        height: 100px;
+        background-color: #ee1f54;
+        background-size: cover;
+        margin: 5px;
+        border-radius: 50%;
+        border: 1px solid #ee1f54;
+        overflow: hidden;
+    }
+
+{% endblock %}
+{% block pdf_content %}
+    <div class="container">
+        <div class="section">
+            <div class="pull-left">
+                <div class="avatar" style="background-image: url('{{ user.avatar_url }}')">
+                </div>
+            </div>
+            <div class="pull-left" style="padding-top: 20px;">
+                <div>{{ user.display_name }}</div>
+
+                {% if user.is_project_owner and profile %}
+                    <p>{{ user.company }}</p>
+                {% endif %}
+
+                {% if profile and profile.location %}
+                    <div>{{ profile.location }}</div>
+                {% endif %}
+            </div>
+            <div class="clearfix"></div>
+        </div>
+
+        <div class="section">
+            <h4>Bio:</h4>
+            <div>{{ profile.bio }}</div>
+        </div>
+
+        <div class="section">
+            <h4>Skills:</h4>
+            <div>{{ profile.skills }}</div>
+        </div>
+
+        <div class="section">
+            {% if work.count %}
+                <h4>Work Experience:</h4>
+                {% for item in work %}
+                    <div>
+                        <div class="card">
+                            <div>{{ item.position }}</div>
+                            <div>{{ item.company }}</div>
+                            <div>
+                                {{ item.get_start_month_display}}/{{item.start_year }} - {% if item.end_year %}{{ item.get_end_month_display}}/{{item.end_year }}{% else %}Present{% endif %}
+                            </div>
+                            <div>
+                                {{ item.details }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+            {% endif %}
+        </div>
+
+        <div class="section">
+            {% if education.count %}
+                <h4>Education:</h4>
+                {% for item in education %}
+                    <div>
+                        <div class="card">
+                            <div>{{ item.institution }}</div>
+                            <div>{{ item.award }}</div>
+                            <div>
+                                {{ item.get_start_month_display}}/{{item.start_year }} - {% if item.end_year %}{{ item.get_end_month_display}}/{{item.end_year }}{% else %}Present{% endif %}
+                            </div>
+                            <div>
+                                {{ item.details }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

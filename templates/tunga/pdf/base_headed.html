@@ -1,0 +1,17 @@
+{% extends "tunga/pdf/base.html" %}
+{% block pdf_style %}
+    table tr,
+    table tr {
+        border-bottom: 1px solid #666;
+    }
+    table tfoot tr:last-child {
+        border-bottom-width: 0;
+    }
+    section {
+        margin-bottom: 10px;
+    }
+{% endblock %}
+{% block pdf_header %}
+    <div><img src="https://tunga.io/icons/tunga_long.jpg" width="200px" style="width: 200px;"></div>
+{% endblock %}
+{% block pdf_content %}{% endblock %}
