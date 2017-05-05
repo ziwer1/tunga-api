@@ -10,6 +10,7 @@ from premailer import premailer
 from tunga.settings import DEFAULT_FROM_EMAIL, TUNGA_CONTACT_REQUEST_EMAIL_RECIPIENTS, EMAIL_SUBJECT_PREFIX
 from tunga_utils.helpers import clean_instance, convert_to_text
 from tunga_utils.models import ContactRequest
+from tunga_utils.hubspot_utils import create_hubspot_engagement
 
 
 def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, **kwargs):
@@ -49,6 +50,7 @@ def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None,
 
 def send_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, **kwargs):
     msg = render_mail(subject, template_prefix, to_emails, context, bcc=bcc, cc=cc, **kwargs)
+    create_hubspot_engagement(subject, template_prefix, to_emails, context, bcc=bcc, cc=cc, **kwargs)
     return msg.send()
 
 

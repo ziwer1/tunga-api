@@ -1,6 +1,12 @@
 import requests
 from django.utils import six
 import json
+import re
+from django.template.exceptions import TemplateDoesNotExist
+from django.template.loader import render_to_string
+from tunga.settings import DEFAULT_FROM_EMAIL, EMAIL_SUBJECT_PREFIX
+from tunga_utils.helpers import convert_to_text
+
 
 from tunga.settings import HUBSPOT_API_KEY
 
@@ -93,4 +99,52 @@ def create_hubspot_deal(task):
 
 
 
+def create_hubspot_engagement(subject, template_prefix, to_emails, context, bcc=None, cc=None, **kwargs):
+    from_email = DEFAULT_FROM_EMAIL
+    if not re.match(r'^\[\s*Tunga', subject):
+        subject = '{} {}'.format(EMAIL_SUBJECT_PREFIX, subject)
+
+    bodies = {}
+    for ext in ['html', 'txt']:
+        try:
+            template_name = '{0}.{1}'.format(template_prefix, ext)
+            bodies[ext] = render_to_string(template_name,
+                                           context).strip()
+        except TemplateDoesNotExist:
+            if ext == 'txt':
+                if 'html' in bodies:
+                    # Compose text body from html
+                    bodies[ext] = convert_to_text(bodies['html'])
+                else:
+                    # We need at least one body
+                    raise
+
+    if bodies:
+
+        bodies['html'] = bodies['html'].replace('"', "'")
+
+        payload = json.loads('{"engagement":{"active":true,"ownerId":70,"type":"EMAIL"},\
+        "associations":{"contactIds":[],"companyIds":[],"dealIds":[],"ownerIds":[]},\
+        "metadata":{"from":{"email":"","firstName":"Tunga","lastName":"Support"},\
+        "to":[{"email":"This contact"}],"cc":[],"bcc":[],"subject":"","html":"","text":""}}')
+
+        contactIds = []
+        for email in to_emails:
+            contactIds.insert(0,get_hubspot_contact_vid(email))
+
+        payload['engagement']['ownerId'] = 16208186
+        payload['associations']['contactIds'].extend(contactIds)
+        payload['metadata']['from']['email'] = DEFAULT_FROM_EMAIL
+        payload['metadata']['subject'] = subject
+        payload['metadata']['html'] = bodies['html']
+        payload['metadata']['txt'] = bodies['txt']
+
+        url = 'https://api.hubapi.com/engagements/v1/engagements?hapikey=%s' % (HUBSPOT_API_KEY)
+
+        response = requests.post(url, json=payload)
+
+
+
+    else:
+        raise TemplateDoesNotExist
 
