@@ -69,6 +69,10 @@ def get_hubspot_contact_vid(email):
     if r.status_code in [200, 201]:
         vid = json.loads(json.dumps(r.json()))['canonical-vid']
         return vid
+    else:
+        response = create_hubspot_contact(email)
+        response = response['vid']
+        return response
 
 
 def create_hubspot_deal(task):
