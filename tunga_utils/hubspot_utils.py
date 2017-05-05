@@ -76,30 +76,21 @@ def get_hubspot_contact_vid(email):
 
 
 def create_hubspot_deal(task):
+
+    payload = json.loads('{"associations":{"associatedCompanyIds":[],"associatedVids":[]},"properties":[]}')
+
+    payload['associations']['associatedVids'].insert(0,get_hubspot_contact_vid(task.user.email))
     
-    url = "https://api.hubapi.com/deals/v1/deal"
+    payload['properties'].extend([{"value":task.title,"name":"dealname"},{"value":"appointmentscheduled",\
+        "name":"dealstage"},{"value":"default","name":"pipeline"},{"value":str(int(task.fee)),"name":"amount"},\
+        {"value":"newbusiness","name":"dealtype"}])
+    
+    #production
+    #payload['properties'].extend([{"value":task.id,"name":"task_id"},{"value":task.description,"name":"description"}])
 
-    querystring = {"hapikey":HUBSPOT_API_KEY}
+    url = 'https://api.hubapi.com/deals/v1/deal?hapikey=%s' % (HUBSPOT_API_KEY)
 
-    payload = "{\r\n  \"associations\": {\r\n    \"associatedVids\": [\r\n   \
-       %d\r\n    ]\r\n  },\r\n  \"properties\": [\r\n    {\r\n      \"value\":\
-        \"%s\",\r\n      \"name\": \"dealname\"\r\n    },\r\n    {\r\n      \
-        \"value\": \"4d333654-0391-47e9-b1d2-9cb16effafc9\",\r\n      \"name\": \
-        \"dealstage\"\r\n    },\r\n    {\r\n      \"value\": \"a053401c-4ea5-4075-abc1-bd5f44e9b0f3\",\r\n      \
-        \"name\": \"pipeline\"\r\n    },\r\n    {\r\n      \"value\": \"16208186\",\r\n      \
-        \"name\": \"hubspot_owner_id\"\r\n    },\r\n    {\r\n      \
-        \"value\": 1409443200000,\r\n      \"name\": \"closedate\"\r\n    },\r\n    \
-        {\r\n      \"value\": \"%d\",\r\n      \"name\": \"amount\"\r\n    },\r\n    \
-        {\r\n      \"value\": \"%d\",\r\n      \"name\": \"task_id\"\r\n    },\r\n    \
-        {\r\n      \"value\": \"%s\",\r\n      \"name\": \"description\"\r\n    },\r\n    \
-        {\r\n      \"value\": \"newbusiness\",\r\n      \"name\": \"dealtype\"\r\n    }\r\n  \
-        ]\r\n}" % (get_hubspot_contact_vid(task.user.email), task.title, int(task.fee), task.id, task.description)
-
-    headers = {
-        'content-type': "application/json",
-        'cache-control': "no-cache" }
-
-    response = requests.request("POST", url, data=payload, headers=headers, params=querystring)
+    response = requests.post(url, json=payload)
 
 
 
