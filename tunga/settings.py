@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'dry_rest_permissions',
     'django_rq',
+    'raven.contrib.django.raven_compat',
 
     # Social Auth Providers
     'allauth.socialaccount.providers.bitbucket_oauth2',
@@ -409,6 +410,11 @@ MAILCHIMP_API_KEY = None
 MAILCHIMP_NEW_USER_LIST = None
 MAILCHIMP_NEW_USER_AUTOMATION_WORKFLOW_ID = None
 MAILCHIMP_NEW_USER_AUTOMATION_EMAIL_ID = None
+
+RAVEN_CONFIG = {
+    'dsn': '',  # Raven URL here
+    # 'release': raven.fetch_git_sha(os.path.dirname(os.pardir)),
+}
 
 try:
     from .env.dev import *

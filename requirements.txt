@@ -13,6 +13,7 @@ CairoSVG==1.0.22          # via weasyprint
 cffi==1.7.0               # via argon2-cffi, cairocffi, weasyprint
 click==6.6                # via rq
 coinbase==2.0.6
+contextlib2==0.5.5        # via raven
 coreapi==2.3.0            # via django-rest-swagger, openapi-codec
 coreschema==0.0.4         # via coreapi
 cssselect==0.9.2          # via premailer, weasyprint
@@ -59,6 +60,7 @@ Pyphen==0.9.4             # via weasyprint
 python-dateutil==2.5.3
 python-openid==2.2.5      # via django-allauth
 pytz==2016.10             # via apscheduler, tzlocal
+raven==6.0.0
 redis==2.10.5             # via django-redis, rq
 requests-oauthlib==0.8.0  # via django-allauth
 requests==2.10.0
