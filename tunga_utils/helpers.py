@@ -9,6 +9,8 @@ from django.http import HttpResponseRedirect
 from django.template.defaultfilters import urlizetrunc, safe, striptags
 from django.utils import six
 
+from tunga_utils.constants import HEADER_EDIT_TOKEN
+
 
 def get_tunga_model(model):
     """
@@ -133,3 +135,7 @@ def clean_meta_value(meta_value):
         except:
             pass
     return str(meta_value)
+
+
+def get_edit_token_header(request):
+    return request.META.get(HEADER_EDIT_TOKEN, None)

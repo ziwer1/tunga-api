@@ -19,7 +19,8 @@ CORS_ALLOW_HEADERS = (
     'origin',
     'authorization',
     'x-csrftoken',
-    'X-CSRFToken'
+    'X-CSRFToken',
+    'X-EDIT-TOKEN'
 )
 
 TUNGA_URL = 'http://test.tunga.io'

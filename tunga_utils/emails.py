@@ -50,8 +50,17 @@ def render_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None,
 
 def send_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, **kwargs):
     msg = render_mail(subject, template_prefix, to_emails, context, bcc=bcc, cc=cc, **kwargs)
-    create_hubspot_engagement(subject, template_prefix, to_emails, context, bcc=bcc, cc=cc, **kwargs)
-    return msg.send()
+    is_sent = msg.send()
+    if is_sent:
+        # Log engagement in HubSpot
+        new_kwargs = kwargs
+        new_kwargs.update(
+            dict(cc=cc, bcc=bcc, context=context, template_prefix=template_prefix)
+        )
+        create_hubspot_engagement(
+            from_email=msg.from_email, to_emails=msg.to, subject=msg.subject, body=msg.body, **kwargs
+        )
+    return is_sent
 
 
 @job

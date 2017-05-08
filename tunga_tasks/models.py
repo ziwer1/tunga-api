@@ -39,7 +39,7 @@ from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPE
     TASK_SCOPE_ONGOING, TASK_BILLING_METHOD_FIXED, TASK_BILLING_METHOD_HOURLY, TASK_SCOPE_PROJECT, TASK_SOURCE_DEFAULT, \
     TASK_SOURCE_NEW_USER, PROGRESS_EVENT_TYPE_COMPLETE, STATUS_INITIAL, STATUS_APPROVED, STATUS_DECLINED, \
     STATUS_ACCEPTED, STATUS_REJECTED, STATUS_SUBMITTED, PROGRESS_EVENT_TYPE_PM
-from tunga_utils.helpers import round_decimal, get_serialized_id, get_tunga_model
+from tunga_utils.helpers import round_decimal, get_serialized_id, get_tunga_model, get_edit_token_header
 from tunga_utils.models import Upload, Rating
 from tunga_utils.validators import validate_btc_address
 
@@ -272,6 +272,9 @@ class Task(models.Model):
             settings.AUTH_USER_MODEL, through='Participation', through_fields=('task', 'user'),
             related_name='task_participants', blank=True)
 
+    # Allow non-authenticated wizard user to edit after creation
+    edit_token = models.UUIDField(default=uuid.uuid4, editable=False)
+
     # Relationships
     comments = GenericRelation(Comment, related_query_name='tasks')
     uploads = GenericRelation(Upload, related_query_name='tasks')
@@ -338,13 +341,13 @@ class Task(models.Model):
 
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):
-        if request.user == self.user or \
+        if str(self.edit_token) == get_edit_token_header(request) or request.user == self.user or \
                 (self.parent and request.user == self.parent.user) or \
                 self.has_admin_access(request.user) or \
-                (request.user.is_project_manager): #and (self.pm == request.user or not self.pm)):
+                (request.user.is_authenticated() and request.user.is_project_manager): #and (self.pm == request.user or not self.pm)):
             return True
         elif self.visibility == VISIBILITY_DEVELOPER:
-            return request.user.type == USER_TYPE_DEVELOPER
+            return request.user.is_authenticated() and request.user.is_developer
         elif self.visibility == VISIBILITY_MY_TEAM:
             return bool(
                 Connection.objects.exclude(status=STATUS_REJECTED).filter(
@@ -360,7 +363,7 @@ class Task(models.Model):
     @staticmethod
     @allow_staff_or_superuser
     def has_write_permission(request):
-        return request.user.is_project_owner or request.user.is_project_manager
+        return not request.user.is_authenticated() or (request.user.is_project_owner or request.user.is_project_manager)
 
     @staticmethod
     @allow_staff_or_superuser
@@ -374,7 +377,7 @@ class Task(models.Model):
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
-        return request.user == self.user or \
+        return str(self.edit_token) == get_edit_token_header(request) or request.user == self.user or \
                (self.parent and request.user == self.parent.user) or \
                self.has_admin_access(request.user)
 
@@ -485,10 +488,14 @@ class Task(models.Model):
 
     @property
     def summary(self):
+        task_summary = ''
         try:
-            return self.title or truncatewords(strip_tags(self.description or '').strip(), 10)
+            task_summary = self.title or truncatewords(strip_tags(self.description or '').strip(), 10)
         except:
-            return '{} #{}'.format(self.is_task and 'Task' or 'Project', self.id)
+            pass
+        if not task_summary:
+            task_summary = '{} #{}'.format(self.is_task and 'Task' or 'Project', self.id)
+        return task_summary
 
     @property
     def excerpt(self):

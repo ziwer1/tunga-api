@@ -22,7 +22,7 @@ from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance, convert_to_text
 
 
-def create_task_slack_msg(task, summary=None, channel='#general'):
+def create_task_slack_msg(task, summary='', channel='#general'):
     task_url = '{}/work/{}/'.format(TUNGA_URL, task.id)
     attachments = [
         {

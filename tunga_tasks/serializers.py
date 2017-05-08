@@ -356,22 +356,20 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                 if pm_required is None and not self.partial:
                     errors.update({'pm_required': 'This field is required.'})
         else:
-            #if not description:
-            #    errors.update({'description': 'This field is required.'})
-            if not schedule_call_start:
-                errors.update({'schedule_call_start': 'Please select a day and start time.'})
-            if not schedule_call_end:
-                errors.update({'schedule_call_end': 'Please select a day and end time.'})
             if not email:
                 errors.update({'email': 'This field is required.'})
             if not first_name:
                 errors.update({'first_name': 'This field is required.'})
             if not last_name:
                 errors.update({'last_name': 'This field is required.'})
+            if self.instance:
+                if not schedule_call_start:
+                    errors.update({'schedule_call_start': 'Please select a day and start time.'})
+                if not schedule_call_end:
+                    errors.update({'schedule_call_end': 'Please select a day and end time.'})
 
         if errors:
             raise ValidationError(errors)
-
         return attrs
 
     def save_task(self, validated_data, instance=None):
