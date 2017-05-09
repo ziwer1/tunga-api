@@ -44,7 +44,7 @@ def create_task_slack_msg(task, summary='', channel='#general', show_schedule=Tr
         amount = task.is_developer_ready and task.pay_dev or task.pay
         extra_details += '*Fee*: EUR {}\n'.format(floatformat(amount, arg=-2))
     if show_schedule and task.schedule_call_start:
-        extra_details += '*Available*: \nDate: {}\nTime: {} {}'.format(
+        extra_details += '*Available*: \nDate: {}\nTime: {} {}\n'.format(
             task.schedule_call_start.strftime("%d %b, %Y"),
             task.schedule_call_start.strftime("%I:%M%p"),
             task.schedule_call_end and ' - {}'.format(task.schedule_call_end.strftime("%I:%M%p %Z")) or
