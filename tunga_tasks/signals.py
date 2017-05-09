@@ -57,7 +57,6 @@ def activity_handler_new_task(sender, instance, created, **kwargs):
 @receiver(task_fully_saved, sender=Task)
 def activity_handler_task_fully_saved(sender, task, new_user, **kwargs):
     notify_new_task.delay(task.id, new_user=new_user)
-
     create_hubspot_deal_task.delay(task.id)
 
 
@@ -71,7 +70,6 @@ def activity_handler_task_approved(sender, task, **kwargs):
 
 @receiver(task_call_window_scheduled, sender=Task)
 def activity_handler_call_window_scheduled(sender, task, **kwargs):
-    print('Call Window')
     # Notify admins
     notify_new_task_admin.delay(task.id, call_scheduled=True)
 

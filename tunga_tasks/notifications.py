@@ -149,8 +149,8 @@ def notify_new_task_client_receipt_email(instance, new_user=False, reminder=Fals
 
 @job
 def notify_new_task_admin(instance, new_user=False, completed=False, call_scheduled=False):
-    notify_new_task_admin_email(instance, new_user=new_user, completed=completed, call_scheduled=call_scheduled)
     notify_new_task_admin_slack(instance, new_user=new_user, completed=completed, call_scheduled=call_scheduled)
+    notify_new_task_admin_email(instance, new_user=new_user, completed=completed, call_scheduled=call_scheduled)
 
 
 @job

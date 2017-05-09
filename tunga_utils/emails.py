@@ -57,9 +57,12 @@ def send_mail(subject, template_prefix, to_emails, context, bcc=None, cc=None, *
         new_kwargs.update(
             dict(cc=cc, bcc=bcc, context=context, template_prefix=template_prefix)
         )
-        create_hubspot_engagement(
-            from_email=msg.from_email, to_emails=msg.to, subject=msg.subject, body=msg.body, **kwargs
-        )
+        try:
+            create_hubspot_engagement(
+                from_email=msg.from_email, to_emails=msg.to, subject=msg.subject, body=msg.body, **kwargs
+            )
+        except:
+            pass
     return is_sent
 
 
