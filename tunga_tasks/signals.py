@@ -1,5 +1,6 @@
-from actstream.signals import action
 from decimal import Decimal
+
+from actstream.signals import action
 from django.db.models.signals import post_save
 from django.dispatch.dispatcher import receiver, Signal
 
@@ -8,16 +9,20 @@ from tunga_messages.models import Message
 from tunga_messages.tasks import get_or_create_task_channel
 from tunga_tasks.models import Task, Application, Participation, ProgressEvent, ProgressReport, \
     IntegrationActivity, Integration, Estimate, Quote
-from tunga_tasks.notifications import notify_new_task_application, send_new_task_application_applicant_email, \
-    send_new_task_invitation_email, send_new_task_application_response_email, notify_task_invitation_response, \
-    send_task_application_not_selected_email, notify_new_progress_report, notify_task_approved, send_estimate_status_email
+from tunga_tasks.notifications import notify_new_task_application, send_new_task_invitation_email, \
+    notify_task_invitation_response, \
+    send_task_application_not_selected_email, notify_new_progress_report, notify_task_approved, notify_estimate_status_email, \
+    notify_task_application_response, notify_new_task_admin, notify_new_task
 from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates, \
     complete_harvest_integration, create_hubspot_deal_task
+from tunga_utils import hubspot_utils
 from tunga_utils.constants import APP_INTEGRATION_PROVIDER_HARVEST, STATUS_SUBMITTED, STATUS_APPROVED, STATUS_DECLINED, \
     STATUS_ACCEPTED, STATUS_REJECTED, STATUS_INITIAL
 
 # Task
+task_fully_saved = Signal(providing_args=["task", "new_user"])
 task_approved = Signal(providing_args=["task"])
+task_call_window_scheduled = Signal(providing_args=["task"])
 task_applications_closed = Signal(providing_args=["task"])
 task_closed = Signal(providing_args=["task"])
 
@@ -49,10 +54,29 @@ def activity_handler_new_task(sender, instance, created, **kwargs):
         create_hubspot_deal_task.delay(instance.id)
 
 
+@receiver(task_fully_saved, sender=Task)
+def activity_handler_task_fully_saved(sender, task, new_user, **kwargs):
+    notify_new_task.delay(task.id, new_user=new_user)
+
+    create_hubspot_deal_task.delay(task.id)
+
+
 @receiver(task_approved, sender=Task)
 def activity_handler_task_approved(sender, task, **kwargs):
     if task.approved and task.is_task:
         notify_task_approved.delay(task.id)
+
+        create_hubspot_deal_task.delay(task.id)
+
+
+@receiver(task_call_window_scheduled, sender=Task)
+def activity_handler_call_window_scheduled(sender, task, **kwargs):
+    print('Call Window')
+    # Notify admins
+    notify_new_task_admin.delay(task.id, call_scheduled=True)
+
+    # Update HubSpot deal stage
+    create_hubspot_deal_task.delay(task.id, **{hubspot_utils.KEY_DEALSTAGE: hubspot_utils.KEY_VALUE_APPOINTMENT_SCHEDULED})
 
 
 @receiver(task_applications_closed, sender=Task)
@@ -79,19 +103,8 @@ def activity_handler_new_application(sender, instance, created, **kwargs):
             channel = get_or_create_task_channel(instance.user, instance)
             Message.objects.create(channel=channel, **{'user': instance.user, 'body': instance.remarks})
 
-        # Send email notification to project owner
+        # Notify new application
         notify_new_task_application.delay(instance.id)
-
-        # Send email confirmation to applicant
-        send_new_task_application_applicant_email.delay(instance.id)
-
-        
-        # send slack notification to tunga admin
-        send_new_task_app_admin_notif_slack(instance.id)
-
-        # send email notification to tunga admin
-        send_new_task_app_admin_notif_email(instance.id)
-        
 
 
 @receiver(application_response, sender=Application)
@@ -101,12 +114,7 @@ def activity_handler_application_response(sender, application, **kwargs):
         action.send(
             application.task.user, verb=status_verb, action_object=application, target=application.task
         )
-        send_new_task_application_response_email.delay(application.id)
-
-        send_new_task_application_response_admin_email.delay(application.id)
-
-        send_new_task_application_response_admin_slack.delay(application.id)        
-
+        notify_task_application_response.delay(application.id)
 
         if application.status == STATUS_ACCEPTED and application.hours_needed and application.task.is_task:
             task = application.task
@@ -214,7 +222,7 @@ def activity_handler_estimate_status_changed(sender, estimate, **kwargs):
             action_user = estimate.reviewed_by
         action.send(action_user or estimate, verb=action_verb, action_object=estimate, target=estimate.task)
 
-    send_estimate_status_email(estimate.id)
+    notify_estimate_status_email(estimate.id)
 
 
 @receiver(quote_status_changed, sender=Quote)
@@ -236,6 +244,6 @@ def activity_handler_quote_status_changed(sender, quote, **kwargs):
         task.bid = quote.fee
         task.save()
 
-    send_estimate_status_email(quote.id, estimate_type='quote')
+    notify_estimate_status_email(quote.id, estimate_type='quote')
 
 

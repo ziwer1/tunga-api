@@ -6,7 +6,7 @@
 {% block email_content %}
     <p>Hello,</p>
 
-    <p>{{ owner.display_name }} {% if completed %}completed the details for{% else %}created{% endif %} a new task:</p>
+    <p>{{ owner.display_name }} {% if completed_phrase %}{{ completed_phrase }} for{% else %}created{% endif %} a new {% if task.is_task %}task{% else %}project{% endif %}:</p>
 
     <p>{{ task.summary }}</p>
 
@@ -19,12 +19,33 @@
 
         {% if task.deadline %}Deadline: {{ task.deadline | date:'jS F Y' }}<br/>{% endif %}
 
+        {% if task.schedule_call_start %}
+            <br/>
+            Available:<br/>
+            Day: {{ task.schedule_call_start | date:'jS F Y' }}<br/>
+            Time: {{ task.schedule_call_start | date:'h:i A' }}{% if task.schedule_call_end %} - {{ task.schedule_call_end | date:'h:i A e' }}{% else %}{{ task.schedule_call_start | date:' e' }}{% endif %}<br/>
+        {% endif %}
+
         {% if task.description %}
             <br/>
             Description:<br/>
             {{ task.description | safe }}<br/>
         {% endif %}
     </p>
+
+    {% if task.deliverables %}
+        <p>
+            Deliverables:<br/>
+            {{ task.deliverables | safe }}
+        </p>
+    {% endif %}
+
+    {% if task.stack_description %}
+        <p>
+            Stack Description:<br/>
+            {{ task.stack_description | safe }}
+        </p>
+    {% endif %}
 
     <p>
         {% for event in task.milestones %}

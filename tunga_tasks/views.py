@@ -37,7 +37,7 @@ from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilt
     ProjectFilter, ProgressReportFilter, ProgressEventFilter, EstimateFilter, QuoteFilter
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent, \
     Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice, Estimate, Quote
-from tunga_tasks.notifications import send_task_invoice_request_email
+from tunga_tasks.notifications import notify_task_invoice_request_email
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
@@ -300,7 +300,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
             if task.payment_method == TASK_PAYMENT_METHOD_BANK:
                 # Send notification for requested invoice
-                send_task_invoice_request_email.delay(task.id)
+                notify_task_invoice_request_email.delay(task.id)
 
         response_serializer = TaskInvoiceSerializer(invoice, context={'request': request})
         return Response(response_serializer.data)

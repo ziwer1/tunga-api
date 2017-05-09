@@ -226,6 +226,7 @@ class Task(models.Model):
     satisfaction = models.SmallIntegerField(blank=True, null=True, help_text="Client's rating of task developers")
     trello_board_url = models.URLField(blank=True, null=True)
     google_drive_url = models.URLField(blank=True, null=True)
+    hubspot_deal_id = models.CharField(editable=False, null=True, max_length=12)
 
     # Task state modifiers
     approved = models.BooleanField(
@@ -396,6 +397,10 @@ class Task(models.Model):
                     user=request.user, status__in=[STATUS_INITIAL, STATUS_ACCEPTED]
                 ).count()
         return False
+
+    @property
+    def from_new_user(self):
+        return self.source == TASK_SOURCE_NEW_USER
 
     @property
     def task_number(self):

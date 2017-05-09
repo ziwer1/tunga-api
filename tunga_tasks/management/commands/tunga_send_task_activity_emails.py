@@ -106,6 +106,8 @@ class Command(BaseCommand):
                 'task_url': '%s/task/%s/' % (TUNGA_URL, user_task.object_id)
             }
 
-            if send_mail(subject, 'tunga/email/email_unread_task_activity', to, ctx):
+            if send_mail(
+                    subject, 'tunga/email/email_unread_task_activity', to, ctx, **dict(deal_ids=[task.hubspot_deal_id])
+            ):
                 user_task.last_email_at = datetime.datetime.utcnow()
                 user_task.save()

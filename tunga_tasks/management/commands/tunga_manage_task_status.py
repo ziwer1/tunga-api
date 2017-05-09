@@ -6,7 +6,7 @@ from django.db.models.expressions import Case, When
 from django.db.models.fields import DateTimeField
 
 from tunga_tasks.models import Task
-from tunga_tasks.notifications import send_reminder_task_applications, send_review_task_admin
+from tunga_tasks.notifications import remind_no_task_applications, notify_review_task_admin
 from tunga_utils.constants import TASK_SCOPE_TASK
 
 
@@ -44,10 +44,10 @@ class Command(BaseCommand):
         )
         for task in tasks_no_applications:
             # Remind admins
-            send_reminder_task_applications.delay(task.id, admin=True)
+            remind_no_task_applications.delay(task.id, admin=True)
 
             # Remind devs
-            send_reminder_task_applications.delay(task.id, admin=False)
+            remind_no_task_applications.delay(task.id, admin=False)
 
         # Remind admins to take action on tasks with no accepted applications 10 days after creation or approval
         tasks_no_developers_selected = tasks_filter.filter(
@@ -59,4 +59,4 @@ class Command(BaseCommand):
             task.save()
 
             # Notify admins to take action
-            send_review_task_admin.delay(task.id)
+            notify_review_task_admin.delay(task.id)

@@ -436,7 +436,9 @@ def complete_harvest_integration(integration):
                 }
             )
 
+
 @job
-def create_hubspot_deal_task(task):
+def create_hubspot_deal_task(task, **kwargs):
+    print('Create deal', kwargs)
     task = clean_instance(task, Task)
-    create_hubspot_deal(task)
+    create_hubspot_deal(task, **kwargs)

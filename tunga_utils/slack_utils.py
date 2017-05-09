@@ -86,7 +86,7 @@ def is_task_notification_enabled(task, event_id):
 
 
 def send_incoming_webhook(url, message):
-    requests.post(url, json=message)
+    return requests.post(url, json=message)
 
 
 def get_slack_token(user):

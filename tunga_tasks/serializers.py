@@ -19,7 +19,8 @@ from tunga_tasks.models import Task, Application, Participation, TimeEntry, Prog
     TaskInvoice, Estimate, Quote, WorkActivity, WorkPlan, AbstractEstimate
 from tunga_tasks.notifications import notify_new_task
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
-    task_integration, estimate_created, estimate_status_changed, quote_status_changed, quote_created, task_approved
+    task_integration, estimate_created, estimate_status_changed, quote_status_changed, quote_created, task_approved, \
+    task_call_window_scheduled, task_fully_saved
 from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, USER_TYPE_PROJECT_OWNER, USER_SOURCE_TASK_WIZARD, \
     TASK_SCOPE_ONGOING, VISIBILITY_CUSTOM, TASK_SCOPE_TASK, TASK_SCOPE_PROJECT, TASK_SOURCE_NEW_USER, STATUS_INITIAL, \
     STATUS_ACCEPTED, STATUS_APPROVED, STATUS_DECLINED, STATUS_REJECTED, STATUS_SUBMITTED
@@ -401,6 +402,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         initial_apply = True
         initial_closed = False
         initial_approved = False
+        initial_schedule_call_start = None
         new_user = None
         is_update = bool(instance)
 
@@ -462,15 +464,18 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                 instance.save()
                 task_approved.send(sender=Task, task=instance)
 
+            if instance.schedule_call_start and not initial_schedule_call_start and \
+                    not (current_user and current_user.is_authenticated()):
+                task_call_window_scheduled.send(sender=Task, task=instance)
+
             if initial_apply and not instance.apply:
                 task_applications_closed.send(sender=Task, task=instance)
 
             if not initial_closed and instance.closed:
                 task_closed.send(sender=Task, task=instance)
         else:
-            # Triggered here instead of in the post_save signal to allow skills to be attached first
-            # TODO: Consider moving this trigger
-            notify_new_task.delay(instance.id, new_user=bool(new_user))
+            # Triggered here instead of in the post_save signal to allow task to be fully saved
+            task_fully_saved.send(sender=Task, task=instance, new_user=not (current_user and current_user.is_authenticated()))
         return instance
 
     def create(self, validated_data):

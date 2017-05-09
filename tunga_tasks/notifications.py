@@ -22,7 +22,7 @@ from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance, convert_to_text
 
 
-def create_task_slack_msg(task, summary='', channel='#general'):
+def create_task_slack_msg(task, summary='', channel='#general', show_schedule=True):
     task_url = '{}/work/{}/'.format(TUNGA_URL, task.id)
     attachments = [
         {
@@ -39,10 +39,19 @@ def create_task_slack_msg(task, summary='', channel='#general'):
     if task.skills:
         extra_details += '*Skills*: {}\n'.format(task.skills_list)
     if task.deadline:
-        extra_details += '*Deadline*: {}\n'.format(task.deadline.strftime('%d/%b/%Y'))
+        extra_details += '*Deadline*: {}\n'.format(task.deadline.strftime("%d %b, %Y"))
     if task.fee:
         amount = task.is_developer_ready and task.pay_dev or task.pay
         extra_details += '*Fee*: EUR {}\n'.format(floatformat(amount, arg=-2))
+    if show_schedule and task.schedule_call_start:
+        extra_details += '*Available*: \nDate: {}\nTime: {} {}'.format(
+            task.schedule_call_start.strftime("%d %b, %Y"),
+            task.schedule_call_start.strftime("%I:%M%p"),
+            task.schedule_call_end and ' - {}'.format(task.schedule_call_end.strftime("%I:%M%p %Z")) or
+            task.schedule_call_start.strftime("%Z")
+        )
+    if task.skype_id:
+        extra_details += '*Skype ID*: {}\n'.format(task.skype_id)
     if extra_details:
         attachments.append({
             slack_utils.KEY_TEXT: extra_details,
@@ -76,20 +85,26 @@ def create_task_slack_msg(task, summary='', channel='#general'):
 
 @job
 def notify_new_task(instance, new_user=False):
-    send_new_task_client_receipt_email(instance)
-    send_new_task_admin(instance, new_user=new_user)
-    send_new_task_community(instance)
+    notify_new_task_client_receipt_email(instance)
+
+    if not new_user:
+        # Task from new users need to be qualified before they get to the community
+        notify_new_task_community(instance)
+
+    notify_new_task_admin(instance, new_user=new_user)
 
 
 @job
 def notify_task_approved(instance, new_user=False):
-    send_new_task_client_receipt_email(instance)
-    send_new_task_admin(instance, new_user=new_user, completed=True)
-    send_new_task_community(instance)
+    notify_new_task_client_receipt_email(instance)
+    notify_new_task_admin(instance, new_user=new_user, completed=True)
+    notify_new_task_community(instance)
+
 
 @job
-def send_new_task_client_receipt_email(instance, reminder=False):
+def notify_new_task_client_receipt_email(instance, new_user=False, reminder=False):
     instance = clean_instance(instance, Task)
+
     subject = "Your {} has been posted on Tunga".format(
         instance.scope == TASK_SCOPE_TASK and 'task' or 'project'
     )
@@ -124,7 +139,7 @@ def send_new_task_client_receipt_email(instance, reminder=False):
                 email_template = 'tunga/email/email_new_task_client_more_info'
     else:
         email_template = 'tunga/email/email_new_task_client_approved'
-    if send_mail(subject, email_template, to, ctx):
+    if send_mail(subject, email_template, to, ctx, **dict(deal_ids=[instance.hubspot_deal_id])):
         if not instance.approved:
             instance.complete_task_email_at = datetime.datetime.utcnow()
             if reminder:
@@ -133,18 +148,28 @@ def send_new_task_client_receipt_email(instance, reminder=False):
 
 
 @job
-def send_new_task_admin(instance, new_user=False, completed=False):
-    send_new_task_admin_email(instance, new_user=new_user, completed=completed)
-    send_new_task_admin_slack(instance, new_user=new_user, completed=completed)
+def notify_new_task_admin(instance, new_user=False, completed=False, call_scheduled=False):
+    notify_new_task_admin_email(instance, new_user=new_user, completed=completed, call_scheduled=call_scheduled)
+    notify_new_task_admin_slack(instance, new_user=new_user, completed=completed, call_scheduled=call_scheduled)
+
 
 @job
-def send_new_task_admin_email(instance, new_user=False, completed=False):
+def notify_new_task_admin_email(instance, new_user=False, completed=False, call_scheduled=False):
     instance = clean_instance(instance, Task)
 
-    subject = "{} {} {} by {}{}".format(
-        completed and 'New wizard' or 'New',
+    completed_phrase_subject = ''
+    completed_phrase_body = ''
+    if call_scheduled:
+        completed_phrase_subject = 'availability window shared'
+        completed_phrase_body = 'shared an availability window'
+    elif completed:
+        completed_phrase_subject = 'details completed'
+        completed_phrase_body = 'completed the details'
+
+    subject = "New{} {} {} by {}{}".format(
+        (completed or call_scheduled) and ' wizard' or '',
         instance.scope == TASK_SCOPE_TASK and 'task' or 'project',
-        completed and 'details completed' or 'created',
+        completed_phrase_subject or 'created',
         instance.user.first_name, new_user and ' (New user)' or ''
     )
 
@@ -153,19 +178,26 @@ def send_new_task_admin_email(instance, new_user=False, completed=False):
         'owner': instance.user,
         'task': instance,
         'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id),
-        'completed': completed
+        'completed_phrase': completed_phrase_body
     }
-    send_mail(subject, 'tunga/email/email_new_task', to, ctx)
+    send_mail(subject, 'tunga/email/email_new_task', to, ctx, **dict(deal_ids=[instance.hubspot_deal_id]))
 
 
 @job
-def send_new_task_admin_slack(instance, new_user=False, completed=False):
+def notify_new_task_admin_slack(instance, new_user=False, completed=False, call_scheduled=False):
     instance = clean_instance(instance, Task)
     task_url = '{}/work/{}/'.format(TUNGA_URL, instance.id)
+
+    completed_phrase = ''
+    if call_scheduled:
+        completed_phrase = 'availability window shared'
+    elif completed:
+        completed_phrase = 'details completed'
+
     summary = "{} {} {} by {}{} | <{}|View on Tunga>".format(
-        completed and 'New wizard' or 'New',
+        (completed or call_scheduled) and 'New wizard' or 'New',
         instance.scope == TASK_SCOPE_TASK and 'task' or 'project',
-        completed and 'details completed' or 'created',
+        completed_phrase or 'created',
         instance.user.first_name, new_user and ' (New user)' or '',
         task_url
     )
@@ -174,12 +206,12 @@ def send_new_task_admin_slack(instance, new_user=False, completed=False):
 
 
 @job
-def send_reminder_task_applications(instance, admin=True):
-    send_reminder_task_applications_slack(instance, admin=admin)
+def remind_no_task_applications(instance, admin=True):
+    remind_no_task_applications_slack(instance, admin=admin)
 
 
 @job
-def send_reminder_task_applications_slack(instance, admin=True):
+def remind_no_task_applications_slack(instance, admin=True):
     instance = clean_instance(instance, Task)
 
     if not instance.is_task:
@@ -203,12 +235,12 @@ def send_reminder_task_applications_slack(instance, admin=True):
 
 
 @job
-def send_review_task_admin(instance):
-    send_review_task_admin_slack(instance)
+def notify_review_task_admin(instance):
+    notify_review_task_admin_slack(instance)
 
 
 @job
-def send_review_task_admin_slack(instance):
+def notify_review_task_admin_slack(instance):
     instance = clean_instance(instance, Task)
     task_url = '{}/work/{}/'.format(TUNGA_URL, instance.id)
     new_user = instance.source == TASK_SOURCE_NEW_USER
@@ -224,16 +256,13 @@ def send_review_task_admin_slack(instance):
         instance, summary=summary,
         channel=SLACK_STAFF_UPDATES_CHANNEL
     )
-    slack_utils.send_incoming_webhook(
-        SLACK_STAFF_INCOMING_WEBHOOK,
-        slack_msg
-    )
+    slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, slack_msg)
 
 
 @job
-def send_new_task_community(instance):
-    send_new_task_community_email(instance)
-    send_new_task_community_slack(instance)
+def notify_new_task_community(instance):
+    notify_new_task_community_email(instance)
+    notify_new_task_community_slack(instance)
 
 
 def get_suggested_community_receivers(instance, user_type=USER_TYPE_DEVELOPER, respect_visibility=True):
@@ -295,7 +324,7 @@ def get_suggested_community_receivers(instance, user_type=USER_TYPE_DEVELOPER, r
 
 
 @job
-def send_new_task_community_email(instance):
+def notify_new_task_community_email(instance):
     instance = clean_instance(instance, Task)
 
     # Notify Devs or PMs
@@ -325,11 +354,11 @@ def send_new_task_community_email(instance):
             'task': instance,
             'task_url': '{}/work/{}/'.format(TUNGA_URL, instance.id)
         }
-        send_mail(subject, 'tunga/email/email_new_task', to, ctx, bcc=bcc)
+        send_mail(subject, 'tunga/email/email_new_task', to, ctx, bcc=bcc, **dict(deal_ids=[instance.hubspot_deal_id]))
 
 
 @job
-def send_new_task_community_slack(instance):
+def notify_new_task_community_slack(instance):
     instance = clean_instance(instance, Task)
 
     # Notify Devs or PMs via Slack
@@ -351,7 +380,7 @@ VERB_MAP_STATUS_CHANGE = {
 
 
 @job
-def send_estimate_status_email(instance, estimate_type='estimate', target_admins=False):
+def notify_estimate_status_email(instance, estimate_type='estimate', target_admins=False):
     instance = clean_instance(instance, estimate_type == 'quote' and Quote or Estimate)
     if instance.status == STATUS_INITIAL:
         return
@@ -377,7 +406,7 @@ def send_estimate_status_email(instance, estimate_type='estimate', target_admins
             recipients = [instance.user.email]
 
             # Notify staff in a separate email
-            send_estimate_status_email.delay(instance.id, estimate_type=estimate_type, target_admins=True)
+            notify_estimate_status_email.delay(instance.id, estimate_type=estimate_type, target_admins=True)
 
     subject = "{} {} {}".format(
         actor.first_name,
@@ -397,7 +426,9 @@ def send_estimate_status_email(instance, estimate_type='estimate', target_admins
         'noun': estimate_type
     }
 
-    if send_mail(subject, 'tunga/email/email_estimate_status', to, ctx):
+    if send_mail(
+            subject, 'tunga/email/email_estimate_status', to, ctx, **dict(deal_ids=[instance.task.hubspot_deal_id])
+    ):
         if instance.status == STATUS_SUBMITTED:
             instance.moderator_email_at = datetime.datetime.utcnow()
             instance.save()
@@ -406,10 +437,10 @@ def send_estimate_status_email(instance, estimate_type='estimate', target_admins
             instance.save()
 
     if instance.status == STATUS_APPROVED:
-        send_estimate_approved_client_email(instance, estimate_type=estimate_type)
+        notify_estimate_approved_client_email(instance, estimate_type=estimate_type)
 
 
-def send_estimate_approved_client_email(instance, estimate_type='estimate'):
+def notify_estimate_approved_client_email(instance, estimate_type='estimate'):
     instance = clean_instance(instance, estimate_type == 'quote' and Quote or Estimate)
     if instance.status != STATUS_APPROVED:
         return
@@ -435,7 +466,9 @@ def send_estimate_approved_client_email(instance, estimate_type='estimate'):
         )
         ctx['estimate_url'] = '{}{}'.format(url_prefix, ctx['estimate_url'])
 
-    if send_mail(subject, 'tunga/email/email_estimate_status', to, ctx):
+    if send_mail(
+            subject, 'tunga/email/email_estimate_status', to, ctx, **dict(deal_ids=[instance.task.hubspot_deal_id])
+    ):
         instance.reviewer_email_at = datetime.datetime.utcnow()
         instance.save()
 
@@ -451,7 +484,9 @@ def send_new_task_invitation_email(instance):
         'task': instance.task,
         'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
     }
-    send_mail(subject, 'tunga/email/email_new_task_invitation', to, ctx)
+    send_mail(
+        subject, 'tunga/email/email_new_task_invitation', to, ctx, **dict(deal_ids=[instance.task.hubspot_deal_id])
+    )
 
 
 @job
@@ -477,7 +512,9 @@ def notify_task_invitation_response_email(instance):
         'task': instance.task,
         'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
     }
-    send_mail(subject, 'tunga/email/email_task_invitation_response', to, ctx)
+    send_mail(
+        subject, 'tunga/email/email_task_invitation_response', to, ctx, **dict(deal_ids=[instance.task.hubspot_deal_id])
+    )
 
 
 @job
@@ -498,12 +535,19 @@ def notify_task_invitation_response_slack(instance):
 
 @job
 def notify_new_task_application(instance):
-    notify_new_task_application_email(instance)
-    notify_new_task_application_slack(instance)
+    # Notify project owner
+    notify_new_task_application_owner_email(instance)
+    notify_new_task_application_slack(instance, admin=False)
+
+    # Send email confirmation to applicant
+    confirm_task_application_to_applicant_email.delay(instance.id)
+
+    # Notify admins
+    notify_new_task_application_slack.delay(instance.id, admin=True)
 
 
 @job
-def notify_new_task_application_email(instance):
+def notify_new_task_application_owner_email(instance):
     instance = clean_instance(instance, Application)
     subject = "New application from {}".format(instance.user.short_name)
     to = [instance.task.user.email]
@@ -519,11 +563,13 @@ def notify_new_task_application_email(instance):
             TUNGA_URL, instance.user.uid, instance.user.generate_reset_token()
         )
         ctx['task_url'] = '{}{}'.format(url_prefix, ctx['task_url'])
-    send_mail(subject, 'tunga/email/email_new_task_application', to, ctx)
+    send_mail(
+        subject, 'tunga/email/email_new_task_application', to, ctx, **dict(deal_ids=[instance.task.hubspot_deal_id])
+    )
 
 
 @job
-def notify_new_task_application_slack(instance):
+def notify_new_task_application_slack(instance, admin=True):
     instance = clean_instance(instance, Application)
 
     if not slack_utils.is_task_notification_enabled(instance.task, slugs.EVENT_APPLICATION):
@@ -549,11 +595,48 @@ def notify_new_task_application_slack(instance):
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_TUNGA
         }
     ]
-    slack_utils.send_integration_message(instance.task, message=slack_msg, attachments=attachments)
+    if admin:
+        slack_utils.send_incoming_webhook(
+            SLACK_STAFF_INCOMING_WEBHOOK,
+            {
+                slack_utils.KEY_TEXT: slack_msg,
+                slack_utils.KEY_ATTACHMENTS: attachments,
+                slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL
+            }
+        )
+    else:
+        slack_utils.send_integration_message(instance.task, message=slack_msg, attachments=attachments)
 
 
 @job
-def send_new_task_application_response_email(instance):
+def confirm_task_application_to_applicant_email(instance):
+    instance = clean_instance(instance, Application)
+    subject = "You applied for a task: {}".format(instance.task.summary)
+    to = [instance.user.email]
+    ctx = {
+        'owner': instance.task.user,
+        'applicant': instance.user,
+        'task': instance.task,
+        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
+    }
+    send_mail(
+        subject, 'tunga/email/email_new_task_application_applicant', to, ctx,
+        **dict(deal_ids=[instance.task.hubspot_deal_id])
+    )
+
+
+@job
+def notify_task_application_response(instance):
+    # Notify owner
+    notify_task_application_response_owner_email(instance)
+
+    # Notify admins
+    notify_task_application_response_admin_email(instance)
+    notify_task_application_response_slack(instance, admin=True)
+
+
+@job
+def notify_task_application_response_owner_email(instance):
     instance = clean_instance(instance, Application)
     subject = "Task application {}".format(instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected')
     to = [instance.user.email]
@@ -564,21 +647,69 @@ def send_new_task_application_response_email(instance):
         'task': instance.task,
         'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
     }
-    send_mail(subject, 'tunga/email/email_task_application_response', to, ctx)
-
+    send_mail(
+        subject, 'tunga/email/email_task_application_response', to, ctx,
+        **dict(deal_ids=[instance.task.hubspot_deal_id])
+    )
 
 @job
-def send_new_task_application_applicant_email(instance):
+def notify_task_application_response_admin_email(instance):
     instance = clean_instance(instance, Application)
-    subject = "You applied for a task: {}".format(instance.task.summary)
-    to = [instance.user.email]
+    subject = "Task application {}".format(instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected')
+    to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
     ctx = {
         'owner': instance.task.user,
         'applicant': instance.user,
+        'accepted': instance.status == STATUS_ACCEPTED,
         'task': instance.task,
         'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
     }
-    send_mail(subject, 'tunga/email/email_new_task_application_applicant', to, ctx)
+    send_mail(
+        subject, 'tunga/email/email_task_application_response', to, ctx,
+        **dict(deal_ids=[instance.task.hubspot_deal_id])
+    )
+
+
+@job
+def notify_task_application_response_slack(instance, admin=True):
+    instance = clean_instance(instance, Application)
+
+    application_url = '%s/work/%s/applications/' % (TUNGA_URL, instance.task_id)
+    task_url = '%s/work/%s/' % (TUNGA_URL, instance.task.id)
+    slack_msg = "Task Application {} | <{}|View on Tunga>".format(
+        instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected',
+        task_url
+    )
+
+    attachments = [
+        {
+            slack_utils.KEY_TITLE: instance.task.summary,
+            slack_utils.KEY_TITLE_LINK: application_url,
+            slack_utils.KEY_TEXT: '%s%s%s%s\n\n<%s|View details on Tunga>' %
+                                  (truncatewords(convert_to_text(instance.pitch), 100),
+                                   instance.hours_needed and '\n*Workload:* {} hrs'.format(instance.hours_needed) or '',
+                                   instance.deliver_at and '\n*Delivery Date:* {}'.format(
+                                       instance.deliver_at.strftime("%d %b, %Y")
+                                   ) or '',
+                                   instance.remarks and '\n*Remarks:* {}'.format(
+                                       truncatewords(convert_to_text(instance.remarks), 100)
+                                   ) or '',
+                                   application_url),
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_TUNGA
+        }
+    ]
+    if admin:
+        slack_utils.send_incoming_webhook(
+            SLACK_STAFF_INCOMING_WEBHOOK,
+            {
+                slack_utils.KEY_TEXT: slack_msg,
+                slack_utils.KEY_ATTACHMENTS: attachments,
+                slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL
+            }
+        )
+    else:
+        slack_utils.send_integration_message(instance.task, message=slack_msg, attachments=attachments)
 
 
 @job
@@ -595,16 +726,19 @@ def send_task_application_not_selected_email(instance):
             'task': instance,
             'task_url': '%s/work/%s/' % (TUNGA_URL, instance.id)
         }
-        send_mail(subject, 'tunga/email/email_task_application_not_selected', to, ctx, bcc=bcc)
+        send_mail(
+            subject, 'tunga/email/email_task_application_not_selected', to, ctx, bcc=bcc,
+            **dict(deal_ids=[instance.hubspot_deal_id])
+        )
 
 
 @job
-def send_progress_event_reminder(instance):
-    send_progress_event_reminder_email(instance)
+def remind_progress_event(instance):
+    remind_progress_event_email(instance)
 
 
 @job
-def send_progress_event_reminder_email(instance):
+def remind_progress_event_email(instance):
     instance = clean_instance(instance, ProgressEvent)
 
     is_internal = instance.type == PROGRESS_EVENT_TYPE_PM
@@ -634,7 +768,10 @@ def send_progress_event_reminder_email(instance):
         'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.task.id, instance.id)
         }
     if to:
-        if send_mail(subject, 'tunga/email/email_progress_event_reminder', to, ctx, bcc=bcc):
+        if send_mail(
+                subject, 'tunga/email/email_progress_event_reminder', to, ctx, bcc=bcc,
+                **dict(deal_ids=[instance.task.hubspot_deal_id])
+        ):
             instance.last_reminder_at = datetime.datetime.utcnow()
             instance.save()
 
@@ -659,7 +796,11 @@ def notify_new_progress_report_email(instance):
         'report': instance,
         'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.event.task.id, instance.event.id)
     }
-    send_mail(subject, 'tunga/email/email_new_progress_report{}'.format(is_internal and '_pm' or ''), to, ctx)
+    send_mail(
+        subject, 'tunga/email/email_new_progress_report{}'.format(is_internal and '_pm' or ''), to, ctx,
+        **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+    )
+
 
 @job
 def notify_new_progress_report_slack(instance):
@@ -677,9 +818,11 @@ def notify_new_progress_report_slack(instance):
     slack_text_suffix = ''
     if is_internal:
         if instance.last_deadline_met is not None:
-            slack_text_suffix = '\nWas the last deadline met?: {}'.format(instance.last_deadline_met and 'Yes' or 'No')
+            slack_text_suffix = '\n*Was the last deadline met?:* {}'.format(
+                instance.last_deadline_met and 'Yes' or 'No'
+            )
         if instance.next_deadline is not None:
-            slack_text_suffix += '\nNext deadline: {}'.format(instance.next_deadline.strftime("%d %b, %Y"))
+            slack_text_suffix += '\n*Next deadline:* {}'.format(instance.next_deadline.strftime("%d %b, %Y"))
     attachments = [
         {
             slack_utils.KEY_TITLE: instance.event.task.summary,
@@ -747,7 +890,7 @@ def notify_new_progress_report_slack(instance):
 
 
 @job
-def send_task_invoice_request_email(instance):
+def notify_task_invoice_request_email(instance):
     instance = clean_instance(instance, Task)
     subject = "{} requested for an invoice".format(instance.user.display_name)
     to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
@@ -757,56 +900,6 @@ def send_task_invoice_request_email(instance):
         'task_url': '%s/work/%s/' % (TUNGA_URL, instance.id),
         'invoice_url': '%s/api/task/%s/download/invoice/?format=pdf' % (TUNGA_URL, instance.id)
     }
-    send_mail(subject, 'tunga/email/email_task_invoice_request', to, ctx)
-
-@job
-def send_new_task_app_admin_notif_slack(instance):
-    instance = clean_instance(instance, Application)
-    application_url = '{}/work/{}/'.format(TUNGA_URL, instance.id)
-    summary = "New task application recieved from {} | <{}|View on Tunga>".format(
-        'Developer', 
-        application_url
+    send_mail(
+        subject, 'tunga/email/email_task_invoice_request', to, ctx, **dict(deal_ids=[instance.hubspot_deal_id])
     )
-    slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_UPDATES_CHANNEL)
-    slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, slack_msg)
-
-
-@job
-def send_new_task_app_admin_notif_email(instance):
-    instance = clean_instance(instance, Application)
-    subject = "Developer sent in an application"
-    to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
-    ctx = {
-        'owner': instance.user,
-        'application': instance,
-        'application_url': '%s/work/%s/' % (TUNGA_URL, instance.id)
-    }
-    send_mail(subject, 'tunga/email/email_task_application', to, ctx)
-
-
-@job
-def send_new_task_application_response_admin_email(instance):
-    instance = clean_instance(instance, Application)
-    subject = "Task application {}".format(instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected')
-    to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
-    ctx = {
-        'owner': instance.task.user,
-        'applicant': instance.user,
-        'accepted': instance.status == STATUS_ACCEPTED,
-        'task': instance.task,
-        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
-    }
-    send_mail(subject, 'tunga/email/email_task_application_response', to, ctx)
-
-@job
-def send_new_task_application_response_admin_slack(instance):
-    instance = clean_instance(instance, Application)
-    task_url = '%s/work/%s/' % (TUNGA_URL, instance.task.id)
-    summary = "Task Application {} | <{}|View on Tunga>".format(
-        instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected', 
-        task_url
-    )
-    slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_UPDATES_CHANNEL)
-    slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, slack_msg)
-
-
