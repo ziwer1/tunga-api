@@ -194,7 +194,7 @@ LOGIN_URL = '/'
 LOGIN_REDIRECT_URL = '/'
 
 EMAIL_SUBJECT_PREFIX = '[Tunga] '
-DEFAULT_FROM_EMAIL = 'support@tunga.io'
+DEFAULT_FROM_EMAIL = 'hello@tunga.io'
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'localhost'
 EMAIL_USE_TLS = False
