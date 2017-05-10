@@ -143,6 +143,21 @@ TASK_SOURCE_CHOICES = (
     (TASK_SOURCE_NEW_USER, 'New Wizard User')
 )
 
+@python_2_unicode_compatible
+class MultiTaskPayment(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
+    btc_address = models.CharField(max_length=40, validators=[validate_btc_address])
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+    def __str__(self):
+        return 'bitcoin:%s' % (self.btc_address)
+
+    class Meta:
+        ordering = ['created_at']
+
+
 
 @python_2_unicode_compatible
 class Task(models.Model):
@@ -199,7 +214,9 @@ class Task(models.Model):
     )
     btc_address = models.CharField(max_length=40, blank=True, null=True, validators=[validate_btc_address])
     btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
+    multi_task_payment = models.ForeignKey(MultiTaskPayment, related_name='multi_tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
 
+    
     # Classification details
     type = models.IntegerField(choices=TASK_TYPE_CHOICES, default=TASK_TYPE_OTHER)  # Web, Mobile ...
     scope = models.IntegerField(choices=TASK_SCOPE_CHOICES, default=TASK_SCOPE_TASK)  # task, project or ongoing project
