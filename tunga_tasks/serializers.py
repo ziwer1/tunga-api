@@ -47,7 +47,7 @@ class SimpleTaskSerializer(ContentTypeAnnotatedModelSerializer):
         model = Task
         fields = (
             'id', 'user', 'title', 'summary', 'currency', 'fee', 'bid', 'pay', 'closed', 'paid', 'display_fee',
-            'type', 'scope', 'is_project', 'is_task'
+            'type', 'scope', 'is_project', 'is_task', 'analytics_id'
         )
 
 

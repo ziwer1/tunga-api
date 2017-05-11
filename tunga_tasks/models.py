@@ -275,6 +275,7 @@ class Task(models.Model):
 
     # Allow non-authenticated wizard user to edit after creation
     edit_token = models.UUIDField(default=uuid.uuid4, editable=False)
+    analytics_id = models.CharField(max_length=40, blank=True, null=True)
 
     # Relationships
     comments = GenericRelation(Comment, related_query_name='tasks')
