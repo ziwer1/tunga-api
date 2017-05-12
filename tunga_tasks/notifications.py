@@ -1,5 +1,6 @@
 import datetime
 
+import time
 from django.contrib.auth import get_user_model
 from django.db.models import When, Case, IntegerField
 from django.db.models.aggregates import Sum
@@ -10,16 +11,37 @@ from django_rq.decorators import job
 from tunga.settings import TUNGA_URL, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, SLACK_ATTACHMENT_COLOR_TUNGA, \
     SLACK_ATTACHMENT_COLOR_RED, SLACK_ATTACHMENT_COLOR_GREEN, SLACK_ATTACHMENT_COLOR_NEUTRAL, \
     SLACK_ATTACHMENT_COLOR_BLUE, SLACK_DEVELOPER_INCOMING_WEBHOOK, SLACK_STAFF_INCOMING_WEBHOOK, \
-    SLACK_STAFF_UPDATES_CHANNEL, SLACK_DEVELOPER_UPDATES_CHANNEL, SLACK_PMS_UPDATES_CHANNEL
+    SLACK_STAFF_UPDATES_CHANNEL, SLACK_DEVELOPER_UPDATES_CHANNEL, SLACK_PMS_UPDATES_CHANNEL, \
+    MAILCHIMP_NEW_USER_AUTOMATION_WORKFLOW_ID, MAILCHIMP_NEW_USER_AUTOMATION_EMAIL_ID
 from tunga_auth.filterbackends import my_connections_q_filter
 from tunga_tasks import slugs
 from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport, Quote, Estimate
-from tunga_utils import slack_utils
+from tunga_utils import slack_utils, mailchimp_utils
 from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, \
     USER_TYPE_PROJECT_MANAGER, TASK_SOURCE_NEW_USER, STATUS_INITIAL, STATUS_SUBMITTED, STATUS_APPROVED, STATUS_DECLINED, \
     STATUS_ACCEPTED, STATUS_REJECTED, PROGRESS_EVENT_TYPE_PM
 from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance, convert_to_text
+
+
+@job
+def possibly_trigger_schedule_call_automation(instance, wait=15*60):
+    # Wait for user to possibly schedule a call
+    time.sleep(wait)
+
+    instance = clean_instance(isinstance(instance, Task) and instance.id or instance, Task)  # needs to be refreshed
+    if not instance.schedule_call_start:
+        # Make sure user is in mailing list
+        mailchimp_utils.subscribe_new_user(
+            instance.user.email, **dict(FNAME=instance.user.first_name, LNAME=instance.user.last_name)
+        )
+
+        # Trigger email from automation
+        mailchimp_utils.add_email_to_automation_queue(
+            email_address=instance.user.email,
+            workflow_id=MAILCHIMP_NEW_USER_AUTOMATION_WORKFLOW_ID,
+            email_id=MAILCHIMP_NEW_USER_AUTOMATION_EMAIL_ID
+        )
 
 
 def create_task_slack_msg(task, summary='', channel='#general', show_schedule=True):
