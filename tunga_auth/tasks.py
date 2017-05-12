@@ -41,11 +41,10 @@ def subscribe_new_user_to_mailing_list(user):
 
 
 @job
-def add_to_new_user_campaign(user):
+def trigger_schedule_call_automation(user):
     user = clean_instance(user, get_user_model())
     mailchimp_utils.add_email_to_automation_queue(
         email_address=user.email,
         workflow_id=MAILCHIMP_NEW_USER_AUTOMATION_WORKFLOW_ID,
-        email_id=MAILCHIMP_NEW_USER_AUTOMATION_EMAIL_ID,
-        **dict(FNAME=user.first_name, LNAME=user.last_name)
+        email_id=MAILCHIMP_NEW_USER_AUTOMATION_EMAIL_ID
     )

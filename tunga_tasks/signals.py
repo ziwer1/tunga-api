@@ -12,7 +12,7 @@ from tunga_tasks.models import Task, Application, Participation, ProgressEvent, 
 from tunga_tasks.notifications import notify_new_task_application, send_new_task_invitation_email, \
     notify_task_invitation_response, \
     send_task_application_not_selected_email, notify_new_progress_report, notify_task_approved, notify_estimate_status_email, \
-    notify_task_application_response, notify_new_task_admin, notify_new_task
+    notify_task_application_response, notify_new_task_admin, notify_new_task, possibly_trigger_schedule_call_automation
 from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates, \
     complete_harvest_integration, create_hubspot_deal_task
 from tunga_utils import hubspot_utils
@@ -58,6 +58,9 @@ def activity_handler_new_task(sender, instance, created, **kwargs):
 def activity_handler_task_fully_saved(sender, task, new_user, **kwargs):
     notify_new_task.delay(task.id, new_user=new_user)
     create_hubspot_deal_task.delay(task.id)
+
+    if new_user:
+        possibly_trigger_schedule_call_automation.delay(task.id)
 
 
 @receiver(task_approved, sender=Task)
