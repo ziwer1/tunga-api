@@ -99,15 +99,6 @@ def create_hubspot_deal_property(name, label, description, group_name, property_
         return r.json()
     return None
 
-def create_hubspot_deal_existing():
-    tasks = Task.objects.exclude(hubspot_deal_id__isnull=False)
-    epoch = datetime.datetime.utcfromtimestamp(0)
-
-    for task in tasks:
-        created_at = (task.created_at - epoch).total_seconds() * 1000.0
-        create_hubspot_deal(task, createdate=created_at)
-
-
 
 
 def create_hubspot_deal(task, trials=0, **kwargs):
