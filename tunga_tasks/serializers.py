@@ -637,6 +637,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
 
 class MultiTaskPaymentKeySerializer(serializers.ModelSerializer):
     tasks = TaskSerializer(many=True, read_only=True)
+    user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
 
     class Meta:
         model = MultiTaskPaymentKey
