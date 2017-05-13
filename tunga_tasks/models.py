@@ -214,7 +214,7 @@ class Task(models.Model):
     )
     btc_address = models.CharField(max_length=40, blank=True, null=True, validators=[validate_btc_address])
     btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
-    multi_task_payment = models.ForeignKey(MultiTaskPayment, related_name='multi_tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
+    multi_task_payment = models.ForeignKey(MultiTaskPaymentKey, related_name='multi_tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
 
     
     # Classification details

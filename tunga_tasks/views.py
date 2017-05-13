@@ -36,13 +36,13 @@ from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBacke
 from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TimeEntryFilter, \
     ProjectFilter, ProgressReportFilter, ProgressEventFilter, EstimateFilter, QuoteFilter
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent, \
-    Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice, Estimate, Quote, MultiTaskPayment
+    Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice, Estimate, Quote, MultiTaskPaymentKey
 from tunga_tasks.notifications import notify_task_invoice_request_email
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
     IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer, \
-    TrelloBoardUrlSerializer, GoogleDriveUrlSerializer, MultiTaskPaymentSerializer
+    TrelloBoardUrlSerializer, GoogleDriveUrlSerializer, MultiTaskPaymentKeySerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
 from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa
@@ -816,12 +816,12 @@ class ProgressReportViewSet(viewsets.ModelViewSet):
         'event__task__title', 'event__task__skills__name'
     )
 
-class MultiTaskPaymentViewSet(viewsets.ModelViewSet):
+class MultiTaskPaymentKeyViewSet(viewsets.ModelViewSet):
     """
     Multi Task Payments Resource
     """
-    queryset = MultiTaskPayment.objects.all()
-    serializer_class = MultiTaskPaymentSerializer
+    queryset = MultiTaskPaymentKey.objects.all()
+    serializer_class = MultiTaskPaymentKeySerializer
     permission_classes = [IsAuthenticated]
     
 
