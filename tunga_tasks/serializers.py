@@ -635,11 +635,11 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         return None
 
 
-class MultiTaskPaymentSerializer(serializers.ModelSerializer):
+class MultiTaskPaymentKeySerializer(serializers.ModelSerializer):
     tasks = TaskSerializer(many=True, read_only=True)
 
     class Meta:
-        model = MultiTaskPayment
+        model = MultiTaskPaymentKey
 
 
 class ApplicationDetailsSerializer(SimpleApplicationSerializer):

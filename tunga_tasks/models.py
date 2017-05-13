@@ -144,7 +144,7 @@ TASK_SOURCE_CHOICES = (
 )
 
 @python_2_unicode_compatible
-class MultiTaskPayment(models.Model):
+class MultiTaskPaymentKey(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
     btc_address = models.CharField(max_length=40, validators=[validate_btc_address])
     created_at = models.DateTimeField(auto_now_add=True)
