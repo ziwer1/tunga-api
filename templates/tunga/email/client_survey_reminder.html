@@ -1,0 +1,18 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    Let us know about your experience on Tunga for your {% if event.task.is_task %}task{% else %}project{% endif %}.
+{% endblock %}
+{% block email_content %}
+    <p>Hi {{ owner.first_name }},</p>
+
+    <p>We'd like to know about your experience on Tunga for your {% if event.task.is_task %}task{% else %}project{% endif %}:</p>
+
+    <p>{% if event.task.is_task %}Task{% else %}Project{% endif %}: {{ event.task.summary }}</p>
+
+    <p>
+        Click the link below to complete the survey:<br/>
+        <a href="{{ update_url }}">{{ update_url }}</a>
+    </p>
+
+{% endblock %}

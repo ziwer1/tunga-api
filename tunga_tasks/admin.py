@@ -39,7 +39,7 @@ class TaskAdmin(admin.ModelAdmin):
         'fee', 'bid', 'dev_rate', 'pm_rate', 'pm_time_percentage', 'tunga_percentage_dev', 'tunga_percentage_pm'
     )
     list_filter = ('type', 'scope', 'source', 'apply', 'closed', 'paid', 'pay_distributed', 'archived')
-    search_fields = ('title',)
+    search_fields = ('title', 'analytics_id')
     inlines = (TaskAccessInline, ParticipationInline)
 
     def save_formset(self, request, form, formset, change):
