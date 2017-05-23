@@ -1,5 +1,6 @@
 import json
 import re
+from operator import itemgetter
 
 import requests
 from django.utils import six
@@ -47,6 +48,8 @@ def get_medium_posts(request):
                     slug=post['slug'], created_at=post['createdAt'])
                 for key, post in six.iteritems(response['payload']['references']['Post'])
                 ]
+            # Sort latest first
+            posts = sorted(posts, key=itemgetter('created_at'), reverse=True)
         except:
             pass
     return Response(posts)
