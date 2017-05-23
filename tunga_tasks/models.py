@@ -38,7 +38,7 @@ from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPE
     TASK_TYPE_MOBILE, TASK_TYPE_OTHER, TASK_CODERS_NEEDED_ONE, TASK_CODERS_NEEDED_MULTIPLE, TASK_SCOPE_TASK, \
     TASK_SCOPE_ONGOING, TASK_BILLING_METHOD_FIXED, TASK_BILLING_METHOD_HOURLY, TASK_SCOPE_PROJECT, TASK_SOURCE_DEFAULT, \
     TASK_SOURCE_NEW_USER, PROGRESS_EVENT_TYPE_COMPLETE, STATUS_INITIAL, STATUS_APPROVED, STATUS_DECLINED, \
-    STATUS_ACCEPTED, STATUS_REJECTED, STATUS_SUBMITTED, PROGRESS_EVENT_TYPE_PM
+    STATUS_ACCEPTED, STATUS_REJECTED, STATUS_SUBMITTED, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT
 from tunga_utils.helpers import round_decimal, get_serialized_id, get_tunga_model, get_edit_token_header
 from tunga_utils.models import Upload, Rating
 from tunga_utils.validators import validate_btc_address
@@ -214,6 +214,7 @@ class Task(models.Model):
     # Update settings
     update_interval = models.PositiveIntegerField(blank=True, null=True)
     update_interval_units = models.PositiveSmallIntegerField(choices=UPDATE_SCHEDULE_CHOICES, blank=True, null=True)
+    survey_client = models.BooleanField(default=True)
 
     # Audience for the task
     visibility = models.PositiveSmallIntegerField(choices=VISIBILITY_CHOICES, default=VISIBILITY_CHOICES[0][0])
@@ -262,6 +263,9 @@ class Task(models.Model):
     schedule_call_end = models.DateTimeField(blank=True, null=True)
 
     # Applications and participation info
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='tasks_owned', on_delete=models.DO_NOTHING, blank=True, null=True
+    )
     pm = models.ForeignKey(
         settings.AUTH_USER_MODEL, related_name='tasks_managed', on_delete=models.DO_NOTHING, blank=True, null=True
     )
@@ -275,6 +279,8 @@ class Task(models.Model):
 
     # Allow non-authenticated wizard user to edit after creation
     edit_token = models.UUIDField(default=uuid.uuid4, editable=False)
+
+    # Tracking info
     analytics_id = models.CharField(max_length=40, blank=True, null=True)
 
     # Relationships
@@ -992,7 +998,8 @@ PROGRESS_EVENT_TYPE_CHOICES = (
     (PROGRESS_EVENT_TYPE_MILESTONE, 'Milestone'),
     (PROGRESS_EVENT_TYPE_SUBMIT, 'Final Draft'),
     (PROGRESS_EVENT_TYPE_COMPLETE, 'Submission'),
-    (PROGRESS_EVENT_TYPE_PM, 'PM Update')
+    (PROGRESS_EVENT_TYPE_PM, 'PM Update'),
+    (PROGRESS_EVENT_TYPE_CLIENT, 'Client Survey')
 )
 
 
@@ -1059,6 +1066,10 @@ class ProgressEvent(models.Model):
                 return self.task.pm == user
             else:
                 return self.task.user == user
+        if self.type == PROGRESS_EVENT_TYPE_CLIENT:
+            if self.task.owner:
+                return self.task.owner == user
+            return self.task.user == user
         return self.task.get_is_participant(user, active_only=active_only)
 
     @property
@@ -1079,10 +1090,14 @@ class ProgressReport(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
     status = models.PositiveSmallIntegerField(
         choices=PROGRESS_REPORT_STATUS_CHOICES,
-        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in PROGRESS_REPORT_STATUS_CHOICES])
+        help_text=','.join(
+            ['%s - %s' % (item[0], item[1]) for item in PROGRESS_REPORT_STATUS_CHOICES]),
+        blank=True, null=True
     )
-    percentage = models.PositiveIntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
-    accomplished = models.TextField()
+    percentage = models.PositiveIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)], blank=True, null=True
+    )
+    accomplished = models.TextField(blank=True, null=True)
     next_steps = models.TextField(blank=True, null=True)
     obstacles = models.TextField(blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
@@ -1092,6 +1107,14 @@ class ProgressReport(models.Model):
     deadline_report = models.TextField(blank=True, null=True)
     team_appraisal = models.TextField(blank=True, null=True)
     next_deadline = models.DateTimeField(blank=True, null=True)
+
+    # Clients only
+    rate_deliverables = models.PositiveIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(10)], blank=True, null=True
+    )
+    rate_communication = models.PositiveIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(10)], blank=True, null=True
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     uploads = GenericRelation(Upload, related_query_name='progress_reports')

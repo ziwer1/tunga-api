@@ -19,7 +19,7 @@ from tunga_tasks.models import Task, Participation, Application, ProgressEvent, 
 from tunga_utils import slack_utils, mailchimp_utils
 from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, \
     USER_TYPE_PROJECT_MANAGER, TASK_SOURCE_NEW_USER, STATUS_INITIAL, STATUS_SUBMITTED, STATUS_APPROVED, STATUS_DECLINED, \
-    STATUS_ACCEPTED, STATUS_REJECTED, PROGRESS_EVENT_TYPE_PM
+    STATUS_ACCEPTED, STATUS_REJECTED, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT
 from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance, convert_to_text
 
@@ -135,9 +135,11 @@ def notify_new_task_client_receipt_email(instance, new_user=False, reminder=Fals
             instance.scope == TASK_SCOPE_TASK and 'task' or 'project'
         )
     to = [instance.user.email]
+    if instance.owner:
+        to.append(instance.owner.email)
 
     ctx = {
-        'owner': instance.user,
+        'owner': instance.owner or instance.user,
         'task': instance,
         'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id),
         'task_edit_url': '%s/task/%s/edit/complete-task/' % (TUNGA_URL, instance.id)
@@ -198,7 +200,7 @@ def notify_new_task_admin_email(instance, new_user=False, completed=False, call_
 
     to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
     ctx = {
-        'owner': instance.user,
+        'owner': instance.owner or instance.user,
         'task': instance,
         'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id),
         'completed_phrase': completed_phrase_body
@@ -373,7 +375,7 @@ def notify_new_task_community_email(instance):
         if len(community_receivers) > 1:
             bcc = [user.email for user in community_receivers[1:]] if community_receivers[1:] else None
         ctx = {
-            'owner': instance.user,
+            'owner': instance.owner or instance.user,
             'task': instance,
             'task_url': '{}/work/{}/'.format(TUNGA_URL, instance.id)
         }
@@ -472,6 +474,8 @@ def notify_estimate_approved_client_email(instance, estimate_type='estimate'):
         estimate_type == 'estimate' and 'an estimate' or 'a quote'
     )
     to = [instance.task.user.email]
+    if instance.task.owner:
+        to.append(instance.task.owner.email)
     ctx = {
         'owner': instance.user,
         'estimate': instance,
@@ -574,6 +578,8 @@ def notify_new_task_application_owner_email(instance):
     instance = clean_instance(instance, Application)
     subject = "New application from {}".format(instance.user.short_name)
     to = [instance.task.user.email]
+    if instance.task.owner:
+        to.append(instance.task.owner.email)
     ctx = {
         'owner': instance.task.user,
         'applicant': instance.user,
@@ -764,21 +770,38 @@ def remind_progress_event(instance):
 def remind_progress_event_email(instance):
     instance = clean_instance(instance, ProgressEvent)
 
-    is_internal = instance.type == PROGRESS_EVENT_TYPE_PM
-    if is_internal and not instance.task.is_project:
+    is_pm_report = instance.type == PROGRESS_EVENT_TYPE_PM
+    is_client_report = instance.type == PROGRESS_EVENT_TYPE_CLIENT
+    is_pm_or_client_report = is_pm_report or is_client_report
+
+    if is_pm_report and not instance.task.is_project:
         return
+
     pm = instance.task.pm
     if not pm and instance.task.user.is_project_manager:
         pm = instance.task.user
 
-    if is_internal and not pm:
+    if is_pm_report and not pm:
         return
 
-    subject = "Upcoming {} Update".format(instance.task.is_task and 'Task' or 'Project')
+    owner = instance.task.owner
+    if not owner:
+        owner = instance.task.user
+
+    if is_client_report and not owner:
+        return
+
+    subject = is_client_report and "Weekly Survey" and "Upcoming {} Update".format(instance.task.is_task and 'Task' or 'Project')
 
     to = []
-    if is_internal:
+    bcc = None
+    if is_pm_report:
         to = [pm.email]
+        bcc = None
+    elif is_client_report:
+        to = [owner.email]
+        if owner.email != instance.task.user.email:
+            to.append(instance.task.user.email)
         bcc = None
     else:
         participants = instance.task.participation_set.filter(status=STATUS_ACCEPTED)
@@ -790,9 +813,11 @@ def remind_progress_event_email(instance):
         'event': instance,
         'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.task.id, instance.id)
         }
+
     if to:
+        email_template = is_client_report and 'client_survey_reminder' and 'progress_event_reminder'
         if send_mail(
-                subject, 'tunga/email/email_progress_event_reminder', to, ctx, bcc=bcc,
+                subject, 'tunga/email/{}'.format(email_template), to, ctx, bcc=bcc,
                 **dict(deal_ids=[instance.task.hubspot_deal_id])
         ):
             instance.last_reminder_at = datetime.datetime.utcnow()
@@ -808,10 +833,15 @@ def notify_new_progress_report(instance):
 @job
 def notify_new_progress_report_email(instance):
     instance = clean_instance(instance, ProgressReport)
-    subject = "{} submitted a Progress Report".format(instance.user.display_name)
+    is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
+    is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
+    is_pm_or_client_report = is_pm_report or is_client_report
 
-    is_internal = instance.event.type == PROGRESS_EVENT_TYPE_PM
-    to = is_internal and TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS or [instance.event.task.user.email]
+    subject = "{} submitted a {}".format(instance.user.display_name, is_client_report and "Weekly Survey" or "Progress Report")
+
+    to = is_pm_or_client_report and TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS or [instance.event.task.user.email]
+    if instance.event.task.owner and not is_pm_or_client_report:
+        to.append(instance.event.task.owner.email)
     ctx = {
         'owner': instance.event.task.user,
         'reporter': instance.user,
@@ -819,8 +849,10 @@ def notify_new_progress_report_email(instance):
         'report': instance,
         'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.event.task.id, instance.event.id)
     }
+
+    email_template = is_client_report and 'new_client_survey' or 'new_progress_report{}'.format(is_pm_report and '_pm' or '')
     send_mail(
-        subject, 'tunga/email/email_new_progress_report{}'.format(is_internal and '_pm' or ''), to, ctx,
+        subject, 'tunga/email/{}'.format(email_template), to, ctx,
         **dict(deal_ids=[instance.event.task.hubspot_deal_id])
     )
 
@@ -829,37 +861,50 @@ def notify_new_progress_report_email(instance):
 def notify_new_progress_report_slack(instance):
     instance = clean_instance(instance, ProgressReport)
 
-    is_internal = instance.event.type == PROGRESS_EVENT_TYPE_PM
-    if not (slack_utils.is_task_notification_enabled(instance.event.task, slugs.EVENT_PROGRESS) or is_internal):
+    is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
+    is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
+    is_pm_or_client_report = is_pm_report or is_client_report
+    if not (slack_utils.is_task_notification_enabled(instance.event.task, slugs.EVENT_PROGRESS) or is_pm_or_client_report):
         return
 
     report_url = '%s/work/%s/event/%s/' % (TUNGA_URL, instance.event.task_id, instance.event_id)
-    slack_msg = "%s submitted a Progress Report | %s" % (
-        instance.user.display_name, '<{}|View details on Tunga>'.format(report_url)
+    slack_msg = "{} submitted a {} | {}".format(
+        instance.user.display_name,
+        is_client_report and "Weekly Survey" or "Progress Report",
+        '<{}|View details on Tunga>'.format(report_url)
     )
 
     slack_text_suffix = ''
-    if is_internal:
+    if not is_client_report:
+        slack_text_suffix += '*Status:* {}\n*Percentage completed:* {}{}'.format(
+                instance.get_status_display(), instance.percentage, '%')
+    if is_pm_or_client_report:
         if instance.last_deadline_met is not None:
-            slack_text_suffix = '\n*Was the last deadline met?:* {}'.format(
+            slack_text_suffix += '\n*Was the last deadline met?:* {}'.format(
                 instance.last_deadline_met and 'Yes' or 'No'
             )
-        if instance.next_deadline is not None:
+        if is_pm_report and instance.next_deadline is not None:
             slack_text_suffix += '\n*Next deadline:* {}'.format(instance.next_deadline.strftime("%d %b, %Y"))
+        if is_client_report:
+            if instance.rate_deliverables is not None:
+                slack_text_suffix += '\n*Rate Deliverables:* {}/10'.format(
+                    instance.rate_deliverables
+                )
+            if instance.rate_communication is not None:
+                slack_text_suffix += '\n*Rate Communication:* {}/10'.format(
+                    instance.rate_communication
+                )
     attachments = [
         {
             slack_utils.KEY_TITLE: instance.event.task.summary,
             slack_utils.KEY_TITLE_LINK: report_url,
-            slack_utils.KEY_TEXT: '*Status:* {}'
-                                  '\n*Percentage completed:* {}{}{}'.format(
-                instance.get_status_display(), instance.percentage, '%', slack_text_suffix
-            ),
+            slack_utils.KEY_TEXT: slack_text_suffix,
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
         }
     ]
 
-    if is_internal and instance.deadline_report:
+    if is_pm_report and instance.deadline_report:
         attachments.append({
             slack_utils.KEY_TITLE: 'Report about the last deadline:',
             slack_utils.KEY_TEXT: convert_to_text(instance.deadline_report),
@@ -888,7 +933,7 @@ def notify_new_progress_report_slack(instance):
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
         })
-    if is_internal and instance.team_appraisal:
+    if is_pm_report and instance.team_appraisal:
         attachments.append({
             slack_utils.KEY_TITLE: 'Team appraisal:',
             slack_utils.KEY_TEXT: convert_to_text(instance.team_appraisal),
@@ -902,7 +947,7 @@ def notify_new_progress_report_slack(instance):
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
         })
-    if is_internal:
+    if is_pm_or_client_report:
         slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
             slack_utils.KEY_TEXT: slack_msg,
             slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
@@ -918,7 +963,7 @@ def notify_task_invoice_request_email(instance):
     subject = "{} requested for an invoice".format(instance.user.display_name)
     to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
     ctx = {
-        'owner': instance.user,
+        'owner': instance.owner or instance.user,
         'task': instance,
         'task_url': '%s/work/%s/' % (TUNGA_URL, instance.id),
         'invoice_url': '%s/api/task/%s/download/invoice/?format=pdf' % (TUNGA_URL, instance.id)

@@ -1,0 +1,40 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    New weekly survey for {% if event.task.is_task %}task{% else %}project{% endif %}.
+{% endblock %}
+{% block email_content %}
+    <p>Hello,</p>
+
+    <p>{{ reporter.first_name }} submitted a weekly survey:</p>
+
+    <p>{% if event.task.is_task %}Task{% else %}Project{% endif %}: {{ event.task.summary }}</p>
+
+    <p>
+        Was the last deadline met?: {% if report.last_deadline_met %}Yes{% else %}No{% endif %}
+    </p>
+
+    {% if report.rate_deliverables %}
+        <p>
+            Rate Deliverables: {{ report.rate_deliverables }}/10
+        </p>
+    {% endif %}
+
+    {% if report.rate_communication %}
+        <p>
+            Rate Communication: {{ report.rate_communication }}/10
+        </p>
+    {% endif %}
+
+    {% if report.remarks %}
+        <p>
+            Remarks:<br/>
+            {{ report.remarks }}
+        </p>
+    {% endif %}
+
+    <p>
+        Click the link below to view the full report:<br/>
+        <a href="{{ update_url }}">{{ update_url }}</a>
+    </p>
+{% endblock %}
