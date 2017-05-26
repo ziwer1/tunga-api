@@ -791,7 +791,7 @@ def remind_progress_event_email(instance):
     if is_client_report and not owner:
         return
 
-    subject = is_client_report and "Weekly Survey" and "Upcoming {} Update".format(instance.task.is_task and 'Task' or 'Project')
+    subject = is_client_report and "Weekly Survey" or "Upcoming {} Update".format(instance.task.is_task and 'Task' or 'Project')
 
     to = []
     bcc = None
@@ -815,7 +815,7 @@ def remind_progress_event_email(instance):
         }
 
     if to:
-        email_template = is_client_report and 'client_survey_reminder' and 'progress_event_reminder'
+        email_template = is_client_report and 'client_survey_reminder' or 'progress_event_reminder'
         if send_mail(
                 subject, 'tunga/email/{}'.format(email_template), to, ctx, bcc=bcc,
                 **dict(deal_ids=[instance.task.hubspot_deal_id])
