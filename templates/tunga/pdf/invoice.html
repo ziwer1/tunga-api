@@ -97,18 +97,23 @@
             </tr>
         </table>
 
+        <div style="margin-top: 40px">
+            {% if context.is_developer %}{% else %}
+                Kindly transfer the stated amount within 2 weeks using the following information:<br/>
+            {% endif %}
+            Bitcoin address: {{ invoice.btc_address }}
+        </div>
+
     </div>
 
     <footer class="footer">
         <div class="container">
-            <div style="width: 30%" class="pull-left"><img src="https://tunga.io/icons/tunga_long.jpg" width="200px" style="width: 200px; max-width: 95%"></div>
-            <div style="width: 70%" class="pull-right">
-                <div class="pull-right">
-                    <div class="bold">
+            <div class="text-center">
+                <div class="bold">
                     {% if context.is_developer %}
                         Tunga BV
                     {% else %}
-                        Generated on behalf of {{ developer_info.developer.display_name }} by Tunga Bv
+                        Generated on behalf of {{ developer_info.developer.display_name }} by Tunga BV
                     {% endif %}
                     </div>
                     <div>
@@ -116,9 +121,7 @@
                         +31 (0) 615955194 , <a href="mailto:hello@tunga.io" class="highlight">hello@tunga.io</a>, <a href="https://tunga.io" class="highlight">tunga.io</a><br/>
                         KvK 67015697, IBAN NL64 INGB 0007 6631 29
                     </div>
-                </div>
             </div>
-            <div class="clearfix"></div>
         </div>
     </footer>
 </div>
