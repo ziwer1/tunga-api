@@ -38,7 +38,8 @@ from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPE
     TASK_TYPE_MOBILE, TASK_TYPE_OTHER, TASK_CODERS_NEEDED_ONE, TASK_CODERS_NEEDED_MULTIPLE, TASK_SCOPE_TASK, \
     TASK_SCOPE_ONGOING, TASK_BILLING_METHOD_FIXED, TASK_BILLING_METHOD_HOURLY, TASK_SCOPE_PROJECT, TASK_SOURCE_DEFAULT, \
     TASK_SOURCE_NEW_USER, PROGRESS_EVENT_TYPE_COMPLETE, STATUS_INITIAL, STATUS_APPROVED, STATUS_DECLINED, \
-    STATUS_ACCEPTED, STATUS_REJECTED, STATUS_SUBMITTED, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT
+    STATUS_ACCEPTED, STATUS_REJECTED, STATUS_SUBMITTED, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, \
+    TASK_PAYMENT_METHOD_STRIPE
 from tunga_utils.helpers import round_decimal, get_serialized_id, get_tunga_model, get_edit_token_header
 from tunga_utils.models import Upload, Rating
 from tunga_utils.validators import validate_btc_address
@@ -133,8 +134,9 @@ TASK_CODERS_NEEDED_CHOICES = (
 )
 
 TASK_PAYMENT_METHOD_CHOICES = (
-    (TASK_PAYMENT_METHOD_BITONIC, 'Pay with ideal / mister cash'),
-    (TASK_PAYMENT_METHOD_BITCOIN, 'Pay with bitcoin'),
+    (TASK_PAYMENT_METHOD_STRIPE, 'Pay with Stripe'),
+    (TASK_PAYMENT_METHOD_BITONIC, 'Pay with iDeal / mister cash'),
+    (TASK_PAYMENT_METHOD_BITCOIN, 'Pay with BitCoin'),
     (TASK_PAYMENT_METHOD_BANK, 'Pay by bank transfer')
 )
 
@@ -1362,24 +1364,52 @@ class IntegrationActivity(models.Model):
     class Meta:
         ordering = ['created_at']
 
+TASK_PAYMENT_TYPE_CHOICES = (
+    (TASK_PAYMENT_METHOD_STRIPE, 'Stripe'),
+    (TASK_PAYMENT_METHOD_BITCOIN, 'BitCoin')
+)
 
 @python_2_unicode_compatible
 class TaskPayment(models.Model):
     task = models.ForeignKey(Task)
-    btc_address = models.CharField(max_length=40, validators=[validate_btc_address])
     ref = models.CharField(max_length=255)
-    btc_price = models.DecimalField(max_digits=18, decimal_places=8)
+    payment_type = models.CharField(
+        max_length=30, choices=TASK_PAYMENT_TYPE_CHOICES,
+        help_text=','.join(['{} - {}'.format(item[0], item[1]) for item in TASK_PAYMENT_TYPE_CHOICES])
+    )
+
+    # BTC / Coinbase
+    btc_address = models.CharField(max_length=40, validators=[validate_btc_address], blank=True, null=True)
+    btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
     btc_received = models.DecimalField(max_digits=18, decimal_places=8, default=0)
+
+    # Stripe
+    token = models.CharField(max_length=100, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    amount = models.DecimalField(max_digits=19, decimal_places=4, blank=True, null=True)
+    currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, blank=True, null=True)
+    charge_id = models.CharField(max_length=100, blank=True, null=True)
+    paid = models.BooleanField(default=False)
+    captured = models.BooleanField(default=False)
+
+    # Distribution
     processed = models.BooleanField(default=False)
+
+    # Dates
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     received_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
-        return 'bitcoin:%s - %s' % (self.btc_address, self.task.summary)
+        return '{}:{} - {} | {}'.format(
+            self.get_payment_type_display(),
+            self.payment_type == TASK_PAYMENT_METHOD_STRIPE and self.charge_id or self.btc_address,
+            self.payment_type == TASK_PAYMENT_METHOD_STRIPE and self.amount or self.btc_received,
+            self.task.summary
+        )
 
     class Meta:
-        unique_together = ('btc_address', 'ref')
+        unique_together = ('task', 'ref')
         ordering = ['created_at']
 
 

@@ -41,12 +41,13 @@ from tunga_tasks.notifications import notify_task_invoice_request_email
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
-    IntegrationSerializer, TaskPaymentSerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer, \
-    TrelloBoardUrlSerializer, GoogleDriveUrlSerializer, MultiTaskPaymentKeySerializer
+    IntegrationSerializer, TaskPaySerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer, \
+    MultiTaskPaymentKeySerializer, TaskPaymentSerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
-from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa
-from tunga_utils.constants import TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BANK, STATUS_ACCEPTED
+from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa, stripe_utils
+from tunga_utils.constants import TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BANK, STATUS_ACCEPTED, \
+    TASK_PAYMENT_METHOD_STRIPE, CURRENCY_EUR, TASK_PAYMENT_METHOD_BITCOIN
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.mixins import SaveUploadsMixin
 from tunga_utils.serializers import InvoiceUserSerializer
@@ -100,35 +101,6 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         instance.archived = True
         instance.archived_at = datetime.datetime.utcnow()
         instance.save()
-
-    @detail_route(methods=['post'],
-        permission_classes=[IsAuthenticated])
-    def add_trello_board_url(self, request, pk=None):
-        
-        task = get_object_or_404(self.get_queryset(), pk=pk)
-        serializer = TrelloBoardUrlSerializer(data=request.data)
-        if serializer.is_valid():
-            task.trello_board_url = serializer.data['trello_board_url']
-            task.save()
-            return Response(serializer.data)
-        else:
-            return Response(serializer.errors,
-                            status=status.HTTP_400_BAD_REQUEST)
-
-    @detail_route(methods=['post'],
-        permission_classes=[IsAuthenticated])
-    def add_google_drive_url(self, request, pk=None):
-        
-        task = get_object_or_404(self.get_queryset(), pk=pk)
-        serializer = GoogleDriveUrlSerializer(data=request.data)
-        if serializer.is_valid():
-            task.google_drive_url = serializer.data['google_drive_url']
-            task.save()
-            return Response(serializer.data)
-        else:
-            return Response(serializer.errors,
-                            status=status.HTTP_400_BAD_REQUEST)
-        
 
     @detail_route(
         methods=['post'], url_path='read',
@@ -231,13 +203,13 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
     @detail_route(
         methods=['get', 'post', 'put'], url_path='invoice',
-        serializer_class=TaskPaymentSerializer, permission_classes=[IsAuthenticated]
+        serializer_class=TaskPaySerializer, permission_classes=[IsAuthenticated]
     )
     def invoice(self, request, pk=None):
         """
         Task Invoice Endpoint
         ---
-        request_serializer: TaskPaymentSerializer
+        request_serializer: TaskPaySerializer
         response_serializer: TaskInvoiceSerializer
         omit_parameters:
             - query
@@ -306,7 +278,9 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
         return Response(response_serializer.data)
 
     @detail_route(
-        methods=['get'], url_path='pay/(?P<provider>[^/]+)'
+        methods=['get', 'post'], url_path='pay/(?P<provider>[^/]+)',
+        serializer_class=TaskPaySerializer,
+        permission_classes=[IsAuthenticated]
     )
     def pay(self, request, pk=None, provider=None):
         """
@@ -317,25 +291,72 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                 - query
             """
         task = self.get_object()
-        callback = '%s://%s/task/%s/rate/' % (request.scheme, request.get_host(), pk)
-        next_url = callback
-        if task and task.has_object_write_permission(request) and bitcoin_utils.is_valid_btc_address(task.btc_address):
-            if provider == TASK_PAYMENT_METHOD_BITONIC:
-                client = oauth1.Client(
-                    BITONIC_CONSUMER_KEY, BITONIC_CONSUMER_SECRET, BITONIC_ACCESS_TOKEN, BITONIC_TOKEN_SECRET,
-                    callback_uri=callback, signature_type=SIGNATURE_TYPE_QUERY
+
+        if provider == TASK_PAYMENT_METHOD_STRIPE:
+            # Pay with Stripe
+            payload = request.data
+            paid_at = datetime.datetime.utcnow()
+
+            stripe = stripe_utils.get_client()
+            customer = stripe.Customer.create(**dict(source=payload['token'], email=payload['email']))
+
+            charge = stripe.Charge.create(
+                idempotency_key=payload.get('idem_key', None),
+                **dict(
+                    amount=payload['amount'],
+                    description=payload.get('description', task.summary),
+                    currency=payload.get('currency', CURRENCY_EUR),
+                    customer=customer.id,
+                    metadata=dict(
+                        task_id=task.id,
+                        invoice_id=payload.get('invoice_id', '')
+                    )
                 )
-                amount = task.pay
-                increase_factor = 1 + (Decimal(BITONIC_PAYMENT_COST_PERCENTAGE)*Decimal(0.01))
-                q_string = urlencode({
-                    'ext_data': task.summary.encode('utf-8'),
-                    'bitcoinaddress': task.btc_address,
-                    'ordertype': 'buy',
-                    'euros': amount * increase_factor
-                })
-                req_data = client.sign('%s/?%s' % (BITONIC_URL, q_string), http_method='GET')
-                next_url = req_data[0]
-        return redirect(next_url)
+            )
+
+            task_pay, created = TaskPayment.objects.get_or_create(
+                task=task, ref=charge.id, payment_type=TASK_PAYMENT_METHOD_STRIPE,
+                defaults=dict(
+                    token=payload['token'],
+                    email=payload['email'],
+                    amount=Decimal(charge.amount)*Decimal(0.01),
+                    currency=(charge.currency or CURRENCY_EUR).upper(),
+                    charge_id=charge.id,
+                    paid=charge.paid,
+                    captured=charge.captured,
+                    received_at=paid_at
+                )
+            )
+            task.paid = True
+            task.paid_at = paid_at
+            task.save()
+
+            # distribute_task_payment.delay(task.id)
+
+            task_serializer = TaskSerializer(task, context={'request': request})
+            task_payment_serializer = TaskPaymentSerializer(task_pay, context={'request': request})
+            return Response(dict(task=task_serializer.data, payment=task_payment_serializer.data))
+        elif provider == TASK_PAYMENT_METHOD_BITONIC:
+            # Pay with Bitonic
+            callback = '%s://%s/task/%s/rate/' % (request.scheme, request.get_host(), pk)
+            next_url = callback
+            if task and task.has_object_write_permission(request) and bitcoin_utils.is_valid_btc_address(task.btc_address):
+                if provider == TASK_PAYMENT_METHOD_BITONIC:
+                    client = oauth1.Client(
+                        BITONIC_CONSUMER_KEY, BITONIC_CONSUMER_SECRET, BITONIC_ACCESS_TOKEN, BITONIC_TOKEN_SECRET,
+                        callback_uri=callback, signature_type=SIGNATURE_TYPE_QUERY
+                    )
+                    amount = task.pay
+                    increase_factor = 1 + (Decimal(BITONIC_PAYMENT_COST_PERCENTAGE)*Decimal(0.01))
+                    q_string = urlencode({
+                        'ext_data': task.summary.encode('utf-8'),
+                        'bitcoinaddress': task.btc_address,
+                        'ordertype': 'buy',
+                        'euros': amount * increase_factor
+                    })
+                    req_data = client.sign('%s/?%s' % (BITONIC_URL, q_string), http_method='GET')
+                    next_url = req_data[0]
+            return redirect(next_url)
 
     @detail_route(
         methods=['get'], url_path='download/invoice',
@@ -823,7 +844,7 @@ class MultiTaskPaymentKeyViewSet(viewsets.ModelViewSet):
     queryset = MultiTaskPaymentKey.objects.all()
     serializer_class = MultiTaskPaymentKeySerializer
     permission_classes = [IsAuthenticated]
-    
+
 
 
 
@@ -852,8 +873,8 @@ def coinbase_notification(request):
 
         if task:
             TaskPayment.objects.get_or_create(
-                task=task, ref=id, btc_address=task.btc_address, defaults={
-                    'btc_received': amount, 'btc_price': task.btc_price, 'received_at':paid_at
+                task=task, ref=id, payment_type=TASK_PAYMENT_METHOD_BITCOIN, btc_address=task.btc_address, defaults={
+                    'btc_received': amount, 'btc_price': task.btc_price, 'received_at': paid_at
                 }
             )
             task.paid = True

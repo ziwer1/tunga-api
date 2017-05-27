@@ -288,6 +288,7 @@ REST_FRAMEWORK = {
         'oauth2_provider.ext.rest_framework.OAuth2Authentication',
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -347,6 +348,8 @@ SOCIAL_CONNECT_ACTION_REGISTER = 'register'
 SOCIAL_CONNECT_ACTION_CONNECT = 'connect'
 
 GITHUB_SCOPES = ['user:email', 'repo', 'admin:repo_hook', 'admin:org_hook']
+
+STRIPE_SECRET = ''
 
 COINBASE_API_KEY = ''
 COINBASE_API_SECRET = ''

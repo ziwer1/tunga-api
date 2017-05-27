@@ -16,7 +16,7 @@ from tunga_profiles.utils import profile_check
 from tunga_tasks import slugs
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, ProgressEvent, ProgressReport, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
-    TaskInvoice, Estimate, Quote, WorkActivity, WorkPlan, AbstractEstimate, MultiTaskPaymentKey
+    TaskInvoice, Estimate, Quote, WorkActivity, WorkPlan, AbstractEstimate, MultiTaskPaymentKey, TaskPayment
 from tunga_tasks.notifications import notify_new_task
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
     task_integration, estimate_created, estimate_status_changed, quote_status_changed, quote_created, task_approved, \
@@ -191,7 +191,7 @@ class ProjectSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedMode
         details_serializer = ProjectDetailsSerializer
 
 
-class TaskPaymentSerializer(serializers.Serializer):
+class TaskPaySerializer(serializers.Serializer):
     user = InvoiceUserSerializer(required=False, read_only=True)
     payment_method = serializers.ChoiceField(choices=TASK_PAYMENT_METHOD_CHOICES, required=True)
     fee = serializers.DecimalField(max_digits=19, decimal_places=4)
@@ -1095,12 +1095,8 @@ class SimpleIntegrationActivitySerializer(ContentTypeAnnotatedModelSerializer):
         return None
 
 
-class TrelloBoardUrlSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Task
-        fields = ('trello_board_url',)
+class TaskPaymentSerializer(serializers.ModelSerializer):
 
-class GoogleDriveUrlSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Task
-        fields = ('google_drive_url',)
+        model = TaskPayment
+        fields = '__all__'
