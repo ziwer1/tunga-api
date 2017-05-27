@@ -30,4 +30,5 @@ slacker==0.9.*
 apscheduler==3.3.*
 mailchimp3==2.*
 raven==6.0.0
+stripe==1.56.0
 -e git+https://github.com/davidsemakula/python-harvest.git@2.1.0rc1#egg=python-harvest-redux

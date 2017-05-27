@@ -348,6 +348,8 @@ SOCIAL_CONNECT_ACTION_CONNECT = 'connect'
 
 GITHUB_SCOPES = ['user:email', 'repo', 'admin:repo_hook', 'admin:org_hook']
 
+STRIPE_SECRET = ''
+
 COINBASE_API_KEY = ''
 COINBASE_API_SECRET = ''
 COINBASE_CLIENT_ID = ''

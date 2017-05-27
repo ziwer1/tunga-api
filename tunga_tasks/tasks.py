@@ -20,7 +20,7 @@ from tunga_utils.constants import CURRENCY_BTC, PAYMENT_METHOD_BTC_WALLET, \
     UPDATE_SCHEDULE_WEEKLY, UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, UPDATE_SCHEDULE_ANNUALLY, \
     PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_SUBMIT, STATUS_PENDING, STATUS_PROCESSING, \
     STATUS_INITIATED, APP_INTEGRATION_PROVIDER_HARVEST, PROGRESS_EVENT_TYPE_COMPLETE, STATUS_ACCEPTED, \
-    PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT
+    PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, TASK_PAYMENT_METHOD_BITCOIN
 from tunga_utils.helpers import clean_instance
 from tunga_utils.hubspot_utils import create_hubspot_deal
 
@@ -231,7 +231,9 @@ def distribute_task_payment(task):
     pay_description = task.summary
 
     participation_shares = task.get_payment_shares()
-    payments = task.taskpayment_set.filter(received_at__isnull=False, processed=False)
+    payments = task.taskpayment_set.filter(
+        received_at__isnull=False, processed=False, payment_type=TASK_PAYMENT_METHOD_BITCOIN
+    )
     task_distribution = []
     for payment in payments:
         portion_distribution = []

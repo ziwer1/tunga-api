@@ -36,9 +36,13 @@ class ParticipationInline(admin.TabularInline):
 class TaskAdmin(admin.ModelAdmin):
     list_display = (
         'summary', 'user', 'type', 'scope', 'source', 'apply', 'closed', 'archived', 'skills_list', 'created_at',
-        'fee', 'bid', 'dev_rate', 'pm_rate', 'pm_time_percentage', 'tunga_percentage_dev', 'tunga_percentage_pm'
+        'fee', 'bid', 'dev_rate', 'pm_rate', 'pm_time_percentage', 'tunga_percentage_dev', 'tunga_percentage_pm',
+        'schedule_call_start'
     )
-    list_filter = ('type', 'scope', 'source', 'apply', 'closed', 'paid', 'pay_distributed', 'archived')
+    list_filter = (
+        'type', 'scope', 'source', 'apply', 'closed', 'paid', 'pay_distributed', 'archived',
+        'created_at', 'schedule_call_start'
+    )
     search_fields = ('title', 'analytics_id')
     inlines = (TaskAccessInline, ParticipationInline)
 
@@ -96,7 +100,7 @@ class ProgressReportAdmin(admin.ModelAdmin):
 
 @admin.register(TaskPayment)
 class TaskPaymentAdmin(ReadOnlyModelAdmin):
-    list_display = ('task', 'btc_address', 'btc_received', 'ref', 'btc_price', 'processed', 'created_at', 'received_at')
+    list_display = ('task', 'payment_type', 'ref', 'btc_address', 'btc_received', 'btc_price', 'amount', 'currency', 'email', 'paid', 'captured', 'processed', 'created_at', 'received_at')
     list_filter = ('processed', 'created_at', 'received_at')
 
 
