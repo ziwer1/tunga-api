@@ -1118,6 +1118,16 @@ class ProgressReport(models.Model):
     next_steps = models.TextField(blank=True, null=True)
     obstacles = models.TextField(blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
+    stuck_reason = models.PositiveIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(5)], blank=True, null=True
+    )
+    stuck_details = models.TextField(blank=True, null=True)
+    started_at = models.DateTimeField(blank=True, null=True)
+    next_deadline_meet = models.NullBooleanField(blank=True, null=True)
+    today_to_dos = models.TextField(blank=True, null=True)
+    deadline_deliverable_rate = models.PositiveIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(10)], blank=True, null=True
+    )
 
     # PMs only
     last_deadline_met = models.NullBooleanField(blank=True, null=True)
@@ -1135,6 +1145,7 @@ class ProgressReport(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     uploads = GenericRelation(Upload, related_query_name='progress_reports')
+
 
     def __str__(self):
         return '{0} - {1}%'.format(self.event, self.percentage)
