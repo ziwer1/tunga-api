@@ -1142,6 +1142,10 @@ class ProgressReport(models.Model):
     rate_communication = models.PositiveIntegerField(
         validators=[MinValueValidator(0), MaxValueValidator(10)], blank=True, null=True
     )
+    this_week_deadline_met = models.NullBooleanField(blank=True, null=True)
+    pm_deadline_informed = models.NullBooleanField(blank=True, null=True)
+    deliverable_satisfaction = models.NullBooleanField(blank=True, null=True)
+    pm_communication = models.NullBooleanField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     uploads = GenericRelation(Upload, related_query_name='progress_reports')
