@@ -1,10 +1,16 @@
 import json
 
 import harvest
+from django.utils import six
+import requests
 
-from tunga.settings import HARVEST_CLIENT_ID, HARVEST_API_URL, HARVEST_CLIENT_SECRET
+from tunga.settings import HARVEST_CLIENT_ID, HARVEST_API_URL, HARVEST_CLIENT_SECRET, HARVEST_ACCOUNT, \
+    HARVEST_AUTHENTICATION_STRING
 from tunga_profiles.models import AppIntegration
 from tunga_utils.constants import APP_INTEGRATION_PROVIDER_HARVEST
+
+HARVEST_API_USER_URL = 'https://%s.harvestapp.com/people' % (HARVEST_ACCOUNT)
+HARVEST_HEADERS = {'accept': 'application/json', 'content-type':'application/json', 'authorization': 'Basic %s' % (HARVEST_AUTHENTICATION_STRING)}
 
 
 def get_authorize_url(redirect_uri):
@@ -36,3 +42,15 @@ def store_token(token, **kwargs):
         AppIntegration.objects.update_or_create(
             user=user, provider=APP_INTEGRATION_PROVIDER_HARVEST, defaults=defaults
         )
+
+def create_user(first_name, last_name, email, **kwargs):
+    user = {'first_name': first_name, 'last_name':last_name, 'email':email}
+    
+    if kwargs:
+        for key, value in six.iteritems(kwargs):
+            user[key] = value;
+
+    payload = {'user': user}
+
+    r = requests.post(HARVEST_API_USER_URL, headers=HARVEST_HEADERS, json=payload)
+
