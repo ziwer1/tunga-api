@@ -16,7 +16,8 @@
     
     {% if report.pm_deadline_informed %}
     <p>
-        Did the project manager/developer(s) inform you promptly about not making the deadline?: {% if report.pm_deadline_informed %}Yes{% else %}No{% endif %}
+        Did the project manager/developer(s) inform you promptly about not making the deadline?:<br/>
+        {% if report.pm_deadline_informed %}Yes{% else %}No{% endif %}
     </p>
     {% endif %}
 
@@ -34,7 +35,8 @@
 
     {% if report.pm_communication %}
         <p>
-            Is the communication between you and the project manager/clients going well?: {% if report.pm_communication %}Yes{% else %}No{% endif %}
+            Is the communication between you and the project manager/clients going well?:<br/>
+            {% if report.pm_communication %}Yes{% else %}No{% endif %}
         </p>
     {% endif %}
 
