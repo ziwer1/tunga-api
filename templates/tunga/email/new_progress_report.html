@@ -13,27 +13,55 @@
     <p>
         Status: {{ report.get_status_display }}
     </p>
-
+    
+    {% if report.stuck_reason %}
     <p>
-        Accomplished:<br/>
-        {{ report.accomplished }}
+        Reason for being stuck:<br/>
+        {{ report.stuck_reason }}
     </p>
+    {% endif %}
+
+    {% if report.stuck_details %}
+    <p>
+        Explain Further why you are stuck/what should be done:<br/>
+        {{ report.stuck_details }}
+    </p>
+    {% endif %}
+
+    {% if report.started_at %}
+    <p>
+        When did you start this sprint/task/project?:<br/>
+        {{ report.started_at | date:'jS F Y' }}
+    </p>
+    {% endif %}
+
+    {% if report.next_deadline %}
+    <p>
+        When is the next deadline?:<br/>
+        {{ report.next_deadline | date:'jS F Y' }}
+    </p>
+    {% endif %}
+
+    {% if report.next_deadline_meet %}
+    <p>
+        Do you anticipate to meet this deadline?:{% if report.next_deadline_meet %}Yes{% else %}No{% endif %}
+    </p>
+    {% endif %}
 
     <p>
         Percentage Completed: {{ report.percentage | default:'0' }}%
     </p>
 
-    {% if report.next_steps %}
-        <p>
-            Next steps:<br/>
-            {{ report.next_steps }}
-        </p>
+    {% if report.today_to_dos %}
+    <p>
+        what do you intend to achieve/complete today?:<br/>
+        {{ report.today_to_dos }}
+    </p>
     {% endif %}
 
-    {% if report.remarks %}
+    {% if report.deadline_deliverable_rate %}
         <p>
-            Remarks:<br/>
-            {{ report.remarks }}
+            Rate Deliverables at deadline: {{ report.deadline_deliverable_rate }}/5
         </p>
     {% endif %}
 
