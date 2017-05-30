@@ -878,22 +878,26 @@ def notify_new_progress_report_slack(instance):
     if not is_client_report:
         slack_text_suffix += '*Status:* {}\n*Percentage completed:* {}{}'.format(
                 instance.get_status_display(), instance.percentage, '%')
-    if is_pm_or_client_report:
+    if is_pm_report:
         if instance.last_deadline_met is not None:
             slack_text_suffix += '\n*Was the last deadline met?:* {}'.format(
                 instance.last_deadline_met and 'Yes' or 'No'
             )
         if is_pm_report and instance.next_deadline is not None:
             slack_text_suffix += '\n*Next deadline:* {}'.format(instance.next_deadline.strftime("%d %b, %Y"))
-        if is_client_report:
-            if instance.rate_deliverables is not None:
-                slack_text_suffix += '\n*Rate Deliverables:* {}/10'.format(
-                    instance.rate_deliverables
-                )
-            if instance.rate_communication is not None:
-                slack_text_suffix += '\n*Rate Communication:* {}/10'.format(
-                    instance.rate_communication
-                )
+    if is_client_report:
+        if instance.this_week_deadline_met is not None:
+            slack_text_suffix += '\n*Was this week deadline met?:* {}'.format(
+                instance.this_week_deadline_met and 'Yes' or 'No'
+            )
+        if instance.rate_deliverables is not None:
+            slack_text_suffix += '\n*Rate Deliverables:* {}/10'.format(
+                instance.rate_deliverables
+            )
+        if instance.pm_communication is not None:
+            slack_text_suffix += '\n*Is communication going well?:* {}'.format(
+                instance.pm_communication and 'Yes' or 'No'
+            )
     attachments = [
         {
             slack_utils.KEY_TITLE: instance.event.task.summary,
@@ -911,42 +915,72 @@ def notify_new_progress_report_slack(instance):
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
         })
-
-    if instance.accomplished:
-        attachments.append({
-            slack_utils.KEY_TITLE: 'What has been accomplished since last update?',
-            slack_utils.KEY_TEXT: convert_to_text(instance.accomplished),
-            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
-        })
-    if instance.next_steps:
-        attachments.append({
-            slack_utils.KEY_TITLE: 'What are the next next steps?',
-            slack_utils.KEY_TEXT: convert_to_text(instance.next_steps),
-            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
-        })
-    if instance.obstacles:
-        attachments.append({
-            slack_utils.KEY_TITLE: 'What obstacles are impeding your progress?',
-            slack_utils.KEY_TEXT: convert_to_text(instance.obstacles),
-            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
-        })
-    if is_pm_report and instance.team_appraisal:
-        attachments.append({
-            slack_utils.KEY_TITLE: 'Team appraisal:',
-            slack_utils.KEY_TEXT: convert_to_text(instance.team_appraisal),
-            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
-        })
-    if instance.remarks:
-        attachments.append({
-            slack_utils.KEY_TITLE: 'Other remarks or questions',
-            slack_utils.KEY_TEXT: convert_to_text(instance.remarks),
-            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
-        })
+    if is_pm_report:
+        if instance.accomplished:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'What has been accomplished since last update?',
+                slack_utils.KEY_TEXT: convert_to_text(instance.accomplished),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
+            })
+        if instance.next_steps:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'What are the next next steps?',
+                slack_utils.KEY_TEXT: convert_to_text(instance.next_steps),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
+            })
+        if instance.obstacles:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'What obstacles are impeding your progress?',
+                slack_utils.KEY_TEXT: convert_to_text(instance.obstacles),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
+            })
+        if instance.team_appraisal:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'Team appraisal:',
+                slack_utils.KEY_TEXT: convert_to_text(instance.team_appraisal),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
+            })
+    if is_client_report:
+        if instance.pm_deadline_informed:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'Did the project manager/developer(s) inform you promptly about not making the deadline?',
+                slack_utils.KEY_TEXT: '{}'.format(instance.pm_deadline_informed and 'Yes' or 'No'),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
+            })
+        if instance.deliverable_satisfaction:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'Are you satisfied with the deliverables?',
+                slack_utils.KEY_TEXT: '{}'.format(instance.deliverable_satisfaction and 'Yes' or 'No'),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
+            })
+        if instance.rate_deliverables:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'How would you rate the deliverables on a scale from 1 to 10?',
+                slack_utils.KEY_TEXT: '{}/10'.format(instance.rate_deliverables),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
+            })
+        if instance.pm_communication:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'Is the communication between you and the project manager/clients going well?',
+                slack_utils.KEY_TEXT: '{}'.format(instance.pm_communication and 'Yes' or 'No'),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
+            })
+    if is_pm_or_client_report:
+        if instance.remarks:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'Other remarks or questions',
+                slack_utils.KEY_TEXT: convert_to_text(instance.remarks),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
+            })
     if is_pm_or_client_report:
         slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
             slack_utils.KEY_TEXT: slack_msg,
