@@ -973,6 +973,63 @@ def notify_new_progress_report_slack(instance):
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
             })
+    if not is_pm_or_client_report:
+        if instance.stuck_reason:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'Reason for being stuck:',
+                slack_utils.KEY_TEXT: convert_to_text(instance.stuck_reason),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
+            })
+        if instance.stuck_details:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'Explain Further why you are stuck/what should be done:',
+                slack_utils.KEY_TEXT: convert_to_text(instance.stuck_details),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
+            })
+        if instance.started_at:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'When did you start this sprint/task/project?',
+                slack_utils.KEY_TEXT: convert_to_text(instance.started_at),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
+            })
+        if instance.next_deadline:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'When is the next deadline?',
+                slack_utils.KEY_TEXT: convert_to_text(instance.next_deadline),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
+            })
+        if instance.next_deadline_meet:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'Do you anticipate to meet this deadline?',
+                slack_utils.KEY_TEXT: '{}'.format(instance.next_deadline_meet and 'Yes' or 'No'),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
+            })
+        if instance.percentage:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'Percentage Completed',
+                slack_utils.KEY_TEXT: '{}%'.format(instance.percentage),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
+            })
+        if instance.today_to_dos:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'what do you intend to achieve/complete today?',
+                slack_utils.KEY_TEXT: convert_to_text(instance.today_to_dos),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
+            })
+        if instance.deadline_deliverable_rate:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'Rate Deliverables on deadline:',
+                slack_utils.KEY_TEXT: '{}/5'.format(instance.deadline_deliverable_rate),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
+            })
     if is_pm_or_client_report:
         if instance.remarks:
             attachments.append({
