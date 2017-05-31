@@ -44,7 +44,7 @@ def possibly_trigger_schedule_call_automation(instance, wait=15*60):
         )
 
 
-def create_task_slack_msg(task, summary='', channel='#general', show_schedule=True):
+def create_task_slack_msg(task, summary='', channel='#general', show_schedule=True, show_contacts=False):
     task_url = '{}/work/{}/'.format(TUNGA_URL, task.id)
     attachments = [
         {
@@ -71,8 +71,10 @@ def create_task_slack_msg(task, summary='', channel='#general', show_schedule=Tr
             task.schedule_call_start.strftime("%I:%M%p"),
             task.schedule_call_end and ' - {}'.format(task.schedule_call_end.strftime("%I:%M%p")) or ''
         )
-    if task.skype_id:
-        extra_details += '*Skype ID*: {}\n'.format(task.skype_id)
+    if show_contacts:
+        extra_details += '*Email*: {}\n'.format(task.user.email)
+        if task.skype_id:
+            extra_details += '*Skype ID*: {}\n'.format(task.skype_id)
     if extra_details:
         attachments.append({
             slack_utils.KEY_TEXT: extra_details,
@@ -96,7 +98,7 @@ def create_task_slack_msg(task, summary='', channel='#general', show_schedule=Tr
     if not summary:
         summary = "New {} created by {} | <{}|View on Tunga>".format(
             task.scope == TASK_SCOPE_TASK and 'task' or 'project',
-            task.user.first_name, task_url)
+            task.user.display_name, task_url)
     return {
         slack_utils.KEY_TEXT: summary,
         slack_utils.KEY_CHANNEL: channel,
@@ -226,7 +228,7 @@ def notify_new_task_admin_slack(instance, new_user=False, completed=False, call_
         instance.user.first_name, new_user and ' (New user)' or '',
         task_url
     )
-    slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_UPDATES_CHANNEL)
+    slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_UPDATES_CHANNEL, show_contacts=True)
     slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, slack_msg)
 
 
@@ -251,7 +253,8 @@ def remind_no_task_applications_slack(instance, admin=True):
     )
     slack_msg = create_task_slack_msg(
         instance, summary=summary,
-        channel=admin and SLACK_STAFF_UPDATES_CHANNEL or SLACK_DEVELOPER_UPDATES_CHANNEL
+        channel=admin and SLACK_STAFF_UPDATES_CHANNEL or SLACK_DEVELOPER_UPDATES_CHANNEL,
+        show_contacts=admin
     )
     slack_utils.send_incoming_webhook(
         admin and SLACK_STAFF_INCOMING_WEBHOOK or SLACK_DEVELOPER_INCOMING_WEBHOOK,
@@ -279,7 +282,8 @@ def notify_review_task_admin_slack(instance):
     )
     slack_msg = create_task_slack_msg(
         instance, summary=summary,
-        channel=SLACK_STAFF_UPDATES_CHANNEL
+        channel=SLACK_STAFF_UPDATES_CHANNEL,
+        show_contacts=True
     )
     slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, slack_msg)
 
@@ -482,7 +486,7 @@ def notify_estimate_approved_client_email(instance, estimate_type='estimate'):
         'task': instance.task,
         'estimate_url': '{}/work/{}/{}/{}'.format(TUNGA_URL, instance.task.id, estimate_type, instance.id),
         'actor': instance.user,
-        'target': instance.task.user,
+        'target': instance.task.owner or instance.task.user,
         'verb': 'submitted',
         'noun': estimate_type
     }
@@ -581,7 +585,7 @@ def notify_new_task_application_owner_email(instance):
     if instance.task.owner:
         to.append(instance.task.owner.email)
     ctx = {
-        'owner': instance.task.user,
+        'owner': instance.task.owner or instance.task.user,
         'applicant': instance.user,
         'task': instance.task,
         'task_url': '%s/work/%s/applications/' % (TUNGA_URL, instance.task_id)
@@ -643,7 +647,7 @@ def confirm_task_application_to_applicant_email(instance):
     subject = "You applied for a task: {}".format(instance.task.summary)
     to = [instance.user.email]
     ctx = {
-        'owner': instance.task.user,
+        'owner': instance.task.owner or instance.task.user,
         'applicant': instance.user,
         'task': instance.task,
         'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
@@ -670,7 +674,7 @@ def notify_task_application_response_owner_email(instance):
     subject = "Task application {}".format(instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected')
     to = [instance.user.email]
     ctx = {
-        'owner': instance.task.user,
+        'owner': instance.task.owner or instance.task.user,
         'applicant': instance.user,
         'accepted': instance.status == STATUS_ACCEPTED,
         'task': instance.task,
@@ -687,7 +691,7 @@ def notify_task_application_response_admin_email(instance):
     subject = "Task application {}".format(instance.status == STATUS_ACCEPTED and 'accepted' or 'rejected')
     to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
     ctx = {
-        'owner': instance.task.user,
+        'owner': instance.task.owner or instance.task.user,
         'applicant': instance.user,
         'accepted': instance.status == STATUS_ACCEPTED,
         'task': instance.task,
@@ -809,7 +813,7 @@ def remind_progress_event_email(instance):
             to = [participants[0].user.email]
             bcc = [participant.user.email for participant in participants[1:]] if participants.count() > 1 else None
     ctx = {
-        'owner': instance.task.user,
+        'owner': instance.task.owner or instance.task.user,
         'event': instance,
         'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.task.id, instance.id)
         }
