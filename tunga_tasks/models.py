@@ -1065,7 +1065,7 @@ class ProgressEvent(models.Model):
     @staticmethod
     @allow_staff_or_superuser
     def has_write_permission(request):
-        return request.user.is_project_owner or request.user.is_project_manager
+        return request.user.is_project_owner or request.user.is_project_manager or request.user.is_project_owner
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
@@ -1173,7 +1173,7 @@ class ProgressReport(models.Model):
     @staticmethod
     @allow_staff_or_superuser
     def has_write_permission(request):
-        return request.user.is_developer or request.user.is_project_manager
+        return request.user.is_developer or request.user.is_project_manager or request.user.is_project_owner
 
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
