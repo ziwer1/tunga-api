@@ -1013,6 +1013,13 @@ def notify_new_progress_report_slack(instance):
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
             })
+        if instance.next_deadline_fail_reason:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'Why will you not be able to make the next deadline?',
+                slack_utils.KEY_TEXT: convert_to_text(instance.next_deadline_fail_reason),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
+            })
         if instance.percentage:
             attachments.append({
                 slack_utils.KEY_TITLE: 'Percentage Completed',
