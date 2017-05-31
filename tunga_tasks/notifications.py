@@ -895,7 +895,7 @@ def notify_new_progress_report_slack(instance):
                 instance.this_week_deadline_met and 'Yes' or 'No'
             )
         if instance.rate_deliverables is not None:
-            slack_text_suffix += '\n*Rate Deliverables:* {}/10'.format(
+            slack_text_suffix += '\n*Rate Deliverables:* {}/5'.format(
                 instance.rate_deliverables
             )
         if instance.pm_communication is not None:
