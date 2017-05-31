@@ -21,6 +21,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.renderers import StaticHTMLRenderer
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
+from stripe.error import InvalidRequestError
 from weasyprint import HTML
 
 from tunga.settings import BITONIC_CONSUMER_KEY, BITONIC_CONSUMER_SECRET, BITONIC_ACCESS_TOKEN, BITONIC_TOKEN_SECRET, \
@@ -261,9 +262,10 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
             # Save Invoice
             invoice = TaskInvoice.objects.create(
                 task=task,
+                user=request.user,
                 title=task.title,
                 fee=task.pay,
-                client=task.user,
+                client=task.owner or task.user,
                 developer=developer,
                 payment_method=task.payment_method,
                 btc_price=btc_price,
@@ -298,44 +300,48 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
             paid_at = datetime.datetime.utcnow()
 
             stripe = stripe_utils.get_client()
-            customer = stripe.Customer.create(**dict(source=payload['token'], email=payload['email']))
 
-            charge = stripe.Charge.create(
-                idempotency_key=payload.get('idem_key', None),
-                **dict(
-                    amount=payload['amount'],
-                    description=payload.get('description', task.summary),
-                    currency=payload.get('currency', CURRENCY_EUR),
-                    customer=customer.id,
-                    metadata=dict(
-                        task_id=task.id,
-                        invoice_id=payload.get('invoice_id', '')
+            try:
+                customer = stripe.Customer.create(**dict(source=payload['token'], email=payload['email']))
+
+                charge = stripe.Charge.create(
+                    idempotency_key=payload.get('idem_key', None),
+                    **dict(
+                        amount=payload['amount'],
+                        description=payload.get('description', task.summary),
+                        currency=payload.get('currency', CURRENCY_EUR),
+                        customer=customer.id,
+                        metadata=dict(
+                            task_id=task.id,
+                            invoice_id=payload.get('invoice_id', '')
+                        )
                     )
                 )
-            )
 
-            task_pay, created = TaskPayment.objects.get_or_create(
-                task=task, ref=charge.id, payment_type=TASK_PAYMENT_METHOD_STRIPE,
-                defaults=dict(
-                    token=payload['token'],
-                    email=payload['email'],
-                    amount=Decimal(charge.amount)*Decimal(0.01),
-                    currency=(charge.currency or CURRENCY_EUR).upper(),
-                    charge_id=charge.id,
-                    paid=charge.paid,
-                    captured=charge.captured,
-                    received_at=paid_at
+                task_pay, created = TaskPayment.objects.get_or_create(
+                    task=task, ref=charge.id, payment_type=TASK_PAYMENT_METHOD_STRIPE,
+                    defaults=dict(
+                        token=payload['token'],
+                        email=payload['email'],
+                        amount=Decimal(charge.amount)*Decimal(0.01),
+                        currency=(charge.currency or CURRENCY_EUR).upper(),
+                        charge_id=charge.id,
+                        paid=charge.paid,
+                        captured=charge.captured,
+                        received_at=paid_at
+                    )
                 )
-            )
-            task.paid = True
-            task.paid_at = paid_at
-            task.save()
+                task.paid = True
+                task.paid_at = paid_at
+                task.save()
 
-            # distribute_task_payment.delay(task.id)
+                # distribute_task_payment.delay(task.id)
 
-            task_serializer = TaskSerializer(task, context={'request': request})
-            task_payment_serializer = TaskPaymentSerializer(task_pay, context={'request': request})
-            return Response(dict(task=task_serializer.data, payment=task_payment_serializer.data))
+                task_serializer = TaskSerializer(task, context={'request': request})
+                task_payment_serializer = TaskPaymentSerializer(task_pay, context={'request': request})
+                return Response(dict(task=task_serializer.data, payment=task_payment_serializer.data))
+            except InvalidRequestError:
+                return Response(dict(message='We could not process your payment! Please contact hello@tunga.io'), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         elif provider == TASK_PAYMENT_METHOD_BITONIC:
             # Pay with Bitonic
             callback = '%s://%s/task/%s/rate/' % (request.scheme, request.get_host(), pk)

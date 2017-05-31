@@ -27,6 +27,7 @@ from tunga_comments.models import Comment
 from tunga_messages.models import Channel
 from tunga_profiles.models import Skill, Connection
 from tunga_settings.models import VISIBILITY_CHOICES
+from tunga_utils import stripe_utils
 from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, VISIBILITY_CUSTOM, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, \
     UPDATE_SCHEDULE_WEEKLY, UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, UPDATE_SCHEDULE_ANNUALLY, \
     TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BITCOIN, TASK_PAYMENT_METHOD_BANK, \
@@ -347,6 +348,8 @@ class Task(models.Model):
         if user and user.is_authenticated():
             if user == self.user:
                 return True
+            if user == self.owner:
+                return True
             return self.taskaccess_set.filter(user=user).count() == 1
         return False
 
@@ -510,7 +513,7 @@ class Task(models.Model):
                     pledge=self.pay,
                     developer=Decimal(1 - self.tunga_ratio_dev) * self.pay_dev,
                     pm=Decimal(1 - self.tunga_ratio_pm) * self.pay_pm,
-                    processing=processing_share * self.pay
+                    processing=self.payment_method == TASK_PAYMENT_METHOD_STRIPE and stripe_utils.calculate_payment_fee(self.pay) or (processing_share * self.pay)
                 )
             )
             amount_details['tunga'] = self.pay - (amount_details['developer'] + amount_details['pm'])
@@ -1454,6 +1457,9 @@ class ParticipantPayment(models.Model):
 @python_2_unicode_compatible
 class TaskInvoice(models.Model):
     task = models.ForeignKey(Task)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='invoices_created', on_delete=models.DO_NOTHING, blank=True, null=True
+    )
     title = models.CharField(max_length=200)
     fee = models.DecimalField(max_digits=19, decimal_places=4)
     client = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='client_invoices')
@@ -1508,6 +1514,9 @@ class TaskInvoice(models.Model):
             processing_share = Decimal(BITONIC_PAYMENT_COST_PERCENTAGE) * Decimal(0.01)
         elif self.payment_method == TASK_PAYMENT_METHOD_BANK:
             processing_share = Decimal(BANK_TRANSFER_PAYMENT_COST_PERCENTAGE) * Decimal(0.01)
+
+        processing_fee = self.payment_method == TASK_PAYMENT_METHOD_STRIPE and stripe_utils.calculate_payment_fee(fee_portion) or (Decimal(processing_share) * fee_portion)
+
         amount_details = dict(
             currency=CURRENCY_SYMBOLS.get(self.currency, ''),
             share=share,
@@ -1515,13 +1524,13 @@ class TaskInvoice(models.Model):
             portion=round_decimal(fee_portion, 2),
             developer=round_decimal(Decimal(1 - self.task.tunga_ratio_dev) * fee_portion_dev, 2),
             pm=round_decimal(Decimal(1 - self.task.tunga_ratio_pm) * fee_portion_pm, 2),
-            processing=round_decimal(Decimal(processing_share) * fee_portion, 2)
+            processing=round_decimal(processing_fee, 2)
         )
 
         amount_details['tunga'] = round_decimal(fee_portion - (amount_details['developer'] + amount_details['pm']), 2)
         amount_details['total'] = round_decimal(fee_portion + amount_details['processing'], 2)
-        amount_details['total_dev'] = round_decimal(Decimal(self.task.tunga_ratio_dev)*fee_portion_dev + (processing_share * fee_portion_dev), 2)
-        amount_details['total_pm'] = round_decimal(Decimal(self.task.tunga_ratio_dev)*fee_portion_pm + (processing_share * fee_portion_pm), 2)
+        amount_details['total_dev'] = round_decimal(Decimal(self.task.tunga_ratio_dev)*fee_portion_dev + processing_fee, 2)
+        amount_details['total_pm'] = round_decimal(Decimal(self.task.tunga_ratio_dev)*fee_portion_pm + processing_fee, 2)
         return amount_details
 
     @property

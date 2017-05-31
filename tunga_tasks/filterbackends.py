@@ -42,6 +42,7 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
             if label_filter != 'payments' or not request.user.is_admin:
                 queryset = queryset.filter(
                     Q(user=request.user) |
+                    Q(owner=request.user) |
                     (
                         Q(participation__user=request.user) & Q(participation__status__in=[STATUS_INITIAL, STATUS_ACCEPTED])
                     )
@@ -93,7 +94,7 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
             if request.user.is_staff or request.user.is_superuser:
                 return queryset
             if request.user.is_project_owner:
-                queryset = queryset.filter(Q(user=request.user) | Q(taskaccess__user=request.user))
+                queryset = queryset.filter(Q(user=request.user) | Q(owner=request.user) | Q(taskaccess__user=request.user))
             elif request.user.is_developer:
                 return queryset.exclude(
                     approved=False
