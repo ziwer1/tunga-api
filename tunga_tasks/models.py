@@ -1131,6 +1131,7 @@ class ProgressReport(models.Model):
     stuck_details = models.TextField(blank=True, null=True)
     started_at = models.DateTimeField(blank=True, null=True)
     next_deadline_meet = models.NullBooleanField(blank=True, null=True)
+    next_deadline_fail_reason = models.TextField(blank=True, null=True)
     today_to_dos = models.TextField(blank=True, null=True)
     deadline_deliverable_rate = models.PositiveIntegerField(
         validators=[MinValueValidator(0), MaxValueValidator(10)], blank=True, null=True
