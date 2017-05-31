@@ -48,6 +48,13 @@
     </p>
     {% endif %}
 
+    {% if report.next_deadline_fail_reason %}
+        <p>
+            Why won't you be able to make the next deadline?:<br/>
+            {{ report.next_deadline_fail_reason }}
+        </p>
+    {% endif %}
+
     <p>
         Percentage Completed: {{ report.percentage | default:'0' }}%
     </p>
