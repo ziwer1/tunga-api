@@ -995,14 +995,14 @@ def notify_new_progress_report_slack(instance):
         if instance.started_at:
             attachments.append({
                 slack_utils.KEY_TITLE: 'When did you start this sprint/task/project?',
-                slack_utils.KEY_TEXT: convert_to_text(instance.started_at),
+                slack_utils.KEY_TEXT: instance.started_at.strftime("%d %b, %Y"),
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
             })
         if instance.next_deadline:
             attachments.append({
                 slack_utils.KEY_TITLE: 'When is the next deadline?',
-                slack_utils.KEY_TEXT: convert_to_text(instance.next_deadline),
+                slack_utils.KEY_TEXT: instance.next_deadline.strftime("%d %b, %Y"),
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
             })
