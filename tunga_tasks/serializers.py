@@ -129,6 +129,7 @@ class BasicProgressEventSerializer(ContentTypeAnnotatedModelSerializer):
 class BasicProgressReportSerializer(ContentTypeAnnotatedModelSerializer):
     user = SimpleUserSerializer()
     status_display = serializers.CharField(required=False, read_only=True, source='get_status_display')
+    stuck_reason_display = serializers.CharField(required=False, read_only=True, source='get_stuck_reason_display')
 
     class Meta:
         model = ProgressReport
@@ -937,6 +938,7 @@ class ProgressReportDetailsSerializer(serializers.ModelSerializer):
 class ProgressReportSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
     user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     status_display = serializers.CharField(required=False, read_only=True, source='get_status_display')
+    stuck_reason_display = serializers.CharField(required=False, read_only=True, source='get_stuck_reason_display')
     uploads = UploadSerializer(required=False, read_only=True, many=True)
 
     class Meta:

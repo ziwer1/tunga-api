@@ -40,7 +40,9 @@ from tunga_utils.constants import CURRENCY_EUR, CURRENCY_USD, USER_TYPE_DEVELOPE
     TASK_SCOPE_ONGOING, TASK_BILLING_METHOD_FIXED, TASK_BILLING_METHOD_HOURLY, TASK_SCOPE_PROJECT, TASK_SOURCE_DEFAULT, \
     TASK_SOURCE_NEW_USER, PROGRESS_EVENT_TYPE_COMPLETE, STATUS_INITIAL, STATUS_APPROVED, STATUS_DECLINED, \
     STATUS_ACCEPTED, STATUS_REJECTED, STATUS_SUBMITTED, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, \
-    TASK_PAYMENT_METHOD_STRIPE, PROGRESS_REPORT_STATUS_BEHIND_BUT_PROGRESSING, PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK
+    TASK_PAYMENT_METHOD_STRIPE, PROGRESS_REPORT_STATUS_BEHIND_BUT_PROGRESSING, PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK, \
+    PROGRESS_REPORT_STUCK_REASON_ERROR, PROGRESS_REPORT_STUCK_REASON_POOR_DOC, PROGRESS_REPORT_STUCK_REASON_HARDWARE, \
+    PROGRESS_REPORT_STUCK_REASON_UNCLEAR_SPEC, PROGRESS_REPORT_STUCK_REASON_PERSONAL, PROGRESS_REPORT_STUCK_REASON_OTHER
 from tunga_utils.helpers import round_decimal, get_serialized_id, get_tunga_model, get_edit_token_header
 from tunga_utils.models import Upload, Rating
 from tunga_utils.validators import validate_btc_address
@@ -1107,6 +1109,15 @@ PROGRESS_REPORT_STATUS_CHOICES = (
     (PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK, 'Behind and Stuck')
 )
 
+PROGRESS_REPORT_STUCK_REASON_CHOICES = (
+    (PROGRESS_REPORT_STUCK_REASON_ERROR, 'Resolving an Error'),
+    (PROGRESS_REPORT_STUCK_REASON_POOR_DOC, 'Poor Documenatation'),
+    (PROGRESS_REPORT_STUCK_REASON_HARDWARE, 'Hardware problem'),
+    (PROGRESS_REPORT_STUCK_REASON_UNCLEAR_SPEC, 'Unclear specifications'),
+    (PROGRESS_REPORT_STUCK_REASON_PERSONAL, 'Personal Circumstances'),
+    (PROGRESS_REPORT_STUCK_REASON_OTHER, 'Other'),
+)
+
 
 @python_2_unicode_compatible
 class ProgressReport(models.Model):
@@ -1126,7 +1137,10 @@ class ProgressReport(models.Model):
     obstacles = models.TextField(blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
     stuck_reason = models.PositiveIntegerField(
-        validators=[MinValueValidator(0), MaxValueValidator(5)], blank=True, null=True
+        choices=PROGRESS_REPORT_STUCK_REASON_CHOICES,
+        help_text=','.join(
+            ['%s - %s' % (item[0], item[1]) for item in PROGRESS_REPORT_STUCK_REASON_CHOICES]),
+        blank=True, null=True
     )
     stuck_details = models.TextField(blank=True, null=True)
     started_at = models.DateTimeField(blank=True, null=True)
