@@ -239,7 +239,7 @@ class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
     applications = SimpleApplicationSerializer(many=True, source='application_set')
     participation = SimpleParticipationSerializer(many=True, source='participation_set')
     participation_shares = ParticipantShareSerializer(many=True, source='get_participation_shares')
-    active_participants = SimpleParticipationSerializer(many=True, source='active_participants')
+    active_participants = SimpleParticipationSerializer(many=True)
     pm = SimpleUserSerializer()
     owner = SimpleUserSerializer()
 
