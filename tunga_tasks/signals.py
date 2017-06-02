@@ -12,7 +12,8 @@ from tunga_tasks.models import Task, Application, Participation, ProgressEvent, 
 from tunga_tasks.notifications import notify_new_task_application, send_new_task_invitation_email, \
     notify_task_invitation_response, \
     send_task_application_not_selected_email, notify_new_progress_report, notify_task_approved, notify_estimate_status_email, \
-    notify_task_application_response, notify_new_task_admin, notify_new_task, possibly_trigger_schedule_call_automation
+    notify_task_application_response, notify_new_task_admin, notify_new_task, possibly_trigger_schedule_call_automation, \
+    notify_new_progress_report_slack
 from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates, \
     complete_harvest_integration, create_hubspot_deal_task
 from tunga_utils import hubspot_utils
@@ -181,6 +182,8 @@ def activity_handler_progress_report(sender, instance, created, **kwargs):
         action.send(instance.user, verb=verbs.REPORT, action_object=instance, target=instance.event)
 
         notify_new_progress_report.delay(instance.id)
+    else:
+        notify_new_progress_report_slack.delay(instance.id, updated=True)
 
 
 @receiver(post_save, sender=Integration)

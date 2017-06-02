@@ -862,7 +862,7 @@ def notify_new_progress_report_email(instance):
 
 
 @job
-def notify_new_progress_report_slack(instance):
+def notify_new_progress_report_slack(instance, updated=False):
     instance = clean_instance(instance, ProgressReport)
 
     is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
@@ -872,8 +872,9 @@ def notify_new_progress_report_slack(instance):
         return
 
     report_url = '%s/work/%s/event/%s/' % (TUNGA_URL, instance.event.task_id, instance.event_id)
-    slack_msg = "{} submitted a {} | {}".format(
+    slack_msg = "{} {} a {} | {}".format(
         instance.user.display_name,
+        updated and 'updated' or 'submitted',
         is_client_report and "Weekly Survey" or "Progress Report",
         '<{}|View details on Tunga>'.format(report_url)
     )
@@ -981,7 +982,7 @@ def notify_new_progress_report_slack(instance):
         if instance.stuck_reason:
             attachments.append({
                 slack_utils.KEY_TITLE: 'Reason for being stuck:',
-                slack_utils.KEY_TEXT: convert_to_text(instance.stuck_reason),
+                slack_utils.KEY_TEXT: convert_to_text(instance.get_stuck_reason_display()),
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
             })
@@ -1041,21 +1042,21 @@ def notify_new_progress_report_slack(instance):
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
             })
-    if is_pm_or_client_report:
-        if instance.remarks:
-            attachments.append({
-                slack_utils.KEY_TITLE: 'Other remarks or questions',
-                slack_utils.KEY_TEXT: convert_to_text(instance.remarks),
-                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
-            })
-    if is_pm_or_client_report:
-        slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
-            slack_utils.KEY_TEXT: slack_msg,
-            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
-            slack_utils.KEY_ATTACHMENTS: attachments
+    if instance.remarks:
+        attachments.append({
+            slack_utils.KEY_TITLE: 'Other remarks or questions',
+            slack_utils.KEY_TEXT: convert_to_text(instance.remarks),
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
         })
-    else:
+
+    # All reports go to Tunga #updates Slack
+    slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
+        slack_utils.KEY_TEXT: slack_msg,
+        slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
+        slack_utils.KEY_ATTACHMENTS: attachments
+    })
+    if not is_pm_or_client_report:
         slack_utils.send_integration_message(instance.event.task, message=slack_msg, attachments=attachments)
 
 
