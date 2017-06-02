@@ -14,7 +14,7 @@
         Was this week deadline met?: {% if report.this_week_deadline_met %}Yes{% else %}No{% endif %}
     </p>
     
-    {% if report.pm_deadline_informed %}
+    {% if report.pm_deadline_informed != None %}
     <p>
         Did the project manager/developer(s) inform you promptly about not making the deadline?:<br/>
         {% if report.pm_deadline_informed %}Yes{% else %}No{% endif %}

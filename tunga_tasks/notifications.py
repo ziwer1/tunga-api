@@ -895,13 +895,9 @@ def notify_new_progress_report_slack(instance, updated=False):
             slack_text_suffix += '\n*Was this week deadline met?:* {}'.format(
                 instance.this_week_deadline_met and 'Yes' or 'No'
             )
-        if instance.rate_deliverables is not None:
-            slack_text_suffix += '\n*Rate Deliverables:* {}/5'.format(
-                instance.rate_deliverables
-            )
-        if instance.pm_communication is not None:
-            slack_text_suffix += '\n*Is communication going well?:* {}'.format(
-                instance.pm_communication and 'Yes' or 'No'
+        if instance.deliverable_satisfaction is not None:
+            slack_text_suffix += '\n*Are you satisfied with the deliverables?:* {}'.format(
+                instance.deliverable_satisfaction and 'Yes' or 'No'
             )
     attachments = [
         {
@@ -950,24 +946,17 @@ def notify_new_progress_report_slack(instance, updated=False):
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
             })
     if is_client_report:
-        if instance.pm_deadline_informed:
+        if instance.pm_deadline_informed is not None:
             attachments.append({
                 slack_utils.KEY_TITLE: 'Did the project manager/developer(s) inform you promptly about not making the deadline?',
                 slack_utils.KEY_TEXT: '{}'.format(instance.pm_deadline_informed and 'Yes' or 'No'),
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
             })
-        if instance.deliverable_satisfaction:
-            attachments.append({
-                slack_utils.KEY_TITLE: 'Are you satisfied with the deliverables?',
-                slack_utils.KEY_TEXT: '{}'.format(instance.deliverable_satisfaction and 'Yes' or 'No'),
-                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
-            })
         if instance.rate_deliverables:
             attachments.append({
-                slack_utils.KEY_TITLE: 'How would you rate the deliverables on a scale from 1 to 10?',
-                slack_utils.KEY_TEXT: '{}/10'.format(instance.rate_deliverables),
+                slack_utils.KEY_TITLE: 'How would you rate the deliverables on a scale from 1 to 5?',
+                slack_utils.KEY_TEXT: '{}/5'.format(instance.rate_deliverables),
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
             })
