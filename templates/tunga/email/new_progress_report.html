@@ -17,7 +17,7 @@
     {% if report.stuck_reason %}
     <p>
         Reason for being stuck:<br/>
-        {{ report.stuck_reason }}
+        {{ report.get_stuck_reason_display }}
     </p>
     {% endif %}
 
@@ -69,6 +69,13 @@
     {% if report.deadline_deliverable_rate %}
         <p>
             Rate Deliverables at deadline: {{ report.deadline_deliverable_rate }}/5
+        </p>
+    {% endif %}
+
+    {% if report.remarks %}
+        <p>
+            Remarks:<br/>
+            {{ report.remarks }}
         </p>
     {% endif %}
 
