@@ -841,7 +841,7 @@ class ProgressReportViewSet(viewsets.ModelViewSet):
     filter_class = ProgressReportFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (ProgressReportFilterBackend,)
     search_fields = (
-        '^user__username', '^user__first_name', '^user__last_name', 'accomplished', 'next_steps', 'remarks',
+        '^user__username', '^user__first_name', '^user__last_name', 'accomplished', 'todo', 'remarks',
         'event__task__title', 'event__task__skills__name'
     )
 

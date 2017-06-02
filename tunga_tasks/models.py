@@ -1123,6 +1123,8 @@ PROGRESS_REPORT_STUCK_REASON_CHOICES = (
 class ProgressReport(models.Model):
     event = models.ForeignKey(ProgressEvent, on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
+
+    # Status details
     status = models.PositiveSmallIntegerField(
         choices=PROGRESS_REPORT_STATUS_CHOICES,
         help_text=','.join(
@@ -1133,7 +1135,7 @@ class ProgressReport(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)], blank=True, null=True
     )
     accomplished = models.TextField(blank=True, null=True)
-    next_steps = models.TextField(blank=True, null=True)
+    todo = models.TextField(blank=True, null=True)
     obstacles = models.TextField(blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
     stuck_reason = models.PositiveIntegerField(
@@ -1143,30 +1145,29 @@ class ProgressReport(models.Model):
         blank=True, null=True
     )
     stuck_details = models.TextField(blank=True, null=True)
-    started_at = models.DateTimeField(blank=True, null=True)
-    next_deadline_meet = models.NullBooleanField(blank=True, null=True)
-    next_deadline_fail_reason = models.TextField(blank=True, null=True)
-    today_to_dos = models.TextField(blank=True, null=True)
-    deadline_deliverable_rate = models.PositiveIntegerField(
-        validators=[MinValueValidator(0), MaxValueValidator(10)], blank=True, null=True
-    )
 
-    # PMs only
-    last_deadline_met = models.NullBooleanField(blank=True, null=True)
-    deadline_report = models.TextField(blank=True, null=True)
-    team_appraisal = models.TextField(blank=True, null=True)
-    next_deadline = models.DateTimeField(blank=True, null=True)
-
-    # Clients only
+    # Deliverables
     rate_deliverables = models.PositiveIntegerField(
         validators=[MinValueValidator(0), MaxValueValidator(10)], blank=True, null=True
     )
+
+    # Deadline Info
+    started_at = models.DateTimeField(blank=True, null=True)
+    last_deadline_met = models.NullBooleanField(blank=True, null=True)
+    deadline_miss_communicated = models.NullBooleanField(blank=True, null=True)
+    deadline_report = models.TextField(blank=True, null=True)
+    next_deadline = models.DateTimeField(blank=True, null=True)
+    next_deadline_meet = models.NullBooleanField(blank=True, null=True)
+    next_deadline_fail_reason = models.TextField(blank=True, null=True)
+
+    # PMs only
+    team_appraisal = models.TextField(blank=True, null=True)
+
+    # Clients only
+    deliverable_satisfaction = models.NullBooleanField(blank=True, null=True)
     rate_communication = models.PositiveIntegerField(
         validators=[MinValueValidator(0), MaxValueValidator(10)], blank=True, null=True
     )
-    this_week_deadline_met = models.NullBooleanField(blank=True, null=True)
-    pm_deadline_informed = models.NullBooleanField(blank=True, null=True)
-    deliverable_satisfaction = models.NullBooleanField(blank=True, null=True)
     pm_communication = models.NullBooleanField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)

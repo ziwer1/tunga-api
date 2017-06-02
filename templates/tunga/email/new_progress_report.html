@@ -59,16 +59,16 @@
         Percentage Completed: {{ report.percentage | default:'0' }}%
     </p>
 
-    {% if report.today_to_dos %}
+    {% if report.todo %}
     <p>
-        what do you intend to achieve/complete today?:<br/>
-        {{ report.today_to_dos }}
+        What do you intend to achieve/complete today?:<br/>
+        {{ report.todo }}
     </p>
     {% endif %}
 
-    {% if report.deadline_deliverable_rate %}
+    {% if report.rate_deliverables %}
         <p>
-            Rate Deliverables at deadline: {{ report.deadline_deliverable_rate }}/5
+            Rate Deliverables: {{ report.rate_deliverables }}/5
         </p>
     {% endif %}
 

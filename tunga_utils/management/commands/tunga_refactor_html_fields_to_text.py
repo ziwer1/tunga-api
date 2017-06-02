@@ -66,7 +66,7 @@ class Command(BaseCommand):
         progress_reports = ProgressReport.objects.all()
         for item in progress_reports:
             item.accomplished = convert_to_text(item.accomplished)
-            item.next_steps = convert_to_text(item.next_steps)
+            item.todo = convert_to_text(item.todo)
             item.obstacles = convert_to_text(item.obstacles)
             item.remarks = convert_to_text(item.remarks)
             item.save()

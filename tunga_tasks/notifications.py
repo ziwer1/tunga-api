@@ -891,9 +891,9 @@ def notify_new_progress_report_slack(instance, updated=False):
         if is_pm_report and instance.next_deadline is not None:
             slack_text_suffix += '\n*Next deadline:* {}'.format(instance.next_deadline.strftime("%d %b, %Y"))
     if is_client_report:
-        if instance.this_week_deadline_met is not None:
-            slack_text_suffix += '\n*Was this week deadline met?:* {}'.format(
-                instance.this_week_deadline_met and 'Yes' or 'No'
+        if instance.last_deadline_met is not None:
+            slack_text_suffix += '\n*Was the last deadline met?:* {}'.format(
+                instance.last_deadline_met and 'Yes' or 'No'
             )
         if instance.deliverable_satisfaction is not None:
             slack_text_suffix += '\n*Are you satisfied with the deliverables?:* {}'.format(
@@ -924,10 +924,10 @@ def notify_new_progress_report_slack(instance, updated=False):
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
             })
-        if instance.next_steps:
+        if instance.todo:
             attachments.append({
                 slack_utils.KEY_TITLE: 'What are the next next steps?',
-                slack_utils.KEY_TEXT: convert_to_text(instance.next_steps),
+                slack_utils.KEY_TEXT: convert_to_text(instance.todo),
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
             })
@@ -946,10 +946,10 @@ def notify_new_progress_report_slack(instance, updated=False):
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
             })
     if is_client_report:
-        if instance.pm_deadline_informed is not None:
+        if instance.deadline_miss_communicated is not None:
             attachments.append({
                 slack_utils.KEY_TITLE: 'Did the project manager/developer(s) inform you promptly about not making the deadline?',
-                slack_utils.KEY_TEXT: '{}'.format(instance.pm_deadline_informed and 'Yes' or 'No'),
+                slack_utils.KEY_TEXT: '{}'.format(instance.deadline_miss_communicated and 'Yes' or 'No'),
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
             })
@@ -1017,17 +1017,17 @@ def notify_new_progress_report_slack(instance, updated=False):
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
             })
-        if instance.today_to_dos:
+        if instance.todo:
             attachments.append({
                 slack_utils.KEY_TITLE: 'what do you intend to achieve/complete today?',
-                slack_utils.KEY_TEXT: convert_to_text(instance.today_to_dos),
+                slack_utils.KEY_TEXT: convert_to_text(instance.todo),
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
             })
-        if instance.deadline_deliverable_rate:
+        if instance.rate_deliverables:
             attachments.append({
-                slack_utils.KEY_TITLE: 'Rate Deliverables on deadline:',
-                slack_utils.KEY_TEXT: '{}/5'.format(instance.deadline_deliverable_rate),
+                slack_utils.KEY_TITLE: 'Rate Deliverables:',
+                slack_utils.KEY_TEXT: '{}/5'.format(instance.rate_deliverables),
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
             })
