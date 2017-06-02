@@ -17,7 +17,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import detail_route, api_view, permission_classes
 from rest_framework.exceptions import ValidationError, NotAuthenticated, PermissionDenied
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.renderers import StaticHTMLRenderer
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -34,15 +34,16 @@ from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBacke
     TimeEntryFilterBackend, ProjectFilterBackend, ProgressReportFilterBackend, \
     ProgressEventFilterBackend
 from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TimeEntryFilter, \
-    ProjectFilter, ProgressReportFilter, ProgressEventFilter, EstimateFilter, QuoteFilter
+    ProjectFilter, ProgressReportFilter, ProgressEventFilter, EstimateFilter, QuoteFilter, TaskPaymentFilter, \
+    ParticipantPaymentFilter
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent, \
-    Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice, Estimate, Quote
+    Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice, Estimate, Quote, ParticipantPayment
 from tunga_tasks.notifications import notify_task_invoice_request_email
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
     IntegrationSerializer, TaskPaySerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer, \
-    TaskPaymentSerializer
+    TaskPaymentSerializer, ParticipantPaymentSerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
 from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa, stripe_utils
@@ -835,6 +836,33 @@ class ProgressReportViewSet(viewsets.ModelViewSet):
     search_fields = (
         '^user__username', '^user__first_name', '^user__last_name', 'accomplished', 'next_steps', 'remarks',
         'event__task__title', 'event__task__skills__name'
+    )
+
+
+class TaskPaymentViewSet(viewsets.ModelViewSet):
+    """
+    Task Payment Resource
+    """
+    queryset = TaskPayment.objects.all()
+    serializer_class = TaskPaymentSerializer
+    permission_classes = [IsAdminUser]
+    filter_class = TaskPaymentFilter
+    search_fields = (
+        'task__title', '^task__user__username', '^task__user__first_name', '^task__user__last_name'
+    )
+
+
+class ParticipantPaymentViewSet(viewsets.ModelViewSet):
+    """
+    Participant Payment Resource
+    """
+    queryset = ParticipantPayment.objects.all()
+    serializer_class = ParticipantPaymentSerializer
+    permission_classes = [IsAdminUser]
+    filter_class = ParticipantPaymentFilter
+    search_fields = (
+        'source__task__title', '^source__task__user__username',
+        '^source__task__user__first_name', '^source__task__user__last_name'
     )
 
 
