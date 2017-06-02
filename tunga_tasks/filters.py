@@ -1,7 +1,7 @@
 import django_filters
 
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent, \
-    Estimate, Quote
+    Estimate, Quote, TaskPayment, ParticipantPayment
 from tunga_utils.filters import GenericDateFilterSet
 
 
@@ -91,3 +91,21 @@ class ProgressReportFilter(GenericDateFilterSet):
     class Meta:
         model = ProgressReport
         fields = ('user', 'event', 'task', 'event_type', 'status')
+
+
+class TaskPaymentFilter(GenericDateFilterSet):
+    user = django_filters.NumberFilter(name='task_user')
+    owner = django_filters.NumberFilter(name='task_owner')
+
+    class Meta:
+        model = TaskPayment
+        fields = ('task', 'ref', 'payment_type', 'btc_address', 'processed', 'paid', 'captured', 'user', 'owner')
+
+
+class ParticipantPaymentFilter(GenericDateFilterSet):
+    user = django_filters.NumberFilter(name='participant__user')
+    task = django_filters.NumberFilter(name='source__task')
+
+    class Meta:
+        model = ParticipantPayment
+        fields = ('participant', 'source', 'destination', 'ref', 'idem_key', 'status', 'user', 'task')

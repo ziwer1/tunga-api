@@ -1375,6 +1375,7 @@ TASK_PAYMENT_TYPE_CHOICES = (
     (TASK_PAYMENT_METHOD_BITCOIN, 'BitCoin')
 )
 
+
 @python_2_unicode_compatible
 class TaskPayment(models.Model):
     task = models.ForeignKey(Task)

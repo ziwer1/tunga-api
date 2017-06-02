@@ -16,7 +16,7 @@ from tunga_profiles.utils import profile_check
 from tunga_tasks import slugs
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, ProgressEvent, ProgressReport, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
-    TaskInvoice, Estimate, Quote, WorkActivity, WorkPlan, AbstractEstimate, MultiTaskPaymentKey, TaskPayment
+    TaskInvoice, Estimate, Quote, WorkActivity, WorkPlan, AbstractEstimate, TaskPayment, ParticipantPayment
 from tunga_tasks.notifications import notify_new_task
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
     task_integration, estimate_created, estimate_status_changed, quote_status_changed, quote_created, task_approved, \
@@ -64,7 +64,7 @@ class SimpleParticipationSerializer(ContentTypeAnnotatedModelSerializer):
 
     class Meta:
         model = Participation
-        exclude = ('created_at',)
+        exclude = ('created_at', 'user')
 
 
 class NestedWorkActivitySerializer(serializers.ModelSerializer):
@@ -239,6 +239,7 @@ class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
     applications = SimpleApplicationSerializer(many=True, source='application_set')
     participation = SimpleParticipationSerializer(many=True, source='participation_set')
     participation_shares = ParticipantShareSerializer(many=True, source='get_participation_shares')
+    active_participants = SimpleParticipationSerializer(many=True, source='active_participants')
     owner = SimpleUserSerializer()
     pm = SimpleUserSerializer()
 
@@ -247,7 +248,8 @@ class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
         fields = (
             'project', 'is_project', 'parent',
             'amount', 'skills', 'applications',
-            'participation', 'participation_shares', 'owner', 'pm'
+            'participation', 'participation_shares', 'active_participants',
+            'owner', 'pm'
         )
 
 
@@ -1096,8 +1098,34 @@ class SimpleIntegrationActivitySerializer(ContentTypeAnnotatedModelSerializer):
         return None
 
 
-class TaskPaymentSerializer(serializers.ModelSerializer):
+class TaskPaymentDetailsSerializer(ContentTypeAnnotatedModelSerializer):
+    task = SimpleTaskSerializer()
+
+    class Meta:
+        model = TaskPayment
+        fields = ('task',)
+
+
+class TaskPaymentSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
 
     class Meta:
         model = TaskPayment
         fields = '__all__'
+        details_serializer = TaskPaymentDetailsSerializer
+
+
+class ParticipantPaymentDetailsSerializer(ContentTypeAnnotatedModelSerializer):
+    source = TaskPaymentSerializer()
+    participant = SimpleParticipationSerializer()
+
+    class Meta:
+        model = ParticipantPayment
+        fields = ('source', 'participant')
+
+
+class ParticipantPaymentSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
+
+    class Meta:
+        model = ParticipantPayment
+        fields = '__all__'
+        details_serializer = ParticipantPaymentDetailsSerializer
