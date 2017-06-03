@@ -936,7 +936,7 @@ def notify_new_progress_report_slack(instance, updated=False):
             })
         if instance.pm_communication:
             attachments.append({
-                slack_utils.KEY_TITLE: 'Is the communication between you and the project manager/clients going well?',
+                slack_utils.KEY_TITLE: 'Is the communication between you and the project manager/developer(s) going well?',
                 slack_utils.KEY_TEXT: '{}'.format(instance.pm_communication and 'Yes' or 'No'),
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
