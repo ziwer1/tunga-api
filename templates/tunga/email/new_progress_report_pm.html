@@ -18,10 +18,30 @@
         Percentage Completed: {{ report.percentage | default:'0' }}%
     </p>
 
+    {% if report.stuck_reason %}
+        <p>
+            Reason for being stuck:<br/>
+            {{ report.get_stuck_reason_display }}
+        </p>
+    {% endif %}
+
+    {% if report.stuck_details %}
+        <p>
+            Explain Further why you are stuck/what should be done:<br/>
+            {{ report.stuck_details }}
+        </p>
+    {% endif %}
+
     <p>
         Was the last deadline met?: {% if report.last_deadline_met %}Yes{% else %}No{% endif %}
     </p>
 
+    {% if report.deadline_miss_communicated != None %}
+    <p>
+        Did the project manager/developer(s) inform you promptly about not making the deadline?:<br/>
+        {% if report.deadline_miss_communicated %}Yes{% else %}No{% endif %}
+    </p>
+    {% endif %}
 
     {% if report.deadline_report %}
         <p>
@@ -30,10 +50,20 @@
         </p>
     {% endif %}
 
-    <p>
-        Accomplished:<br/>
-        {{ report.accomplished }}
-    </p>
+
+
+    {% if report.accomplished %}
+        <p>
+        What has been accomplished since last update?<br/>
+            {{ report.accomplished }}
+        </p>
+    {% endif %}
+
+    {% if report.rate_deliverables %}
+        <p>
+            Rate Deliverables: {{ report.rate_deliverables }}/5
+        </p>
+    {% endif %}
 
     {% if report.todo %}
         <p>
@@ -46,6 +76,27 @@
         <p>
             Next deadline:<br/>
             {{ report.next_deadline | date:'jS F Y' }}
+        </p>
+    {% endif %}
+
+    {% if report.next_deadline_meet != None %}
+    <p>
+        Do you anticipate to meet this deadline?:<br/>
+        {% if report.next_deadline_meet %}Yes{% else %}No{% endif %}
+    </p>
+    {% endif %}
+
+    {% if report.next_deadline_fail_reason %}
+        <p>
+            Why will you not be able to make the next deadline?:<br/>
+            {{ report.next_deadline_fail_reason }}
+        </p>
+    {% endif %}
+
+    {% if report.obstacles %}
+        <p>
+            What obstacles are impeding your progress?:<br/>
+            {{ report.obstacles }}
         </p>
     {% endif %}
 

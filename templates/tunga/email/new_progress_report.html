@@ -59,11 +59,33 @@
         Percentage Completed: {{ report.percentage | default:'0' }}%
     </p>
 
-    {% if report.todo %}
-    <p>
-        What do you intend to achieve/complete today?:<br/>
-        {{ report.todo }}
-    </p>
+    {% if report.stuck_reason %}
+        <p>
+            Reason for being stuck:<br/>
+            {{ report.get_stuck_reason_display }}
+        </p>
+    {% endif %}
+
+    {% if report.stuck_details %}
+        <p>
+            Explain Further why you are stuck/what should be done:<br/>
+            {{ report.stuck_details }}
+        </p>
+    {% endif %}
+
+    {% if report.started_at %}
+        <p>
+            When did you start this sprint/task/project?<br/>
+            {{ report.started_at  | date:'jS F Y' }}
+        </p>
+    {% endif %}
+
+
+    {% if report.accomplished %}
+        <p>
+        What has been accomplished since last update?<br/>
+            {{ report.accomplished }}
+        </p>
     {% endif %}
 
     {% if report.rate_deliverables %}
@@ -71,6 +93,42 @@
             Rate Deliverables: {{ report.rate_deliverables }}/5
         </p>
     {% endif %}
+
+    {% if report.todo %}
+    <p>
+        What do you intend to achieve/complete today?:<br/>
+        {{ report.todo }}
+    </p>
+    {% endif %}
+
+    {% if report.next_deadline %}
+        <p>
+            Next deadline:<br/>
+            {{ report.next_deadline | date:'jS F Y' }}
+        </p>
+    {% endif %}
+
+    {% if report.next_deadline_meet != None %}
+    <p>
+        Do you anticipate to meet this deadline?:<br/>
+        {% if report.next_deadline_meet %}Yes{% else %}No{% endif %}
+    </p>
+    {% endif %}
+
+    {% if report.next_deadline_fail_reason %}
+        <p>
+            Why will you not be able to make the next deadline?:<br/>
+            {{ report.next_deadline_fail_reason }}
+        </p>
+    {% endif %}
+
+    {% if report.obstacles %}
+        <p>
+            What obstacles are impeding your progress?:<br/>
+            {{ report.obstacles }}
+        </p>
+    {% endif %}
+
 
     {% if report.remarks %}
         <p>

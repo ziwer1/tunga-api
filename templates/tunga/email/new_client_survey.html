@@ -10,18 +10,20 @@
 
     <p>{% if event.task.is_task %}Task{% else %}Project{% endif %}: {{ event.task.summary }}</p>
 
+    {% if report.last_deadline_met != None %}
     <p>
         Was this week deadline met?: {% if report.last_deadline_met %}Yes{% else %}No{% endif %}
     </p>
+    {% endif %}
     
     {% if report.deadline_miss_communicated != None %}
     <p>
-        Did the project manager/developer(s) inform you promptly about not making the deadline?:<br/>
+        Did you inform the client promptly about not making the deadline?:<br/>
         {% if report.deadline_miss_communicated %}Yes{% else %}No{% endif %}
     </p>
     {% endif %}
 
-    {% if report.deliverable_satisfaction %}
+    {% if report.deliverable_satisfaction != None %}
     <p>
         Are you satisfied with the deliverables?: {% if report.deliverable_satisfaction %}Yes{% else %}No{% endif %}
     </p>
@@ -33,7 +35,7 @@
         </p>
     {% endif %}
 
-    {% if report.pm_communication %}
+    {% if report.pm_communication != None %}
         <p>
             Is the communication between you and the project manager/clients going well?:<br/>
             {% if report.pm_communication %}Yes{% else %}No{% endif %}

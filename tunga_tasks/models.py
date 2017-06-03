@@ -1173,7 +1173,6 @@ class ProgressReport(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     uploads = GenericRelation(Upload, related_query_name='progress_reports')
 
-
     def __str__(self):
         return '{0} - {1}%'.format(self.event, self.percentage)
 

@@ -912,7 +912,7 @@ def notify_new_progress_report_slack(instance, updated=False):
 
     if instance.deadline_miss_communicated is not None:
         attachments.append({
-            slack_utils.KEY_TITLE: '{} promptly about not making the deadline?'.format(is_client_report and 'Did the project manager/developer(s) inform you' or 'Did you inform the client'),
+            slack_utils.KEY_TITLE: '{} promptly about not making the deadline?'.format(is_client_report and 'Did the project manager/ developer(s) inform you' or 'Did you inform the client'),
             slack_utils.KEY_TEXT: '{}'.format(instance.deadline_miss_communicated and 'Yes' or 'No'),
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
