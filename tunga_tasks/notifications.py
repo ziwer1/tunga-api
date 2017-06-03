@@ -868,6 +868,7 @@ def notify_new_progress_report_slack(instance, updated=False):
     is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
     is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
     is_pm_or_client_report = is_pm_report or is_client_report
+    is_dev_report = not is_pm_or_client_report
     if not (slack_utils.is_task_notification_enabled(instance.event.task, slugs.EVENT_PROGRESS) or is_pm_or_client_report):
         return
 
@@ -883,21 +884,21 @@ def notify_new_progress_report_slack(instance, updated=False):
     if not is_client_report:
         slack_text_suffix += '*Status:* {}\n*Percentage completed:* {}{}'.format(
                 instance.get_status_display(), instance.percentage, '%')
-    if is_pm_report:
-        if instance.last_deadline_met is not None:
-            slack_text_suffix += '\n*Was the last deadline met?:* {}'.format(
-                instance.last_deadline_met and 'Yes' or 'No'
-            )
-        if is_pm_report and instance.next_deadline is not None:
-            slack_text_suffix += '\n*Next deadline:* {}'.format(instance.next_deadline.strftime("%d %b, %Y"))
+    if instance.last_deadline_met is not None:
+        slack_text_suffix += '\n*Was the last deadline met?:* {}'.format(
+            instance.last_deadline_met and 'Yes' or 'No'
+        )
+    if instance.next_deadline:
+        slack_text_suffix += '\n*Next deadline:* {}'.format(instance.next_deadline.strftime("%d %b, %Y"))
     if is_client_report:
-        if instance.last_deadline_met is not None:
-            slack_text_suffix += '\n*Was the last deadline met?:* {}'.format(
-                instance.last_deadline_met and 'Yes' or 'No'
-            )
         if instance.deliverable_satisfaction is not None:
             slack_text_suffix += '\n*Are you satisfied with the deliverables?:* {}'.format(
                 instance.deliverable_satisfaction and 'Yes' or 'No'
+            )
+    if not is_pm_or_client_report:
+        if instance.stuck_reason:
+            slack_text_suffix += '\n*Reason for being stuck:*\n {}'.format(
+                convert_to_text(instance.get_stuck_reason_display())
             )
     attachments = [
         {
@@ -909,50 +910,23 @@ def notify_new_progress_report_slack(instance, updated=False):
         }
     ]
 
-    if is_pm_report and instance.deadline_report:
+    if instance.deadline_miss_communicated is not None:
+        attachments.append({
+            slack_utils.KEY_TITLE: '{} promptly about not making the deadline?'.format(is_client_report and 'Did the project manager/developer(s) inform you' or 'Did you inform the client'),
+            slack_utils.KEY_TEXT: '{}'.format(instance.deadline_miss_communicated and 'Yes' or 'No'),
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
+        })
+
+    if instance.deadline_report:
         attachments.append({
             slack_utils.KEY_TITLE: 'Report about the last deadline:',
             slack_utils.KEY_TEXT: convert_to_text(instance.deadline_report),
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
         })
-    if is_pm_report:
-        if instance.accomplished:
-            attachments.append({
-                slack_utils.KEY_TITLE: 'What has been accomplished since last update?',
-                slack_utils.KEY_TEXT: convert_to_text(instance.accomplished),
-                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
-            })
-        if instance.todo:
-            attachments.append({
-                slack_utils.KEY_TITLE: 'What are the next next steps?',
-                slack_utils.KEY_TEXT: convert_to_text(instance.todo),
-                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
-            })
-        if instance.obstacles:
-            attachments.append({
-                slack_utils.KEY_TITLE: 'What obstacles are impeding your progress?',
-                slack_utils.KEY_TEXT: convert_to_text(instance.obstacles),
-                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
-            })
-        if instance.team_appraisal:
-            attachments.append({
-                slack_utils.KEY_TITLE: 'Team appraisal:',
-                slack_utils.KEY_TEXT: convert_to_text(instance.team_appraisal),
-                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
-            })
+
     if is_client_report:
-        if instance.deadline_miss_communicated is not None:
-            attachments.append({
-                slack_utils.KEY_TITLE: 'Did the project manager/developer(s) inform you promptly about not making the deadline?',
-                slack_utils.KEY_TEXT: '{}'.format(instance.deadline_miss_communicated and 'Yes' or 'No'),
-                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
-            })
         if instance.rate_deliverables:
             attachments.append({
                 slack_utils.KEY_TITLE: 'How would you rate the deliverables on a scale from 1 to 5?',
@@ -967,15 +941,9 @@ def notify_new_progress_report_slack(instance, updated=False):
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
             })
-    if not is_pm_or_client_report:
-        if instance.stuck_reason:
-            attachments.append({
-                slack_utils.KEY_TITLE: 'Reason for being stuck:',
-                slack_utils.KEY_TEXT: convert_to_text(instance.get_stuck_reason_display()),
-                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
-            })
-        if instance.stuck_details:
+    else:
+        # Status
+        if instance.stuck_details is not None:
             attachments.append({
                 slack_utils.KEY_TITLE: 'Explain Further why you are stuck/what should be done:',
                 slack_utils.KEY_TEXT: convert_to_text(instance.stuck_details),
@@ -989,6 +957,33 @@ def notify_new_progress_report_slack(instance, updated=False):
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
             })
+
+        # Last
+        if instance.accomplished:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'What has been accomplished since last update?',
+                slack_utils.KEY_TEXT: convert_to_text(instance.accomplished),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
+            })
+        if instance.rate_deliverables:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'Rate Deliverables:',
+                slack_utils.KEY_TEXT: '{}/5'.format(instance.rate_deliverables),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
+            })
+
+        # Current
+        if instance.todo:
+            attachments.append({
+                slack_utils.KEY_TITLE: is_dev_report and 'What do you intend to achieve/complete today?' or 'What are the next next steps?',
+                slack_utils.KEY_TEXT: convert_to_text(instance.todo),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
+            })
+
+        # Next
         if instance.next_deadline:
             attachments.append({
                 slack_utils.KEY_TITLE: 'When is the next deadline?',
@@ -996,7 +991,7 @@ def notify_new_progress_report_slack(instance, updated=False):
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
             })
-        if instance.next_deadline_meet:
+        if instance.next_deadline_meet is not None:
             attachments.append({
                 slack_utils.KEY_TITLE: 'Do you anticipate to meet this deadline?',
                 slack_utils.KEY_TEXT: '{}'.format(instance.next_deadline_meet and 'Yes' or 'No'),
@@ -1010,27 +1005,23 @@ def notify_new_progress_report_slack(instance, updated=False):
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
             })
-        if instance.percentage:
+        if instance.obstacles:
             attachments.append({
-                slack_utils.KEY_TITLE: 'Percentage Completed',
-                slack_utils.KEY_TEXT: '{}%'.format(instance.percentage),
-                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
-            })
-        if instance.todo:
-            attachments.append({
-                slack_utils.KEY_TITLE: 'what do you intend to achieve/complete today?',
-                slack_utils.KEY_TEXT: convert_to_text(instance.todo),
-                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
-            })
-        if instance.rate_deliverables:
-            attachments.append({
-                slack_utils.KEY_TITLE: 'Rate Deliverables:',
-                slack_utils.KEY_TEXT: '{}/5'.format(instance.rate_deliverables),
+                slack_utils.KEY_TITLE: 'What obstacles are impeding your progress?',
+                slack_utils.KEY_TEXT: convert_to_text(instance.obstacles),
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
             })
+
+    if is_pm_report:
+        if instance.team_appraisal:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'Team appraisal:',
+                slack_utils.KEY_TEXT: convert_to_text(instance.team_appraisal),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
+            })
+
     if instance.remarks:
         attachments.append({
             slack_utils.KEY_TITLE: 'Other remarks or questions',
