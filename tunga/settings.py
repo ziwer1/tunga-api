@@ -323,9 +323,8 @@ SWAGGER_SETTINGS = {
 # Local
 TUNGA_NAME = 'Tunga'
 TUNGA_CONTACT_REQUEST_EMAIL_RECIPIENTS = ['bart@tunga.io']
-TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS = [
-    'bart@tunga.io', 'david@tunga.io', 'domieck@tunga.io', 'ernesto@tunga.io', 'eric@tunga.io'
-]
+TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS = ['bart@tunga.io', 'david@tunga.io', 'domieck@tunga.io', 'eric@tunga.io']
+TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS = ['ernesto@tunga.io'] + TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS
 TUNGA_SHARE_EMAIL = 'admin@tunga.io'
 TUNGA_SHARE_PERCENTAGE = 13
 TUNGA_URL = 'https://tunga.io'

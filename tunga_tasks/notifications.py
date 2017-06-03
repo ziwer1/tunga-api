@@ -12,7 +12,8 @@ from tunga.settings import TUNGA_URL, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, SLACK
     SLACK_ATTACHMENT_COLOR_RED, SLACK_ATTACHMENT_COLOR_GREEN, SLACK_ATTACHMENT_COLOR_NEUTRAL, \
     SLACK_ATTACHMENT_COLOR_BLUE, SLACK_DEVELOPER_INCOMING_WEBHOOK, SLACK_STAFF_INCOMING_WEBHOOK, \
     SLACK_STAFF_UPDATES_CHANNEL, SLACK_DEVELOPER_UPDATES_CHANNEL, SLACK_PMS_UPDATES_CHANNEL, \
-    MAILCHIMP_NEW_USER_AUTOMATION_WORKFLOW_ID, MAILCHIMP_NEW_USER_AUTOMATION_EMAIL_ID
+    MAILCHIMP_NEW_USER_AUTOMATION_WORKFLOW_ID, MAILCHIMP_NEW_USER_AUTOMATION_EMAIL_ID, \
+    TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS
 from tunga_auth.filterbackends import my_connections_q_filter
 from tunga_tasks import slugs
 from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport, Quote, Estimate
@@ -200,7 +201,7 @@ def notify_new_task_admin_email(instance, new_user=False, completed=False, call_
         instance.user.first_name, new_user and ' (New user)' or ''
     )
 
-    to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+    to = TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS  # Notified via Slack so limit receiving admins
     ctx = {
         'owner': instance.owner or instance.user,
         'task': instance,
