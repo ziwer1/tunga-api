@@ -944,7 +944,7 @@ def notify_new_progress_report_slack(instance, updated=False):
             })
     else:
         # Status
-        if instance.stuck_details is not None:
+        if instance.stuck_details:
             attachments.append({
                 slack_utils.KEY_TITLE: 'Explain Further why you are stuck/what should be done:',
                 slack_utils.KEY_TEXT: convert_to_text(instance.stuck_details),
