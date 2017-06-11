@@ -870,8 +870,9 @@ def notify_new_progress_report_slack(instance, updated=False):
     is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
     is_pm_or_client_report = is_pm_report or is_client_report
     is_dev_report = not is_pm_or_client_report
-    if not (slack_utils.is_task_notification_enabled(instance.event.task, slugs.EVENT_PROGRESS)):
-        return
+
+    #if not (slack_utils.is_task_notification_enabled(instance.event.task, slugs.EVENT_PROGRESS)):
+    #    return
 
     report_url = '%s/work/%s/event/%s/' % (TUNGA_URL, instance.event.task_id, instance.event_id)
     slack_msg = "{} {} a {} | {}".format(

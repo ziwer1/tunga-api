@@ -324,7 +324,7 @@ SWAGGER_SETTINGS = {
 TUNGA_NAME = 'Tunga'
 TUNGA_CONTACT_REQUEST_EMAIL_RECIPIENTS = ['bart@tunga.io']
 TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS = ['bart@tunga.io', 'david@tunga.io', 'domieck@tunga.io', 'eric@tunga.io']
-TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS = ['ernesto@tunga.io'] + TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS
+TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS = TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS
 TUNGA_SHARE_EMAIL = 'admin@tunga.io'
 TUNGA_SHARE_PERCENTAGE = 13
 TUNGA_URL = 'https://tunga.io'
@@ -383,7 +383,7 @@ SLACK_SCOPES = [
     'identify',
     'channels:history', 'channels:read', 'channels:write',
     'chat:write:bot', 'im:write',
-    'users:read', 'users.profile:read',
+    'users:read', 'users.profile:read', 'users:read.email'
     # 'bot'
 ]
 
