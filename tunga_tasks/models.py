@@ -850,7 +850,8 @@ ESTIMATE_STATUS_CHOICES = (
 @python_2_unicode_compatible
 class AbstractEstimate(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
-    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, blank=True, null=True)
+    title = models.CharField(max_length=200, blank=True, null=True)
     introduction = models.TextField()
     # Status
     status = models.CharField(

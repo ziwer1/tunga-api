@@ -116,7 +116,11 @@ MOBILE_MONEY_CC_CHOICES = (
 @python_2_unicode_compatible
 class UserProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    # Personal Info
     bio = models.TextField(blank=True, null=True)
+
+    # Contact Info
     country = CountryField(blank=True, null=True)
     city = tagulous.models.SingleTagField(to=City, blank=True, null=True)
     street = models.CharField(max_length=100, blank=True, null=True)
@@ -125,10 +129,11 @@ class UserProfile(models.Model):
     postal_address = models.CharField(max_length=100, blank=True, null=True)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
 
-    id_document = models.ImageField(upload_to='ids/%Y/%m/%d', blank=True, null=True)
-
+    # Professional Info
     skills = tagulous.models.TagField(to=Skill, blank=True)
 
+    # KYC
+    id_document = models.ImageField(upload_to='ids/%Y/%m/%d', blank=True, null=True)
     company = models.CharField(max_length=200, blank=True, null=True)
     website = models.URLField(blank=True, null=True)
     company_profile = models.TextField(blank=True, null=True)
@@ -136,6 +141,7 @@ class UserProfile(models.Model):
     vat_number = models.CharField(max_length=50, blank=True, null=True)
     company_reg_no = models.CharField(max_length=50, blank=True, null=True)
 
+    # Payment Information
     payment_method = models.CharField(
         max_length=30, choices=PAYMENT_METHOD_CHOICES,
         help_text=','.join(['%s - %s' % (item[0], item[1]) for item in PAYMENT_METHOD_CHOICES]),
@@ -148,6 +154,10 @@ class UserProfile(models.Model):
         help_text=','.join(['%s - %s' % (item[0], item[1]) for item in MOBILE_MONEY_CC_CHOICES]),
         blank=True, null=True)
     mobile_money_number = models.CharField(max_length=15, blank=True, null=True)
+
+    # Tax Information
+    tax_name = models.CharField(max_length=200, blank=True, null=True)
+    tax_percentage = models.FloatField(blank=True, null=True)
 
     def __str__(self):
         return self.user.get_short_name()
