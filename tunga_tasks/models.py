@@ -1553,3 +1553,18 @@ class TaskInvoice(models.Model):
     @property
     def summary(self):
         return self.number or '%s - Fee: %s' % (self.title, self.display_fee())
+
+
+@python_2_unicode_compatible
+class TaskInvoiceMeta(models.Model):
+    invoice = models.ForeignKey(Integration, on_delete=models.CASCADE)
+    meta_key = models.CharField(max_length=30)
+    meta_value = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return '%s | %s - %s' % (self.invoice, self.meta_key)
+
+    class Meta:
+        ordering = ['created_at']
