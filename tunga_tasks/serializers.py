@@ -197,6 +197,7 @@ class TaskPaySerializer(serializers.Serializer):
     user = InvoiceUserSerializer(required=False, read_only=True)
     payment_method = serializers.ChoiceField(choices=TASK_PAYMENT_METHOD_CHOICES, required=True)
     fee = serializers.DecimalField(max_digits=19, decimal_places=4)
+    withhold_tunga_fee = serializers.BooleanField(required=False, default=False)
 
 
 class TaskInvoiceSerializer(serializers.ModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
@@ -294,6 +295,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     invoice = TaskInvoiceSerializer(required=False, read_only=True)
     estimate = SimpleEstimateSerializer(required=False, read_only=True)
     quote = SimpleQuoteSerializer(required=False, read_only=True)
+    tunga_ratio_dev = serializers.DecimalField(max_digits=19, decimal_places=4)
+    tunga_ratio_pm = serializers.DecimalField(max_digits=19, decimal_places=4)
 
     class Meta:
         model = Task

@@ -221,7 +221,6 @@ class Task(models.Model):
     btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
     multi_task_payment = models.ForeignKey(MultiTaskPaymentKey, related_name='multi_tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
 
-    
     # Classification details
     type = models.IntegerField(choices=TASK_TYPE_CHOICES, default=TASK_TYPE_OTHER)  # Web, Mobile ...
     scope = models.IntegerField(choices=TASK_SCOPE_CHOICES, default=TASK_SCOPE_TASK)  # task, project or ongoing project
@@ -269,6 +268,10 @@ class Task(models.Model):
     )
     archived = models.BooleanField(default=False)
     reminded_complete_task = models.BooleanField(default=False)
+    withhold_tunga_fee = models.BooleanField(
+        default=False,
+        help_text='Only participant portion will be paid if True, and all money paid will be distributed to participants'
+    )
 
     # Significant event dates
     deadline = models.DateTimeField(blank=True, null=True)
@@ -655,7 +658,7 @@ class Task(models.Model):
             for data in participation_shares:
                 payment_shares.append({
                     'participant': data['participant'],
-                    'share': Decimal(data['share'])*Decimal(1 - self.tunga_ratio_dev)
+                    'share': Decimal(data['share'])*Decimal(self.withhold_tunga_fee and 1 or (1 - self.tunga_ratio_dev))
                 })
         return payment_shares
 
@@ -670,7 +673,7 @@ class Task(models.Model):
     def get_user_payment_share(self, participation_id):
         share = self.get_user_participation_share(participation_id=participation_id)
         if share:
-            return share*(Decimal(100 - self.tunga_percentage_dev) / Decimal(100))
+            return share*(Decimal(self.withhold_tunga_fee and 100 or (100 - self.tunga_percentage_dev)) / Decimal(100))
         return 0
 
 
@@ -1489,6 +1492,10 @@ class TaskInvoice(models.Model):
     btc_address = models.CharField(max_length=40, validators=[validate_btc_address])
     btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
     number = models.CharField(max_length=20, blank=True, null=True)
+    withhold_tunga_fee = models.BooleanField(
+        default=False,
+        help_text='Only participant portion will be paid if True, and all money paid will be distributed to participants'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

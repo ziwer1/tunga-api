@@ -228,6 +228,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
             fee = serializer.validated_data['fee']
             payment_method = serializer.validated_data['payment_method']
+            withhold_tunga_fee = serializer.validated_data['withhold_tunga_fee']
 
             if fee < task.pay:
                 raise ValidationError({
@@ -236,6 +237,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
             task.bid = fee
             task.payment_method = payment_method
+            task.withhold_tunga_fee = withhold_tunga_fee
 
             btc_price = coinbase_utils.get_btc_price(task.currency)
             task.btc_price = btc_price
@@ -271,7 +273,8 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                 developer=developer,
                 payment_method=task.payment_method,
                 btc_price=btc_price,
-                btc_address=task.btc_address
+                btc_address=task.btc_address,
+                withhold_tunga_fee=task.withhold_tunga_fee
             )
 
             if task.payment_method == TASK_PAYMENT_METHOD_BANK:
@@ -354,7 +357,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                         BITONIC_CONSUMER_KEY, BITONIC_CONSUMER_SECRET, BITONIC_ACCESS_TOKEN, BITONIC_TOKEN_SECRET,
                         callback_uri=callback, signature_type=SIGNATURE_TYPE_QUERY
                     )
-                    amount = task.pay
+                    amount = task.pay * (task.withhold_tunga_fee and (1 - task.tunga_ratio_dev) or 1)
                     increase_factor = 1 + (Decimal(BITONIC_PAYMENT_COST_PERCENTAGE)*Decimal(0.01))
                     q_string = urlencode({
                         'ext_data': task.summary.encode('utf-8'),
