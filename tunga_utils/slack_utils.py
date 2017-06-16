@@ -123,3 +123,15 @@ def send_slack_message(token, channel, message=None, attachments=None, author_na
         channel, message, attachments=attachments,
         as_user=False, username=author_name, icon_url=author_icon, link_names=1
     )
+
+
+def get_user_im_id(email, token):
+    slack_client = Slacker(token)
+    response = slack_client.users.list()
+    users = response.body['members']
+
+    for user in users:
+        if user['profile']['email'] == email:
+            for im in slack_client.im.list().body['ims']:
+                if im['user'] == user['id']:
+                    return im['id']
