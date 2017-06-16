@@ -135,3 +135,12 @@ def get_user_im_id(email, token):
             for im in slack_client.im.list().body['ims']:
                 if im['user'] == user['id']:
                     return im['id']
+
+def get_user_username(email, token):
+    slack_client = Slacker(token)
+    response = slack_client.users.list()
+    users = response.body['members']
+
+    for user in users:
+        if user['profile']['email'] == email:
+                    return '@%s' % user['name']
