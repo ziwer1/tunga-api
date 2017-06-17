@@ -152,10 +152,9 @@ def get_user_username(email, token):
     if response.body['ok']:
         if users:
             for user in users:
-                if user['profile']['email'] == email:
-                            return '@%s' % user['name']
-                else:
-                    return None
+                if 'email' in user['profile'] and user['profile']['email'] == email:
+                    return '@%s' % user['name']
+            return None
         else:
             return response
     else:
