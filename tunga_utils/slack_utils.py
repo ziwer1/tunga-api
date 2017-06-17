@@ -149,6 +149,14 @@ def get_user_username(email, token):
     response = slack_client.users.list()
     users = response.body['members']
 
-    for user in users:
-        if user['profile']['email'] == email:
-                    return '@%s' % user['name']
+    if response.body['ok']:
+        if users:
+            for user in users:
+                if user['profile']['email'] == email:
+                            return '@%s' % user['name']
+                else:
+                    return None
+        else:
+            return response
+    else:
+        return response
