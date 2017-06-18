@@ -75,7 +75,7 @@ def create_task_slack_msg(task, summary='', channel='#general', show_schedule=Tr
     if show_contacts:
         extra_details += '*Email*: {}\n'.format(task.user.email)
         if task.skype_id:
-            extra_details += '*Skype ID*: {}\n'.format(task.skype_id)
+            extra_details += '*Skype ID or Call URL*: {}\n'.format(task.skype_id)
     if extra_details:
         attachments.append({
             slack_utils.KEY_TEXT: extra_details,

@@ -22,7 +22,7 @@ from tunga_utils.constants import CURRENCY_BTC, PAYMENT_METHOD_BTC_WALLET, \
     STATUS_INITIATED, APP_INTEGRATION_PROVIDER_HARVEST, PROGRESS_EVENT_TYPE_COMPLETE, STATUS_ACCEPTED, \
     PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, TASK_PAYMENT_METHOD_BITCOIN
 from tunga_utils.helpers import clean_instance
-from tunga_utils.hubspot_utils import create_hubspot_deal
+from tunga_utils.hubspot_utils import create_or_update_hubspot_deal
 
 
 @job
@@ -491,7 +491,7 @@ def complete_harvest_integration(integration):
 
 
 @job
-def create_hubspot_deal_task(task, **kwargs):
+def create_or_update_hubspot_deal_task(task, **kwargs):
     print('Create deal', kwargs)
     task = clean_instance(task, Task)
-    create_hubspot_deal(task, **kwargs)
+    create_or_update_hubspot_deal(task, **kwargs)

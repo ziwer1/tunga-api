@@ -21,7 +21,7 @@ from tunga_tasks.models import Task, Application, Participation, TimeEntry, Prog
 from tunga_tasks.notifications import notify_new_task
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
     task_integration, estimate_created, estimate_status_changed, quote_status_changed, quote_created, task_approved, \
-    task_call_window_scheduled, task_fully_saved
+    task_call_window_scheduled, task_fully_saved, task_details_completed
 from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, USER_TYPE_PROJECT_OWNER, USER_SOURCE_TASK_WIZARD, \
     TASK_SCOPE_ONGOING, VISIBILITY_CUSTOM, TASK_SCOPE_TASK, TASK_SCOPE_PROJECT, TASK_SOURCE_NEW_USER, STATUS_INITIAL, \
     STATUS_ACCEPTED, STATUS_APPROVED, STATUS_DECLINED, STATUS_REJECTED, STATUS_SUBMITTED
@@ -413,6 +413,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         initial_closed = False
         initial_approved = False
         initial_schedule_call_start = None
+        initial_description = None
+
         new_user = None
         is_update = bool(instance)
 
@@ -420,6 +422,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             initial_apply = instance.apply
             initial_closed = instance.closed
             initial_approved = instance.approved
+            initial_schedule_call_start = instance.schedule_call_start
+            initial_description = instance.description
 
             if not instance.closed and validated_data.get('closed'):
                 validated_data['closed_at'] = datetime.datetime.utcnow()
@@ -474,9 +478,12 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                 instance.save()
                 task_approved.send(sender=Task, task=instance)
 
-            if instance.schedule_call_start and not initial_schedule_call_start and \
-                    not (current_user and current_user.is_authenticated()):
-                task_call_window_scheduled.send(sender=Task, task=instance)
+            if not (current_user and current_user.is_authenticated()):
+                if instance.schedule_call_start and not initial_schedule_call_start:
+                    task_call_window_scheduled.send(sender=Task, task=instance)
+
+                if instance.description and not initial_description:
+                    task_details_completed.send(sender=Task, task=instance)
 
             if initial_apply and not instance.apply:
                 task_applications_closed.send(sender=Task, task=instance)

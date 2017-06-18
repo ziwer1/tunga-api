@@ -100,18 +100,12 @@ def create_hubspot_deal_property(name, label, description, group_name, property_
     return None
 
 
-
-def create_hubspot_deal(task, trials=0, **kwargs):
+def create_or_update_hubspot_deal(task, trials=0, **kwargs):
     properties = []
     associatedVids = []
 
     client_vid = get_hubspot_contact_vid(task.user.email)
     associatedVids.append(client_vid)
-
-    deal_stage = kwargs.get(
-        KEY_DEALSTAGE,
-        task.source == TASK_SOURCE_NEW_USER and HUBSPOT_DEFAULT_DEAL_STAGE_NEW_USER or HUBSPOT_DEFAULT_DEAL_STAGE_MEMBER
-    )
 
     properties.extend(
         [
@@ -122,21 +116,36 @@ def create_hubspot_deal(task, trials=0, **kwargs):
             dict(
                 name=KEY_DEALURL,
                 value='{}/{}'.format(TUNGA_URL, task.id)
-            ),
-            dict(
-                name=KEY_DEALSTAGE,
-                value=deal_stage or KEY_VALUE_APPOINTMENT_SCHEDULED
-            ),
-            dict(
-                name=KEY_PIPELINE,
-                value=KEY_VALUE_DEFAULT
-            ),
-            dict(
-                name=KEY_DEALTYPE,
-                value=KEY_VALUE_NEWBUSINESS
             )
         ]
     )
+
+    if not task.hubspot_deal_id:
+        properties.extend(
+            [
+                dict(
+                    name=KEY_PIPELINE,
+                    value=KEY_VALUE_DEFAULT
+                ),
+                dict(
+                    name=KEY_DEALTYPE,
+                    value=KEY_VALUE_NEWBUSINESS
+                )
+            ]
+        )
+
+    if KEY_DEALSTAGE in kwargs or not task.hubspot_deal_id:
+        deal_stage = kwargs.get(
+            KEY_DEALSTAGE,
+            task.source == TASK_SOURCE_NEW_USER and HUBSPOT_DEFAULT_DEAL_STAGE_NEW_USER or HUBSPOT_DEFAULT_DEAL_STAGE_MEMBER
+        )
+        properties.append(
+            dict(
+                name=KEY_DEALSTAGE,
+                value=deal_stage or KEY_VALUE_APPOINTMENT_SCHEDULED
+            )
+        )
+
     if task.pay:
         properties.append(
             dict(
@@ -209,7 +218,7 @@ def create_hubspot_deal(task, trials=0, **kwargs):
             group_name='dealinformation', property_type='datetime', field_type='date'
         )
         # Try again
-        return create_hubspot_deal(task, trials=trials+1)
+        return create_or_update_hubspot_deal(task, trials=trials + 1)
     return None
 
 

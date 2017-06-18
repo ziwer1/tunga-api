@@ -15,7 +15,7 @@ from tunga_tasks.notifications import notify_new_task_application, send_new_task
     notify_task_application_response, notify_new_task_admin, notify_new_task, possibly_trigger_schedule_call_automation, \
     notify_new_progress_report_slack
 from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates, \
-    complete_harvest_integration, create_hubspot_deal_task
+    complete_harvest_integration, create_or_update_hubspot_deal_task
 from tunga_utils import hubspot_utils
 from tunga_utils.constants import APP_INTEGRATION_PROVIDER_HARVEST, STATUS_SUBMITTED, STATUS_APPROVED, STATUS_DECLINED, \
     STATUS_ACCEPTED, STATUS_REJECTED, STATUS_INITIAL
@@ -24,6 +24,7 @@ from tunga_utils.constants import APP_INTEGRATION_PROVIDER_HARVEST, STATUS_SUBMI
 task_fully_saved = Signal(providing_args=["task", "new_user"])
 task_approved = Signal(providing_args=["task"])
 task_call_window_scheduled = Signal(providing_args=["task"])
+task_details_completed = Signal(providing_args=["task"])
 task_applications_closed = Signal(providing_args=["task"])
 task_closed = Signal(providing_args=["task"])
 
@@ -52,16 +53,17 @@ def activity_handler_new_task(sender, instance, created, **kwargs):
 
         initialize_task_progress_events.delay(instance.id)
 
-        create_hubspot_deal_task.delay(instance.id)
+    # Create or Update HubSpot deal
+    create_or_update_hubspot_deal_task.delay(instance.id)
 
 
 @receiver(task_fully_saved, sender=Task)
 def activity_handler_task_fully_saved(sender, task, new_user, **kwargs):
     notify_new_task.delay(task.id, new_user=new_user)
-    create_hubspot_deal_task.delay(task.id)
+    create_or_update_hubspot_deal_task.delay(task.id)
 
-    if new_user:
-        possibly_trigger_schedule_call_automation.delay(task.id)
+    # if new_user:
+    #    possibly_trigger_schedule_call_automation.delay(task.id)
 
 
 @receiver(task_approved, sender=Task)
@@ -69,7 +71,7 @@ def activity_handler_task_approved(sender, task, **kwargs):
     if task.approved and task.is_task:
         notify_task_approved.delay(task.id)
 
-        create_hubspot_deal_task.delay(task.id)
+    create_or_update_hubspot_deal_task.delay(task.id)
 
 
 @receiver(task_call_window_scheduled, sender=Task)
@@ -78,7 +80,16 @@ def activity_handler_call_window_scheduled(sender, task, **kwargs):
     notify_new_task_admin.delay(task.id, call_scheduled=True)
 
     # Update HubSpot deal stage
-    create_hubspot_deal_task.delay(task.id, **{hubspot_utils.KEY_DEALSTAGE: hubspot_utils.KEY_VALUE_APPOINTMENT_SCHEDULED})
+    create_or_update_hubspot_deal_task.delay(task.id, **{hubspot_utils.KEY_DEALSTAGE: hubspot_utils.KEY_VALUE_APPOINTMENT_SCHEDULED})
+
+
+@receiver(task_details_completed, sender=Task)
+def activity_handler_task_details_completed(sender, task, **kwargs):
+    # Notify admins of more task details
+    notify_new_task_admin.delay(task.id, completed=True)
+
+    # Update HubSpot deal stage
+    create_or_update_hubspot_deal_task.delay(task.id)
 
 
 @receiver(task_applications_closed, sender=Task)
