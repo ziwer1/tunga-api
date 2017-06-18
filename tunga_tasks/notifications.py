@@ -23,6 +23,8 @@ from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VIS
     STATUS_ACCEPTED, STATUS_REJECTED, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT
 from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance, convert_to_text
+from slacker import Slacker
+from tunga_utils.slack_utils import get_user_im_id, get_slack_token
 
 
 @job
@@ -769,6 +771,7 @@ def send_task_application_not_selected_email(instance):
 @job
 def remind_progress_event(instance):
     remind_progress_event_email(instance)
+    remind_progress_event_slack(instance)
 
 
 @job
@@ -827,6 +830,64 @@ def remind_progress_event_email(instance):
         ):
             instance.last_reminder_at = datetime.datetime.utcnow()
             instance.save()
+
+@job
+def remind_progress_event_slack(instance):
+    instance = clean_instance(instance, ProgressEvent)
+
+    is_pm_report = instance.type == PROGRESS_EVENT_TYPE_PM
+    is_client_report = instance.type == PROGRESS_EVENT_TYPE_CLIENT
+    is_pm_or_client_report = is_pm_report or is_client_report
+
+    if is_pm_report and not instance.task.is_project:
+        return
+
+    pm = instance.task.pm
+    if not pm and instance.task.user.is_project_manager:
+        pm = instance.task.user
+
+    if is_pm_report and not pm:
+        return
+
+    owner = instance.task.owner
+    if not owner:
+        owner = instance.task.user
+
+    if is_client_report and not owner:
+        return
+
+    text = is_client_report and "Weekly Survey" or "Upcoming {} \
+        Update. Link: {}/work/{}/event/{}/".format(instance.task.is_task and'Task' or 'Project',\
+        TUNGA_URL, instance.task.id, instance.id)
+
+    to_emails = []
+    if is_pm_report:
+        to_emails = [pm.email]
+
+    elif is_client_report:
+        to_emails = [owner.email]
+        if owner.email != instance.task.user.email:
+            to_emails.append(instance.task.user.email)
+
+    else:
+        participants = instance.task.participation_set.filter(status=STATUS_ACCEPTED)
+        if participants:
+            for participant in participants:
+                to_emails.append(participant.user.email)
+
+    im_ids = []
+    token = instance.task.slack_admin_token if not instance.task.slack_admin_token else get_slack_token('bart')
+    if to_emails:
+        for email in to_emails:
+            im_id = get_user_im_id(email, token)
+            if isinstance(im_id, basestring):
+                im_ids.append(im_id)
+
+    slack_client = Slacker(token)
+    if im_ids:
+        for im_id in im_ids:
+            slack_client.chat.post_message(im_id, text, 'Tunga Bot')
+
 
 
 @job
