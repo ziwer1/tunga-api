@@ -229,6 +229,9 @@ class Task(models.Model):
     contact_required = models.BooleanField(
         default=False, help_text='True if client chooses to be contacted for more info?'
     )
+    call_required = models.NullBooleanField(
+        null=True, help_text='True if client chooses to be called'
+    )
     skills = tagulous.models.TagField(Skill, blank=True)
     coders_needed = models.IntegerField(choices=TASK_CODERS_NEEDED_CHOICES, blank=True, null=True)
 

@@ -317,6 +317,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         has_requirements = attrs.get('is_project', None) or (self.instance and self.instance.has_requirements)
         coders_needed = attrs.get('coders_needed', None)
         pm_required = attrs.get('pm_required', None)
+        call_required = attrs.get('call_required', None)
 
         fee = attrs.get('fee', None)
         title = attrs.get('title', None)
@@ -365,13 +366,14 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                 if pm_required is None and not self.partial:
                     errors.update({'pm_required': 'This field is required.'})
         else:
-            if not email:
-                errors.update({'email': 'This field is required.'})
-            if not first_name:
-                errors.update({'first_name': 'This field is required.'})
-            if not last_name:
-                errors.update({'last_name': 'This field is required.'})
-            if self.instance:
+            if not self.instance:
+                if not email:
+                    errors.update({'email': 'This field is required.'})
+                if not first_name:
+                    errors.update({'first_name': 'This field is required.'})
+                if not last_name:
+                    errors.update({'last_name': 'This field is required.'})
+            if self.instance and call_required:
                 if not schedule_call_start:
                     errors.update({'schedule_call_start': 'Please select a day and start time.'})
                 if not schedule_call_end:
