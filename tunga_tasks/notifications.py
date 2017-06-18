@@ -856,9 +856,8 @@ def remind_progress_event_slack(instance):
     if is_client_report and not owner:
         return
 
-    text = is_client_report and "Weekly Survey" or "Upcoming {} \
-        Update. Link: {}/work/{}/event/{}/".format(instance.task.is_task and'Task' or 'Project',\
-        TUNGA_URL, instance.task.id, instance.id)
+    text = is_client_report and "Weekly Survey Link: {}/work/{}/event/{}/".format(TUNGA_URL, instance.task.id, instance.id)\
+             or "Upcoming {} Update. Link: {}/work/{}/event/{}/".format(instance.task.is_task and'Task' or 'Project',TUNGA_URL, instance.task.id, instance.id)
 
     to_emails = []
     if is_pm_report:
@@ -876,7 +875,7 @@ def remind_progress_event_slack(instance):
                 to_emails.append(participant.user.email)
 
     im_ids = []
-    token = instance.task.slack_admin_token if not instance.task.slack_admin_token else get_slack_token('bart')
+    token = instance.task.slack_admin_token if instance.task.slack_admin_token else get_slack_token('bart')
     if to_emails:
         for email in to_emails:
             im_id = get_user_im_id(email, token)
@@ -886,7 +885,7 @@ def remind_progress_event_slack(instance):
     slack_client = Slacker(token)
     if im_ids:
         for im_id in im_ids:
-            slack_client.chat.post_message(im_id, text, 'Tunga Bot')
+            slack_client.chat.post_message(im_id, text, 'Tunga Update')
 
 
 
