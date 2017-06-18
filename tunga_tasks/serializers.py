@@ -295,8 +295,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     invoice = TaskInvoiceSerializer(required=False, read_only=True)
     estimate = SimpleEstimateSerializer(required=False, read_only=True)
     quote = SimpleQuoteSerializer(required=False, read_only=True)
-    tunga_ratio_dev = serializers.DecimalField(max_digits=19, decimal_places=4)
-    tunga_ratio_pm = serializers.DecimalField(max_digits=19, decimal_places=4)
+    tunga_ratio_dev = serializers.DecimalField(max_digits=19, decimal_places=4, required=False, read_only=True)
+    tunga_ratio_pm = serializers.DecimalField(max_digits=19, decimal_places=4, required=False, read_only=True)
 
     class Meta:
         model = Task
