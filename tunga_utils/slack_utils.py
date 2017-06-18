@@ -127,18 +127,22 @@ def send_slack_message(token, channel, message=None, attachments=None, author_na
 
 def get_user_im_id(email, token):
     slack_client = Slacker(token)
-    response = slack_client.users.list()
-    users = response.body['members']
+    try:
+        response = slack_client.users.list()
+    except:
+        return None
+
 
     if response.body['ok']:
+        users = response.body['members']
+
         if users:
             for user in users:
-                if user['profile']['email'] == email:
+                if 'email' in user['profile'] and user['profile']['email'] == email:
                     for im in slack_client.im.list().body['ims']:
                         if im['user'] == user['id']:
                             return im['id']
-                else:
-                    return None
+            return None
         else:
             return response
     else:
@@ -146,10 +150,14 @@ def get_user_im_id(email, token):
 
 def get_user_username(email, token):
     slack_client = Slacker(token)
-    response = slack_client.users.list()
-    users = response.body['members']
+    try:
+        response = slack_client.users.list()
+    except:
+        return None
 
     if response.body['ok']:
+        users = response.body['members']
+
         if users:
             for user in users:
                 if 'email' in user['profile'] and user['profile']['email'] == email:
