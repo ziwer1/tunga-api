@@ -237,6 +237,12 @@ def activity_handler_estimate_status_changed(sender, estimate, **kwargs):
             action_user = estimate.reviewed_by
         action.send(action_user or estimate, verb=action_verb, action_object=estimate, target=estimate.task)
 
+    if estimate.status == STATUS_ACCEPTED:
+        task = estimate.task
+        task.approved = True
+        task.bid = estimate.fee
+        task.save()
+
     notify_estimate_status_email(estimate.id)
 
 
