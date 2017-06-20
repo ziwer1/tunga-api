@@ -792,7 +792,54 @@ class EstimateViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, DRYPermissions]
     filter_class = EstimateFilter
     #filter_backends = DEFAULT_FILTER_BACKENDS + (TimeEntryFilterBackend,)
-    search_fields = ('introduction', '^task__title')
+    search_fields = ('title', 'introduction', '^task__title')
+
+    @detail_route(
+        methods=['get'], url_path='download',
+        renderer_classes=[PDFRenderer, StaticHTMLRenderer],
+        permission_classes=[AllowAny]
+    )
+    def download_estimate(self, request, pk=None):
+        """
+        Download Estimate Endpoint
+        ---
+        omit_serializer: True
+        omit_parameters:
+            - query
+        """
+        current_url = '%s?%s' % (
+            reverse(request.resolver_match.url_name, kwargs={'pk': pk}),
+            urlencode(request.query_params)
+        )
+        login_url = '/signin?next=%s' % quote_plus(current_url)
+        if not request.user.is_authenticated():
+            return redirect(login_url)
+
+        estimate = get_object_or_404(self.get_queryset(), pk=pk)
+
+        try:
+            self.check_object_permissions(request, estimate)
+        except NotAuthenticated:
+            return redirect(login_url)
+        except PermissionDenied:
+            return HttpResponse("You do not have permission to access this estimate")
+
+        if estimate:
+            ctx = {
+                'user': request.user,
+                'estimate': estimate
+            }
+
+            rendered_html = render_to_string("tunga/pdf/estimate.html", context=ctx).encode(encoding="UTF-8")
+
+            if request.accepted_renderer.format == 'html':
+                return HttpResponse(rendered_html)
+
+            pdf_file = HTML(string=rendered_html, encoding='utf-8').write_pdf()
+            http_response = HttpResponse(pdf_file, content_type='application/pdf')
+            http_response['Content-Disposition'] = 'filename="estimate.pdf"'
+            return http_response
+        return HttpResponse("Could not generate the estimate, Please contact support@tunga.io")
 
 
 class QuoteViewSet(viewsets.ModelViewSet):
@@ -848,6 +895,7 @@ class ProgressReportViewSet(viewsets.ModelViewSet):
         'event__task__title', 'event__task__skills__name'
     )
 
+
 class MultiTaskPaymentKeyViewSet(viewsets.ModelViewSet):
     """
     Multi Task Payments Resource
@@ -855,8 +903,6 @@ class MultiTaskPaymentKeyViewSet(viewsets.ModelViewSet):
     queryset = MultiTaskPaymentKey.objects.all()
     serializer_class = MultiTaskPaymentKeySerializer
     permission_classes = [IsAuthenticated]
-
-
 
 
 class TaskPaymentViewSet(viewsets.ModelViewSet):

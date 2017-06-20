@@ -727,7 +727,11 @@ class AbstractEstimateDetailsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Estimate
-        fields = ('user', 'task', 'moderated_by', 'reviewed_by')
+        fields = (
+            'user', 'task', 'moderated_by', 'reviewed_by',
+            'dev_hours', 'pm_hours', 'hours',
+            'dev_fee', 'pm_fee', 'fee'
+        )
 
 
 class AbstractEstimateSerializer(
