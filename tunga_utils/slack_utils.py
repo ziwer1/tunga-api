@@ -123,3 +123,47 @@ def send_slack_message(token, channel, message=None, attachments=None, author_na
         channel, message, attachments=attachments,
         as_user=False, username=author_name, icon_url=author_icon, link_names=1
     )
+
+
+def get_user_im_id(email, token):
+    slack_client = Slacker(token)
+    try:
+        response = slack_client.users.list()
+    except:
+        return None
+
+
+    if response.body['ok']:
+        users = response.body['members']
+
+        if users:
+            for user in users:
+                if 'email' in user['profile'] and user['profile']['email'] == email:
+                    for im in slack_client.im.list().body['ims']:
+                        if im['user'] == user['id']:
+                            return im['id']
+            return None
+        else:
+            return response
+    else:
+        return response
+
+def get_user_username(email, token):
+    slack_client = Slacker(token)
+    try:
+        response = slack_client.users.list()
+    except:
+        return None
+
+    if response.body['ok']:
+        users = response.body['members']
+
+        if users:
+            for user in users:
+                if 'email' in user['profile'] and user['profile']['email'] == email:
+                    return '@%s' % user['name']
+            return None
+        else:
+            return response
+    else:
+        return response
