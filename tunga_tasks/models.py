@@ -11,6 +11,7 @@ from django.contrib.contenttypes.fields import GenericRelation, GenericForeignKe
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models.aggregates import Min
 from django.db.models.query_utils import Q
 from django.template.defaultfilters import floatformat, truncatewords
 from django.utils.crypto import get_random_string
@@ -568,6 +569,11 @@ class Task(models.Model):
     @property
     def active_participants(self):
         return self.subtask_participants_inclusive_filter.filter(status=STATUS_ACCEPTED)
+
+    @property
+    def started_at(self):
+        return self.subtask_participants_inclusive_filter.filter(status=STATUS_ACCEPTED).aggregate(
+            start_date=Min('activated_at'))['start_date']
 
     @property
     def assignee(self):
