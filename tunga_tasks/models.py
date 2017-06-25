@@ -576,6 +576,10 @@ class Task(models.Model):
             start_date=Min('activated_at'))['start_date']
 
     @property
+    def started(self):
+        return bool(self.started_at)
+
+    @property
     def assignee(self):
         try:
             return self.participation_set.get(
