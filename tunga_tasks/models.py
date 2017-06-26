@@ -252,9 +252,6 @@ class Task(models.Model):
     trello_board_url = models.URLField(blank=True, null=True)
     google_drive_url = models.URLField(blank=True, null=True)
     hubspot_deal_id = models.CharField(editable=False, null=True, max_length=12)
-
-    #Slack team info
-    slack_admin_token = models.CharField(max_length=200, blank=True, null=True)
     
     # Task state modifiers
     approved = models.BooleanField(
