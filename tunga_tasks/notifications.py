@@ -22,7 +22,9 @@ from tunga_tasks.utils import get_task_integration
 from tunga_utils import slack_utils, mailchimp_utils
 from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, \
     USER_TYPE_PROJECT_MANAGER, TASK_SOURCE_NEW_USER, STATUS_INITIAL, STATUS_SUBMITTED, STATUS_APPROVED, STATUS_DECLINED, \
-    STATUS_ACCEPTED, STATUS_REJECTED, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, APP_INTEGRATION_PROVIDER_SLACK
+    STATUS_ACCEPTED, STATUS_REJECTED, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, \
+    PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK, APP_INTEGRATION_PROVIDER_SLACK
+
 from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance, convert_to_text
 from tunga_utils.slack_utils import get_user_im_id
@@ -972,6 +974,105 @@ def create_progress_report_slack_message_deadline_missed(instance):
     return slack_msg, attachments
 
 
+@job
+def notify_parties_of_low_rating_email(instance):
+    instance = clean_instance(instance, ProgressReport)
+    is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
+
+    # if is_client_report and instance.event.rate_deliverables < 5:
+    if is_client_report:
+        subject = "Work Rating For {}".format(instance.event.task.title)
+        ctx = {
+            'owner': instance.task.owner or instance.task.user or instance.task.pm,
+            'event': instance,
+            'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.task.id, instance.id)
+        }
+        # send to client
+        if instance.task.owner:
+            to = [instance.event.task.owner.email]
+            email_template = 'notification_low_rating_client'
+            send_mail(
+                subject, 'tunga/email/{}'.format(email_template), to, ctx,
+                **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+            )
+        # send to pm
+        if instance.task.pm:
+            to = [instance.event.task.pm.email]
+            email_template = 'notification_low_rating_pm'
+            send_mail(
+                subject, 'tunga/email/{}'.format(email_template), to, ctx,
+                **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+            )
+        # send to user
+        if instance.task.user:
+            to = [instance.event.task.user.email]
+            email_template = 'notification_low_rating_user'
+            send_mail(
+                subject, 'tunga/email/{}'.format(email_template), to, ctx,
+                **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+            )
+
+
+@job
+def notify_pm_dev_when_stuck_email(instance):
+    instance = clean_instance(instance, ProgressReport)
+
+    is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
+    is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
+    is_pm_or_client_report = is_pm_report or is_client_report
+    is_dev_report = not is_pm_or_client_report
+
+    subject = "{} Follow Up on {}".format(instance.task.user.short_name, instance.event.task.title)
+    ctx = {
+        'owner': instance.task.owner or instance.task.user or instance.task.pm,
+        'event': instance,
+        'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.task.id, instance.id)
+    }
+
+    if is_pm_report:
+            to = [instance.event.task.pm.email]
+            email_template = 'follow_up_when_stuck_pm'
+    else:
+        if is_dev_report:
+            to = [instance.event.task.user.email]
+            email_template = 'follow_up_when_stuck_dev'
+
+    send_mail(
+        subject, 'tunga/email/{}'.format(email_template), to, ctx,
+        **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+    )
+
+
+@job
+def notify_dev_pm_on_failure_to_meet_deadline(instance):
+    instance = clean_instance(instance, ProgressReport)
+
+    is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
+    is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
+    is_pm_or_client_report = is_pm_report or is_client_report
+    is_dev_report = not is_pm_or_client_report
+
+    subject = "{} Follow Up on {}".format(instance.task.user.short_name, instance.event.task.title)
+    ctx = {
+        'owner': instance.task.owner or instance.task.user or instance.task.pm,
+        'event': instance,
+        'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.task.id, instance.id)
+    }
+    to = [instance.event.task.pm.email]
+
+    if is_pm_report:
+            email_template = 'follow_up_when_wont_meet_deadline_pm'
+    else:
+        if is_dev_report:
+            to.append(instance.event.task.user.email)
+            email_template = 'follow_up_when_wont_meet_deadline_dev'
+
+    send_mail(
+        subject, 'tunga/email/{}'.format(email_template), to, ctx,
+        **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+    )
+
+
 def create_progress_report_slack_message(instance, updated=False, to_client=False):
     is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
     is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
@@ -1144,7 +1245,6 @@ def create_progress_report_slack_message(instance, updated=False, to_client=Fals
         })
 
     return slack_msg, attachments
-
 
 
 @job
