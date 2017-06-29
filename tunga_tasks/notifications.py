@@ -914,6 +914,7 @@ def notify_new_progress_report_email(instance):
     is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
     is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
     is_pm_or_client_report = is_pm_report or is_client_report
+    is_dev_report = not is_pm_or_client_report
 
     subject = "{} submitted a {}".format(instance.user.display_name, is_client_report and "Weekly Survey" or "Progress Report")
 
@@ -933,6 +934,37 @@ def notify_new_progress_report_email(instance):
         subject, 'tunga/email/{}'.format(email_template), to, ctx,
         **dict(deal_ids=[instance.event.task.hubspot_deal_id])
     )
+
+    if not instance.last_deadline_met and (is_pm_report or is_dev_report):
+
+        participants_info = []
+        participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
+        if participants:
+            for participant in participants:
+                participants_info.append({participant.user.first_name:participant.user.email})
+
+        all_developers = ''
+        if participants_info:
+            for participant_info in participants_info:
+                for key, value in six.iteritems(participant_info):
+                        all_developers += '%s : %s | ' % (key, value)
+
+        subject = "A deadline has been missed on the {} project".format(instance.event.task.summary)
+        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+
+        ctx = {
+            'owner': instance.event.task.user,
+            'reporter': instance.user,
+            'event': instance.event,
+            'report': instance,
+            'developers': all_developers
+        }
+
+        email_template = 'deadline_missed'
+        send_mail(
+            subject, 'tunga/email/{}'.format(email_template), to, ctx,
+            **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+        )
 
 def create_progress_report_slack_message_deadline_missed(instance):
 
