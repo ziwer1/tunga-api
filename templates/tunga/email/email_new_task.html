@@ -58,6 +58,10 @@
     </p>
 
     {% if task.update_schedule_display %}<p>Update schedule: {{ task.update_schedule_display }}</p>{% endif %}
+    
+    {% if is_admin %}
+        <p>Developer(s):{% if developers %} {{ developers }} {% else %} None {% endif %}</p>
+    {% endif %}
 
     <p>
         Click the link below to view the task's details:<br/>

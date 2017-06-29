@@ -207,11 +207,27 @@ def notify_new_task_admin_email(instance, new_user=False, completed=False, call_
     )
 
     to = TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS  # Notified via Slack so limit receiving admins
+
+    participants_info = []
+    participants = instance.participation_set.filter(status=STATUS_ACCEPTED)
+    if participants:
+        for participant in participants:
+            participants_info.append({participant.user.first_name:participant.user.email})
+
+    all_developers = ''
+    if participants_info:
+        for participant_info in participants_info:
+            for key, value in six.iteritems(participant_info):
+                    all_developers += '%s : %s | ' % (key, value)
+
+
     ctx = {
         'owner': instance.owner or instance.user,
         'task': instance,
         'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id),
-        'completed_phrase': completed_phrase_body
+        'completed_phrase': completed_phrase_body,
+        'developers': all_developers,
+        'is_admin': True
     }
     send_mail(subject, 'tunga/email/email_new_task', to, ctx, **dict(deal_ids=[instance.hubspot_deal_id]))
 
