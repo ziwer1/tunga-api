@@ -75,7 +75,7 @@ def create_hubspot_contact(email=None, **kwargs):
 
 def get_hubspot_contact_vid(email):
     response = create_hubspot_contact(email)
-    if 'vid' in response:
+    if response and 'vid' in response:
         return response['vid']
     return
 
