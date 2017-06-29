@@ -237,8 +237,10 @@ class Task(models.Model):
     coders_needed = models.IntegerField(choices=TASK_CODERS_NEEDED_CHOICES, blank=True, null=True)
 
     # Update settings
-    update_interval = models.PositiveIntegerField(blank=True, null=True)
-    update_interval_units = models.PositiveSmallIntegerField(choices=UPDATE_SCHEDULE_CHOICES, blank=True, null=True)
+    update_interval = models.PositiveIntegerField(default=1)
+    update_interval_units = models.PositiveSmallIntegerField(
+        choices=UPDATE_SCHEDULE_CHOICES, default=UPDATE_SCHEDULE_DAILY
+    )
     survey_client = models.BooleanField(default=True)
 
     # Audience for the task
