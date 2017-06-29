@@ -1271,7 +1271,7 @@ def notify_new_progress_report_slack(instance, updated=False):
         slack_msg, attachments = create_progress_report_slack_message(instance, updated=updated, to_client=True)
         slack_utils.send_integration_message(instance.event.task, message=slack_msg, attachments=attachments)
 
-    if not instance.last_deadline_met:
+    if not instance.last_deadline_met and (is_pm_report or is_dev_report):
         slack_msg, attachments = create_progress_report_slack_message_deadline_missed(instance)
         slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
             slack_utils.KEY_TEXT: slack_msg,
