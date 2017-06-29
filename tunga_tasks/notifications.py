@@ -7,6 +7,7 @@ from django.db.models.aggregates import Sum
 from django.db.models.expressions import F
 from django.template.defaultfilters import truncatewords, floatformat
 from django_rq.decorators import job
+from django.utils import six
 
 from tunga.settings import TUNGA_URL, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, SLACK_ATTACHMENT_COLOR_TUNGA, \
     SLACK_ATTACHMENT_COLOR_RED, SLACK_ATTACHMENT_COLOR_GREEN, SLACK_ATTACHMENT_COLOR_NEUTRAL, \
@@ -931,6 +932,45 @@ def notify_new_progress_report_email(instance):
         **dict(deal_ids=[instance.event.task.hubspot_deal_id])
     )
 
+def create_progress_report_slack_message_deadline_missed(instance):
+
+    if instance.deadline_miss_communicated:
+        slack_msg = "A deadline has been missed on the _*%s*_ project. \
+            According to our system, this has been communicated between the stakeholders. \
+            Please check in with the stakeholders." % (instance.event.task.title)
+    else:
+        slack_msg = "A deadline has been missed on the _*%s*_ project. Please contact the stakeholders." % (instance.event.task.title)
+
+    participants_info = []
+    participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
+    if participants:
+        for participant in participants:
+            participants_info.append({participant.user.first_name:participant.user.email})
+
+    developers = '\nDeveloper(s):'
+    if participants_info:
+        for participant_info in participants_info:
+            for key, value in six.iteritems(participant_info):
+                    developers += '%s : %s | ' % (key, value)
+
+    slack_text_suffix = "Project owner: {}, {}".format(instance.event.task.user.first_name, instance.event.task.user.email)
+    
+    if instance.event.task.pm:
+        slack_text_suffix += "\nPM: {}, {}".format(instance.event.task.pm.first_name, instance.event.task.pm.email)
+
+    if participants_info:
+        slack_text_suffix += developers
+        
+    attachments = [
+        {
+            slack_utils.KEY_TEXT: slack_text_suffix,
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
+        }
+    ]
+
+    return slack_msg, attachments
+
 
 def create_progress_report_slack_message(instance, updated=False, to_client=False):
     is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
@@ -1130,6 +1170,14 @@ def notify_new_progress_report_slack(instance, updated=False):
         # Re-create report for clients
         slack_msg, attachments = create_progress_report_slack_message(instance, updated=updated, to_client=True)
         slack_utils.send_integration_message(instance.event.task, message=slack_msg, attachments=attachments)
+
+    if not instance.last_deadline_met:
+        slack_msg, attachments = create_progress_report_slack_message_deadline_missed(instance)
+        slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
+            slack_utils.KEY_ATTACHMENTS: attachments
+        })
 
 
 @job
