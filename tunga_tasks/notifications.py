@@ -506,7 +506,7 @@ def notify_estimate_approved_client_email(instance, estimate_type='estimate'):
 
 
 @job
-def send_new_task_invitation_email(instance):
+def notify_task_invitation_email(instance):
     instance = clean_instance(instance, Participation)
     subject = "Task invitation from {}".format(instance.created_by.first_name)
     to = [instance.user.email]
@@ -518,6 +518,29 @@ def send_new_task_invitation_email(instance):
     }
     send_mail(
         subject, 'tunga/email/email_new_task_invitation', to, ctx, **dict(deal_ids=[instance.task.hubspot_deal_id])
+    )
+
+@job
+def notify_task_invitation_project_owner_email(instance):
+    instance = clean_instance(instance, Task)
+    if not instance.owner:
+        return
+    subject = "{} invited you to a {}".format(instance.user.first_name, instance.is_task and 'task' or 'project')
+    to = [instance.owner.email]
+    ctx = {
+        'inviter': instance.user,
+        'invitee': instance.owner,
+        'task': instance,
+        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.id)
+    }
+
+    if not instance.owner.is_confirmed:
+        url_prefix = '{}/reset-password/confirm/{}/{}?new_user=true&next='.format(
+            TUNGA_URL, instance.owner.uid, instance.owner.generate_reset_token()
+        )
+        ctx['task_url'] = '{}{}'.format(url_prefix, ctx['task_url'])
+    send_mail(
+        subject, 'tunga/email/email_new_task_invitation_po', to, ctx, **dict(deal_ids=[instance.hubspot_deal_id])
     )
 
 
