@@ -1045,6 +1045,39 @@ def notify_new_progress_report_email(instance):
             **dict(deal_ids=[instance.event.task.hubspot_deal_id])
         )
 
+    if (is_pm_report or is_dev_report) and (instance.status == PROGRESS_REPORT_STATUS_STUCK or  instance.status == PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK):
+
+        subject = "Status has been reported Stuck on the {} project".format(instance.event.task.summary)
+        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+
+        if not all_developers:
+            participants_info = []
+            participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
+            if participants:
+                for participant in participants:
+                    participants_info.append({participant.user.first_name:participant.user.email})
+
+            if participants_info:
+                for participant_info in participants_info:
+                    for key, value in six.iteritems(participant_info):
+                            all_developers += '%s : %s | ' % (key, value)
+
+        ctx = {
+            'owner': instance.event.task.user,
+            'reporter': instance.user,
+            'event': instance.event,
+            'report': instance,
+            'developers': all_developers
+        }
+
+        email_template = 'email_project_status_stuck'
+        send_mail(
+            subject, 'tunga/email/{}'.format(email_template), to, ctx,
+            **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+        )
+
+
+
 def create_progress_report_slack_message_deadline_missed(instance):
 
     if instance.deadline_miss_communicated:
