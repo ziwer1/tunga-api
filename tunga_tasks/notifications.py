@@ -134,7 +134,7 @@ def create_task_slack_msg(task, summary='', channel='#general', show_schedule=Tr
         summary = "New {} created by {} | <{}|View on Tunga>".format(
             task.scope == TASK_SCOPE_TASK and 'task' or 'project',
             task.user.display_name, task_url)
-        
+
     return {
         slack_utils.KEY_TEXT: summary,
         slack_utils.KEY_CHANNEL: channel,
@@ -982,6 +982,8 @@ def notify_new_progress_report_email(instance):
         **dict(deal_ids=[instance.event.task.hubspot_deal_id])
     )
 
+    all_developers = ''
+
     if not instance.last_deadline_met and (is_pm_report or is_dev_report):
 
         participants_info = []
@@ -990,7 +992,6 @@ def notify_new_progress_report_email(instance):
             for participant in participants:
                 participants_info.append({participant.user.first_name:participant.user.email})
 
-        all_developers = ''
         if participants_info:
             for participant_info in participants_info:
                 for key, value in six.iteritems(participant_info):
@@ -1008,6 +1009,37 @@ def notify_new_progress_report_email(instance):
         }
 
         email_template = 'deadline_missed'
+        send_mail(
+            subject, 'tunga/email/{}'.format(email_template), to, ctx,
+            **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+        )
+
+    if is_client_report and instance.rate_deliverables and instance.rate_deliverables < 4 and deliverable_satisfaction:
+
+        subject = "A deadline has been missed on the {} project".format(instance.event.task.summary)
+        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+
+        if not all_developers:
+            participants_info = []
+            participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
+            if participants:
+                for participant in participants:
+                    participants_info.append({participant.user.first_name:participant.user.email})
+
+            if participants_info:
+                for participant_info in participants_info:
+                    for key, value in six.iteritems(participant_info):
+                            all_developers += '%s : %s | ' % (key, value)
+
+        ctx = {
+            'owner': instance.event.task.user,
+            'reporter': instance.user,
+            'event': instance.event,
+            'report': instance,
+            'developers': all_developers
+        }
+
+        email_template = 'email_deliverable_rating_below_standard'
         send_mail(
             subject, 'tunga/email/{}'.format(email_template), to, ctx,
             **dict(deal_ids=[instance.event.task.hubspot_deal_id])

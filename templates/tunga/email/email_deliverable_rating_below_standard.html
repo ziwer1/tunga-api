@@ -1,0 +1,22 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    Deliverables Rated below Standard on your {% if event.task.is_task %}task{% else %}project{% endif %}.
+{% endblock %}
+{% block email_content %}
+    <p>Hi,</p>
+
+    <p>
+        A client has rated the deliverable for the {{ event.task.summary }} project below standard.<br/>
+        Please contact the stakeholders.<br/>
+    </p>
+
+    <p>
+        Project owner: {{ owner.first_name }}, {{ owner.email }}<br/>
+        {% if event.task.pm %}
+            PM: {{ event.task.pm.first_name }}, {{ event.task.pm.email }}<br/>
+        {% endif %}
+        Developer(s): {{ developers }}<br/>
+    </p>
+
+{% endblock %}
