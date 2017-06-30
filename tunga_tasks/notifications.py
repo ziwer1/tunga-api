@@ -1014,7 +1014,7 @@ def notify_new_progress_report_email(instance):
             **dict(deal_ids=[instance.event.task.hubspot_deal_id])
         )
 
-    if is_client_report and instance.rate_deliverables and instance.rate_deliverables < 4 and deliverable_satisfaction:
+    if is_client_report and instance.rate_deliverables and instance.rate_deliverables < 4 and instance.deliverable_satisfaction:
 
         subject = "A deadline has been missed on the {} project".format(instance.event.task.summary)
         to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
@@ -1083,6 +1083,41 @@ def create_progress_report_slack_message_deadline_missed(instance):
     ]
 
     return slack_msg, attachments
+
+def create_progress_report_slack_message_deliverable_below_standard(instance):
+
+    slack_msg = "A client has rated the deliverable for the _*%s*_ project below standard. Please contact the stakeholders." % (instance.event.task.title)
+
+    participants_info = []
+    participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
+    if participants:
+        for participant in participants:
+            participants_info.append({participant.user.first_name:participant.user.email})
+
+    developers = '\nDeveloper(s):'
+    if participants_info:
+        for participant_info in participants_info:
+            for key, value in six.iteritems(participant_info):
+                    developers += '%s : %s | ' % (key, value)
+
+    slack_text_suffix = "Project owner: {}, {}".format(instance.event.task.user.first_name, instance.event.task.user.email)
+    
+    if instance.event.task.pm:
+        slack_text_suffix += "\nPM: {}, {}".format(instance.event.task.pm.first_name, instance.event.task.pm.email)
+
+    if participants_info:
+        slack_text_suffix += developers
+        
+    attachments = [
+        {
+            slack_utils.KEY_TEXT: slack_text_suffix,
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
+        }
+    ]
+
+    return slack_msg, attachments
+
 
 
 @job
@@ -1390,7 +1425,14 @@ def notify_new_progress_report_slack(instance, updated=False):
             slack_utils.KEY_ATTACHMENTS: attachments
         })
 
-
+    if is_client_report and instance.rate_deliverables and instance.rate_deliverables < 4 and instance.deliverable_satisfaction:
+        slack_msg, attachments = create_progress_report_slack_message_deliverable_below_standard(instance)
+        slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
+            slack_utils.KEY_ATTACHMENTS: attachments
+        })
+    
 @job
 def notify_task_invoice_request_email(instance):
     instance = clean_instance(instance, Task)
