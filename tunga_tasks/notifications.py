@@ -50,8 +50,23 @@ def possibly_trigger_schedule_call_automation(instance, wait=15*60):
         )
 
 
-def create_task_slack_msg(task, summary='', channel='#general', show_schedule=True, show_contacts=False):
+def create_task_slack_msg(task, summary='', channel='#general', show_schedule=True, show_contacts=False, is_admin=False):
     task_url = '{}/work/{}/'.format(TUNGA_URL, task.id)
+
+    if is_admin:
+        participants_info = []
+        participants = task.participation_set.filter(status=STATUS_ACCEPTED)
+        if participants:
+            for participant in participants:
+                participants_info.append({participant.user.first_name:participant.user.email})
+
+        developers = ''
+        if participants_info:
+            for participant_info in participants_info:
+                for key, value in six.iteritems(participant_info):
+                        developers += '%s : %s | ' % (key, value)
+
+
     attachments = [
         {
             slack_utils.KEY_TITLE: task.summary,
@@ -101,15 +116,31 @@ def create_task_slack_msg(task, summary='', channel='#general', show_schedule=Tr
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
         })
+    if is_admin and developers:
+        attachments.append({
+            slack_utils.KEY_TITLE: 'Developer(s)',
+            slack_utils.KEY_TEXT: developers,
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
+        })
+    if is_admin and not developers:
+        attachments.append({
+            slack_utils.KEY_TITLE: 'Developer(s)',
+            slack_utils.KEY_TEXT: 'None',
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
+        })
     if not summary:
         summary = "New {} created by {} | <{}|View on Tunga>".format(
             task.scope == TASK_SCOPE_TASK and 'task' or 'project',
             task.user.display_name, task_url)
+        
     return {
         slack_utils.KEY_TEXT: summary,
         slack_utils.KEY_CHANNEL: channel,
         slack_utils.KEY_ATTACHMENTS: attachments
     }
+    
 
 
 @job
@@ -250,7 +281,7 @@ def notify_new_task_admin_slack(instance, new_user=False, completed=False, call_
         instance.user.first_name, new_user and ' (New user)' or '',
         task_url
     )
-    slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_UPDATES_CHANNEL, show_contacts=True)
+    slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_UPDATES_CHANNEL, show_contacts=True, is_admin=True)
     slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, slack_msg)
 
 
