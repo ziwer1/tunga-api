@@ -1185,6 +1185,40 @@ def create_progress_report_slack_message_status_stuck(instance):
 
     return slack_msg, attachments
 
+def create_progress_report_slack_message_next_deadline_fail(instance):
+
+    slack_msg = "The developers/PM on the _*%s*_ project have indicated that they might not meet the coming deadline. Please contact the stakeholders." % (instance.event.task.title)
+
+    participants_info = []
+    participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
+    if participants:
+        for participant in participants:
+            participants_info.append({participant.user.first_name:participant.user.email})
+
+    developers = '\nDeveloper(s):'
+    if participants_info:
+        for participant_info in participants_info:
+            for key, value in six.iteritems(participant_info):
+                    developers += '%s : %s | ' % (key, value)
+
+    slack_text_suffix = "Project owner: {}, {}".format(instance.event.task.user.first_name, instance.event.task.user.email)
+    
+    if instance.event.task.pm:
+        slack_text_suffix += "\nPM: {}, {}".format(instance.event.task.pm.first_name, instance.event.task.pm.email)
+
+    if participants_info:
+        slack_text_suffix += developers
+        
+    attachments = [
+        {
+            slack_utils.KEY_TEXT: slack_text_suffix,
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
+        }
+    ]
+
+    return slack_msg, attachments
+
 
 
 
@@ -1504,6 +1538,14 @@ def notify_new_progress_report_slack(instance, updated=False):
 
     if (is_pm_report or is_dev_report) and (instance.status == PROGRESS_REPORT_STATUS_STUCK or  instance.status == PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK):
         slack_msg, attachments = create_progress_report_slack_message_status_stuck(instance)
+        slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
+            slack_utils.KEY_ATTACHMENTS: attachments
+        })
+
+    if (instance.next_deadline_meet and not instance.next_deadline_meet) and (is_pm_report or is_dev_report):
+        slack_msg, attachments = create_progress_report_slack_message_next_deadline_fail(instance)
         slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
             slack_utils.KEY_TEXT: slack_msg,
             slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
