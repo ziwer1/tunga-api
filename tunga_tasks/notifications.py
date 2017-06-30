@@ -23,7 +23,7 @@ from tunga_utils import slack_utils, mailchimp_utils
 from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, \
     USER_TYPE_PROJECT_MANAGER, TASK_SOURCE_NEW_USER, STATUS_INITIAL, STATUS_SUBMITTED, STATUS_APPROVED, STATUS_DECLINED, \
     STATUS_ACCEPTED, STATUS_REJECTED, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, \
-    PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK, APP_INTEGRATION_PROVIDER_SLACK
+    PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK, APP_INTEGRATION_PROVIDER_SLACK, PROGRESS_REPORT_STATUS_STUCK
 
 from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance, convert_to_text
@@ -1118,6 +1118,42 @@ def create_progress_report_slack_message_deliverable_below_standard(instance):
 
     return slack_msg, attachments
 
+def create_progress_report_slack_message_status_stuck(instance):
+
+    slack_msg = "The status for the _*%s*_ project has been classified as stuck. Please contact the stakeholders." % (instance.event.task.title)
+
+    participants_info = []
+    participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
+    if participants:
+        for participant in participants:
+            participants_info.append({participant.user.first_name:participant.user.email})
+
+    developers = '\nDeveloper(s):'
+    if participants_info:
+        for participant_info in participants_info:
+            for key, value in six.iteritems(participant_info):
+                    developers += '%s : %s | ' % (key, value)
+
+    slack_text_suffix = "Project owner: {}, {}".format(instance.event.task.user.first_name, instance.event.task.user.email)
+    
+    if instance.event.task.pm:
+        slack_text_suffix += "\nPM: {}, {}".format(instance.event.task.pm.first_name, instance.event.task.pm.email)
+
+    if participants_info:
+        slack_text_suffix += developers
+        
+    attachments = [
+        {
+            slack_utils.KEY_TEXT: slack_text_suffix,
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
+        }
+    ]
+
+    return slack_msg, attachments
+
+
+
 
 
 @job
@@ -1427,6 +1463,14 @@ def notify_new_progress_report_slack(instance, updated=False):
 
     if is_client_report and instance.rate_deliverables and instance.rate_deliverables < 4 and instance.deliverable_satisfaction:
         slack_msg, attachments = create_progress_report_slack_message_deliverable_below_standard(instance)
+        slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
+            slack_utils.KEY_ATTACHMENTS: attachments
+        })
+
+    if (is_pm_report or is_dev_report) and (instance.status == PROGRESS_REPORT_STATUS_STUCK or  instance.status == PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK):
+        slack_msg, attachments = create_progress_report_slack_message_status_stuck(instance)
         slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
             slack_utils.KEY_TEXT: slack_msg,
             slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
