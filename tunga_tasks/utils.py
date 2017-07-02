@@ -1,10 +1,11 @@
 import json
+from django.utils import six
 
 from allauth.socialaccount.providers.github.provider import GitHubProvider
 
 from tunga_profiles.utils import get_app_integration
 from tunga_tasks.models import Integration, IntegrationMeta
-from tunga_utils.constants import APP_INTEGRATION_PROVIDER_SLACK, APP_INTEGRATION_PROVIDER_HARVEST
+from tunga_utils.constants import APP_INTEGRATION_PROVIDER_SLACK, APP_INTEGRATION_PROVIDER_HARVEST, STATUS_ACCEPTED
 from tunga_utils.helpers import clean_meta_value, get_social_token, GenericObject
 
 
@@ -73,3 +74,20 @@ def save_integration_tokens(user, task_id, provider):
                 token_info.pop('token_secret')
                 token_info['refresh_token'] = app_integration.token_secret
     save_task_integration_meta(task_id, provider, token_info)
+
+def get_developers_contacts_list(task):
+
+    all_developers = ''
+    participants_info = []
+    participants = task.participation_set.filter(status=STATUS_ACCEPTED)
+
+    if participants:
+        for participant in participants:
+            participants_info.append({participant.user.first_name:participant.user.email})
+
+    if participants_info:
+        for participant_info in participants_info:
+            for key, value in six.iteritems(participant_info):
+                    all_developers += '%s : %s | ' % (key, value)
+
+    return all_developers
