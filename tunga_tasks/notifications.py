@@ -18,7 +18,7 @@ from tunga.settings import TUNGA_URL, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, SLACK
 from tunga_auth.filterbackends import my_connections_q_filter
 from tunga_tasks import slugs
 from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport, Quote, Estimate
-from tunga_tasks.utils import get_task_integration
+from tunga_tasks.utils import get_task_integration, get_developers_contacts_list
 from tunga_utils import slack_utils, mailchimp_utils
 from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, \
     USER_TYPE_PROJECT_MANAGER, TASK_SOURCE_NEW_USER, STATUS_INITIAL, STATUS_SUBMITTED, STATUS_APPROVED, STATUS_DECLINED, \
@@ -54,17 +54,7 @@ def create_task_slack_msg(task, summary='', channel='#general', show_schedule=Tr
     task_url = '{}/work/{}/'.format(TUNGA_URL, task.id)
 
     if is_admin:
-        participants_info = []
-        participants = task.participation_set.filter(status=STATUS_ACCEPTED)
-        if participants:
-            for participant in participants:
-                participants_info.append({participant.user.first_name:participant.user.email})
-
-        developers = ''
-        if participants_info:
-            for participant_info in participants_info:
-                for key, value in six.iteritems(participant_info):
-                        developers += '%s : %s | ' % (key, value)
+        developers = get_developers_contacts_list(task)
 
 
     attachments = [
@@ -239,18 +229,7 @@ def notify_new_task_admin_email(instance, new_user=False, completed=False, call_
 
     to = TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS  # Notified via Slack so limit receiving admins
 
-    participants_info = []
-    participants = instance.participation_set.filter(status=STATUS_ACCEPTED)
-    if participants:
-        for participant in participants:
-            participants_info.append({participant.user.first_name:participant.user.email})
-
-    all_developers = ''
-    if participants_info:
-        for participant_info in participants_info:
-            for key, value in six.iteritems(participant_info):
-                    all_developers += '%s : %s | ' % (key, value)
-
+    all_developers = get_developers_contacts_list(instance)
 
     ctx = {
         'owner': instance.owner or instance.user,
@@ -986,16 +965,7 @@ def notify_new_progress_report_email(instance):
 
     if not instance.last_deadline_met and (is_pm_report or is_dev_report):
 
-        participants_info = []
-        participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
-        if participants:
-            for participant in participants:
-                participants_info.append({participant.user.first_name:participant.user.email})
-
-        if participants_info:
-            for participant_info in participants_info:
-                for key, value in six.iteritems(participant_info):
-                        all_developers += '%s : %s | ' % (key, value)
+        all_developers = get_developers_contacts_list(instance.event.task)
 
         subject = "A deadline has been missed on the {} project".format(instance.event.task.summary)
         to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
@@ -1014,22 +984,13 @@ def notify_new_progress_report_email(instance):
             **dict(deal_ids=[instance.event.task.hubspot_deal_id])
         )
 
-    if is_client_report and instance.rate_deliverables and instance.rate_deliverables < 4 and instance.deliverable_satisfaction:
+    if is_client_report and instance.rate_deliverables > 1 and instance.rate_deliverables < 4 and instance.deliverable_satisfaction:
 
         subject = "A deadline has been missed on the {} project".format(instance.event.task.summary)
         to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
 
         if not all_developers:
-            participants_info = []
-            participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
-            if participants:
-                for participant in participants:
-                    participants_info.append({participant.user.first_name:participant.user.email})
-
-            if participants_info:
-                for participant_info in participants_info:
-                    for key, value in six.iteritems(participant_info):
-                            all_developers += '%s : %s | ' % (key, value)
+            all_developers = get_developers_contacts_list(instance.event.task)
 
         ctx = {
             'owner': instance.event.task.user,
@@ -1051,16 +1012,7 @@ def notify_new_progress_report_email(instance):
         to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
 
         if not all_developers:
-            participants_info = []
-            participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
-            if participants:
-                for participant in participants:
-                    participants_info.append({participant.user.first_name:participant.user.email})
-
-            if participants_info:
-                for participant_info in participants_info:
-                    for key, value in six.iteritems(participant_info):
-                            all_developers += '%s : %s | ' % (key, value)
+            all_developers = get_developers_contacts_list(instance.event.task)
 
         ctx = {
             'owner': instance.event.task.user,
@@ -1076,22 +1028,13 @@ def notify_new_progress_report_email(instance):
             **dict(deal_ids=[instance.event.task.hubspot_deal_id])
         )
 
-    if (instance.next_deadline_meet and not instance.next_deadline_meet) and (is_pm_report or is_dev_report):
+    if instance.next_deadline_meet == False and (is_pm_report or is_dev_report):
 
         subject = "The Next Deadline will not be met on the {} project".format(instance.event.task.summary)
         to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
 
         if not all_developers:
-            participants_info = []
-            participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
-            if participants:
-                for participant in participants:
-                    participants_info.append({participant.user.first_name:participant.user.email})
-
-            if participants_info:
-                for participant_info in participants_info:
-                    for key, value in six.iteritems(participant_info):
-                            all_developers += '%s : %s | ' % (key, value)
+            all_developers = get_developers_contacts_list(instance.event.task)
 
         ctx = {
             'owner': instance.event.task.user,
@@ -1107,37 +1050,18 @@ def notify_new_progress_report_email(instance):
             **dict(deal_ids=[instance.event.task.hubspot_deal_id])
         )
 
+def create_progress_report_slack_message_stakeholders_attachment(instance):
 
-
-def create_progress_report_slack_message_deadline_missed(instance):
-
-    if instance.deadline_miss_communicated:
-        slack_msg = "A deadline has been missed on the _*%s*_ project. \
-            According to our system, this has been communicated between the stakeholders. \
-            Please check in with the stakeholders." % (instance.event.task.title)
-    else:
-        slack_msg = "A deadline has been missed on the _*%s*_ project. Please contact the stakeholders." % (instance.event.task.title)
-
-    participants_info = []
-    participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
-    if participants:
-        for participant in participants:
-            participants_info.append({participant.user.first_name:participant.user.email})
-
-    developers = '\nDeveloper(s):'
-    if participants_info:
-        for participant_info in participants_info:
-            for key, value in six.iteritems(participant_info):
-                    developers += '%s : %s | ' % (key, value)
+    developers = get_developers_contacts_list(instance.event.task)
 
     slack_text_suffix = "Project owner: {}, {}".format(instance.event.task.user.first_name, instance.event.task.user.email)
-    
+
     if instance.event.task.pm:
         slack_text_suffix += "\nPM: {}, {}".format(instance.event.task.pm.first_name, instance.event.task.pm.email)
 
-    if participants_info:
-        slack_text_suffix += developers
-        
+    if developers:
+        slack_text_suffix += '\nDeveloper(s):' + developers
+
     attachments = [
         {
             slack_utils.KEY_TEXT: slack_text_suffix,
@@ -1146,112 +1070,7 @@ def create_progress_report_slack_message_deadline_missed(instance):
         }
     ]
 
-    return slack_msg, attachments
-
-def create_progress_report_slack_message_deliverable_below_standard(instance):
-
-    slack_msg = "A client has rated the deliverable for the _*%s*_ project below standard. Please contact the stakeholders." % (instance.event.task.title)
-
-    participants_info = []
-    participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
-    if participants:
-        for participant in participants:
-            participants_info.append({participant.user.first_name:participant.user.email})
-
-    developers = '\nDeveloper(s):'
-    if participants_info:
-        for participant_info in participants_info:
-            for key, value in six.iteritems(participant_info):
-                    developers += '%s : %s | ' % (key, value)
-
-    slack_text_suffix = "Project owner: {}, {}".format(instance.event.task.user.first_name, instance.event.task.user.email)
-    
-    if instance.event.task.pm:
-        slack_text_suffix += "\nPM: {}, {}".format(instance.event.task.pm.first_name, instance.event.task.pm.email)
-
-    if participants_info:
-        slack_text_suffix += developers
-        
-    attachments = [
-        {
-            slack_utils.KEY_TEXT: slack_text_suffix,
-            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
-        }
-    ]
-
-    return slack_msg, attachments
-
-def create_progress_report_slack_message_status_stuck(instance):
-
-    slack_msg = "The status for the _*%s*_ project has been classified as stuck. Please contact the stakeholders." % (instance.event.task.title)
-
-    participants_info = []
-    participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
-    if participants:
-        for participant in participants:
-            participants_info.append({participant.user.first_name:participant.user.email})
-
-    developers = '\nDeveloper(s):'
-    if participants_info:
-        for participant_info in participants_info:
-            for key, value in six.iteritems(participant_info):
-                    developers += '%s : %s | ' % (key, value)
-
-    slack_text_suffix = "Project owner: {}, {}".format(instance.event.task.user.first_name, instance.event.task.user.email)
-    
-    if instance.event.task.pm:
-        slack_text_suffix += "\nPM: {}, {}".format(instance.event.task.pm.first_name, instance.event.task.pm.email)
-
-    if participants_info:
-        slack_text_suffix += developers
-        
-    attachments = [
-        {
-            slack_utils.KEY_TEXT: slack_text_suffix,
-            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
-        }
-    ]
-
-    return slack_msg, attachments
-
-def create_progress_report_slack_message_next_deadline_fail(instance):
-
-    slack_msg = "The developers/PM on the _*%s*_ project have indicated that they might not meet the coming deadline. Please contact the stakeholders." % (instance.event.task.title)
-
-    participants_info = []
-    participants = instance.event.task.participation_set.filter(status=STATUS_ACCEPTED)
-    if participants:
-        for participant in participants:
-            participants_info.append({participant.user.first_name:participant.user.email})
-
-    developers = '\nDeveloper(s):'
-    if participants_info:
-        for participant_info in participants_info:
-            for key, value in six.iteritems(participant_info):
-                    developers += '%s : %s | ' % (key, value)
-
-    slack_text_suffix = "Project owner: {}, {}".format(instance.event.task.user.first_name, instance.event.task.user.email)
-    
-    if instance.event.task.pm:
-        slack_text_suffix += "\nPM: {}, {}".format(instance.event.task.pm.first_name, instance.event.task.pm.email)
-
-    if participants_info:
-        slack_text_suffix += developers
-        
-    attachments = [
-        {
-            slack_utils.KEY_TEXT: slack_text_suffix,
-            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
-        }
-    ]
-
-    return slack_msg, attachments
-
-
-
+    return attachments
 
 
 @job
@@ -1550,17 +1369,24 @@ def notify_new_progress_report_slack(instance, updated=False):
         # Re-create report for clients
         slack_msg, attachments = create_progress_report_slack_message(instance, updated=updated, to_client=True)
         slack_utils.send_integration_message(instance.event.task, message=slack_msg, attachments=attachments)
-
+    
     if not instance.last_deadline_met and (is_pm_report or is_dev_report):
-        slack_msg, attachments = create_progress_report_slack_message_deadline_missed(instance)
+
+        if instance.deadline_miss_communicated:
+            slack_msg = "A deadline has been missed on the _*%s*_ %s.According to our system, this has been communicated between the stakeholders. Please check in with the stakeholders." % (instance.event.task.title, instance.event.task.is_task and 'task' or 'project')
+        else:
+            slack_msg = "A deadline has been missed on the _*%s*_ %s. Please contact the stakeholders." % (instance.event.task.title, instance.event.task.is_task and 'task' or 'project')
+
+        attachments = create_progress_report_slack_message_stakeholders_attachment(instance)
         slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
             slack_utils.KEY_TEXT: slack_msg,
             slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
             slack_utils.KEY_ATTACHMENTS: attachments
         })
 
-    if is_client_report and instance.rate_deliverables and instance.rate_deliverables < 4 and instance.deliverable_satisfaction:
-        slack_msg, attachments = create_progress_report_slack_message_deliverable_below_standard(instance)
+    if is_client_report and instance.rate_deliverables > 1 and instance.rate_deliverables < 4 and instance.deliverable_satisfaction:
+        slack_msg = "A client has rated the deliverable for the _*%s*_ %s below standard. Please contact the stakeholders." % (instance.event.task.title, instance.event.task.is_task and 'task' or 'project')
+        attachments = create_progress_report_slack_message_stakeholders_attachment(instance)
         slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
             slack_utils.KEY_TEXT: slack_msg,
             slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
@@ -1568,21 +1394,24 @@ def notify_new_progress_report_slack(instance, updated=False):
         })
 
     if (is_pm_report or is_dev_report) and (instance.status == PROGRESS_REPORT_STATUS_STUCK or  instance.status == PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK):
-        slack_msg, attachments = create_progress_report_slack_message_status_stuck(instance)
+        slack_msg = "The status for the _*%s*_ %s has been classified as stuck. Please contact the stakeholders." % (instance.event.task.title, instance.event.task.is_task and 'task' or 'project')
+        attachments = create_progress_report_slack_message_stakeholders_attachment(instance)
         slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
             slack_utils.KEY_TEXT: slack_msg,
             slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
             slack_utils.KEY_ATTACHMENTS: attachments
         })
 
-    if (instance.next_deadline_meet and not instance.next_deadline_meet) and (is_pm_report or is_dev_report):
-        slack_msg, attachments = create_progress_report_slack_message_next_deadline_fail(instance)
+    if instance.next_deadline_meet == False and (is_pm_report or is_dev_report):
+        slack_msg = "The developers/PM on the _*%s*_ %s have indicated that they might not meet the coming deadline. Please contact the stakeholders." % (instance.event.task.title, instance.event.task.is_task and 'task' or 'project') 
+        attachments = create_progress_report_slack_message_stakeholders_attachment(instance)
         slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
             slack_utils.KEY_TEXT: slack_msg,
             slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
             slack_utils.KEY_ATTACHMENTS: attachments
         })
-    
+
+
 @job
 def notify_task_invoice_request_email(instance):
     instance = clean_instance(instance, Task)
