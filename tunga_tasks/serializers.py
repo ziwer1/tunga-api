@@ -688,7 +688,9 @@ class ApplicationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotated
             'pitch': {'required': True, 'allow_blank': False, 'allow_null': False},
             'hours_needed': {'required': True, 'allow_null': False},
             #'hours_available': {'required': True, 'allow_null': False},
-            'deliver_at': {'required': True, 'allow_null': False}
+            'deliver_at': {'required': True, 'allow_null': False},
+            'update_interval':  {'required': False, 'allow_blank': True, 'allow_null': True},
+            'update_interval_units': {'required': False, 'allow_blank': True, 'allow_null': True}
         }
 
     def update(self, instance, validated_data):
