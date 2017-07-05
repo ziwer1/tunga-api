@@ -1,0 +1,22 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    The Next Deadline will not be met on the {% if event.task.is_task %}task{% else %}project{% endif %}.
+{% endblock %}
+{% block email_content %}
+    <p>Hi,</p>
+
+    <p>
+        The developers/PM on the {{ event.task.summary }} project have indicated that they might not meet the coming deadline.<br/>
+        Please contact the stakeholders.<br/>
+    </p>
+
+    <p>
+        Project owner: {{ owner.first_name }}, {{ owner.email }}<br/>
+        {% if event.task.pm %}
+            PM: {{ event.task.pm.first_name }}, {{ event.task.pm.email }}<br/>
+        {% endif %}
+        Developer(s): {{ developers }}<br/>
+    </p>
+
+{% endblock %}

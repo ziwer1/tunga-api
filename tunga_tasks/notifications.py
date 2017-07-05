@@ -7,6 +7,7 @@ from django.db.models.aggregates import Sum
 from django.db.models.expressions import F
 from django.template.defaultfilters import truncatewords, floatformat
 from django_rq.decorators import job
+from django.utils import six
 
 from tunga.settings import TUNGA_URL, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, SLACK_ATTACHMENT_COLOR_TUNGA, \
     SLACK_ATTACHMENT_COLOR_RED, SLACK_ATTACHMENT_COLOR_GREEN, SLACK_ATTACHMENT_COLOR_NEUTRAL, \
@@ -17,12 +18,12 @@ from tunga.settings import TUNGA_URL, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, SLACK
 from tunga_auth.filterbackends import my_connections_q_filter
 from tunga_tasks import slugs
 from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport, Quote, Estimate
-from tunga_tasks.utils import get_task_integration
+from tunga_tasks.utils import get_task_integration, get_developers_contacts_list
 from tunga_utils import slack_utils, mailchimp_utils
 from tunga_utils.constants import USER_TYPE_DEVELOPER, VISIBILITY_DEVELOPER, VISIBILITY_MY_TEAM, TASK_SCOPE_TASK, \
     USER_TYPE_PROJECT_MANAGER, TASK_SOURCE_NEW_USER, STATUS_INITIAL, STATUS_SUBMITTED, STATUS_APPROVED, STATUS_DECLINED, \
     STATUS_ACCEPTED, STATUS_REJECTED, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, \
-    PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK, APP_INTEGRATION_PROVIDER_SLACK
+    PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK, APP_INTEGRATION_PROVIDER_SLACK, PROGRESS_REPORT_STATUS_STUCK
 
 from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance, convert_to_text
@@ -49,8 +50,13 @@ def possibly_trigger_schedule_call_automation(instance, wait=15*60):
         )
 
 
-def create_task_slack_msg(task, summary='', channel='#general', show_schedule=True, show_contacts=False):
+def create_task_slack_msg(task, summary='', channel='#general', show_schedule=True, show_contacts=False, is_admin=False):
     task_url = '{}/work/{}/'.format(TUNGA_URL, task.id)
+
+    if is_admin:
+        developers = get_developers_contacts_list(task)
+
+
     attachments = [
         {
             slack_utils.KEY_TITLE: task.summary,
@@ -100,15 +106,31 @@ def create_task_slack_msg(task, summary='', channel='#general', show_schedule=Tr
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_NEUTRAL
         })
+    if is_admin and developers:
+        attachments.append({
+            slack_utils.KEY_TITLE: 'Developer(s)',
+            slack_utils.KEY_TEXT: developers,
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
+        })
+    if is_admin and not developers:
+        attachments.append({
+            slack_utils.KEY_TITLE: 'Developer(s)',
+            slack_utils.KEY_TEXT: 'None',
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
+        })
     if not summary:
         summary = "New {} created by {} | <{}|View on Tunga>".format(
             task.scope == TASK_SCOPE_TASK and 'task' or 'project',
             task.user.display_name, task_url)
+
     return {
         slack_utils.KEY_TEXT: summary,
         slack_utils.KEY_CHANNEL: channel,
         slack_utils.KEY_ATTACHMENTS: attachments
     }
+    
 
 
 @job
@@ -206,11 +228,16 @@ def notify_new_task_admin_email(instance, new_user=False, completed=False, call_
     )
 
     to = TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS  # Notified via Slack so limit receiving admins
+
+    all_developers = get_developers_contacts_list(instance)
+
     ctx = {
         'owner': instance.owner or instance.user,
         'task': instance,
         'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id),
-        'completed_phrase': completed_phrase_body
+        'completed_phrase': completed_phrase_body,
+        'developers': all_developers,
+        'is_admin': True
     }
     send_mail(subject, 'tunga/email/email_new_task', to, ctx, **dict(deal_ids=[instance.hubspot_deal_id]))
 
@@ -233,7 +260,7 @@ def notify_new_task_admin_slack(instance, new_user=False, completed=False, call_
         instance.user.first_name, new_user and ' (New user)' or '',
         task_url
     )
-    slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_UPDATES_CHANNEL, show_contacts=True)
+    slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_UPDATES_CHANNEL, show_contacts=True, is_admin=True)
     slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, slack_msg)
 
 
@@ -913,6 +940,7 @@ def notify_new_progress_report_email(instance):
     is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
     is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
     is_pm_or_client_report = is_pm_report or is_client_report
+    is_dev_report = not is_pm_or_client_report
 
     subject = "{} submitted a {}".format(instance.user.display_name, is_client_report and "Weekly Survey" or "Progress Report")
 
@@ -932,6 +960,117 @@ def notify_new_progress_report_email(instance):
         subject, 'tunga/email/{}'.format(email_template), to, ctx,
         **dict(deal_ids=[instance.event.task.hubspot_deal_id])
     )
+
+    all_developers = ''
+
+    if not instance.last_deadline_met and (is_pm_report or is_dev_report):
+
+        all_developers = get_developers_contacts_list(instance.event.task)
+
+        subject = "A deadline has been missed on the {} project".format(instance.event.task.summary)
+        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+
+        ctx = {
+            'owner': instance.event.task.user,
+            'reporter': instance.user,
+            'event': instance.event,
+            'report': instance,
+            'developers': all_developers
+        }
+
+        email_template = 'deadline_missed'
+        send_mail(
+            subject, 'tunga/email/{}'.format(email_template), to, ctx,
+            **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+        )
+
+    if is_client_report and instance.rate_deliverables > 1 and instance.rate_deliverables < 4 and instance.deliverable_satisfaction:
+
+        subject = "A deadline has been missed on the {} project".format(instance.event.task.summary)
+        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+
+        if not all_developers:
+            all_developers = get_developers_contacts_list(instance.event.task)
+
+        ctx = {
+            'owner': instance.event.task.user,
+            'reporter': instance.user,
+            'event': instance.event,
+            'report': instance,
+            'developers': all_developers
+        }
+
+        email_template = 'email_deliverable_rating_below_standard'
+        send_mail(
+            subject, 'tunga/email/{}'.format(email_template), to, ctx,
+            **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+        )
+
+    if (is_pm_report or is_dev_report) and (instance.status == PROGRESS_REPORT_STATUS_STUCK or  instance.status == PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK):
+
+        subject = "Status has been reported Stuck on the {} project".format(instance.event.task.summary)
+        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+
+        if not all_developers:
+            all_developers = get_developers_contacts_list(instance.event.task)
+
+        ctx = {
+            'owner': instance.event.task.user,
+            'reporter': instance.user,
+            'event': instance.event,
+            'report': instance,
+            'developers': all_developers
+        }
+
+        email_template = 'email_project_status_stuck'
+        send_mail(
+            subject, 'tunga/email/{}'.format(email_template), to, ctx,
+            **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+        )
+
+    if instance.next_deadline_meet == False and (is_pm_report or is_dev_report):
+
+        subject = "The Next Deadline will not be met on the {} project".format(instance.event.task.summary)
+        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+
+        if not all_developers:
+            all_developers = get_developers_contacts_list(instance.event.task)
+
+        ctx = {
+            'owner': instance.event.task.user,
+            'reporter': instance.user,
+            'event': instance.event,
+            'report': instance,
+            'developers': all_developers
+        }
+
+        email_template = 'email_next_deadline_fail'
+        send_mail(
+            subject, 'tunga/email/{}'.format(email_template), to, ctx,
+            **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+        )
+
+def create_progress_report_slack_message_stakeholders_attachment(instance):
+
+    developers = get_developers_contacts_list(instance.event.task)
+
+    slack_text_suffix = "Project owner: {}, {}".format(instance.event.task.user.first_name, instance.event.task.user.email)
+
+    if instance.event.task.pm:
+        slack_text_suffix += "\nPM: {}, {}".format(instance.event.task.pm.first_name, instance.event.task.pm.email)
+
+    if developers:
+        slack_text_suffix += '\nDeveloper(s):' + developers
+
+    attachments = [
+        {
+            slack_utils.KEY_TEXT: slack_text_suffix,
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
+        }
+    ]
+
+    return attachments
 
 
 @job
@@ -1230,6 +1369,47 @@ def notify_new_progress_report_slack(instance, updated=False):
         # Re-create report for clients
         slack_msg, attachments = create_progress_report_slack_message(instance, updated=updated, to_client=True)
         slack_utils.send_integration_message(instance.event.task, message=slack_msg, attachments=attachments)
+    
+    if not instance.last_deadline_met and (is_pm_report or is_dev_report):
+
+        if instance.deadline_miss_communicated:
+            slack_msg = "A deadline has been missed on the _*%s*_ %s.According to our system, this has been communicated between the stakeholders. Please check in with the stakeholders." % (instance.event.task.title, instance.event.task.is_task and 'task' or 'project')
+        else:
+            slack_msg = "A deadline has been missed on the _*%s*_ %s. Please contact the stakeholders." % (instance.event.task.title, instance.event.task.is_task and 'task' or 'project')
+
+        attachments = create_progress_report_slack_message_stakeholders_attachment(instance)
+        slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
+            slack_utils.KEY_ATTACHMENTS: attachments
+        })
+
+    if is_client_report and instance.rate_deliverables > 1 and instance.rate_deliverables < 4 and instance.deliverable_satisfaction:
+        slack_msg = "A client has rated the deliverable for the _*%s*_ %s below standard. Please contact the stakeholders." % (instance.event.task.title, instance.event.task.is_task and 'task' or 'project')
+        attachments = create_progress_report_slack_message_stakeholders_attachment(instance)
+        slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
+            slack_utils.KEY_ATTACHMENTS: attachments
+        })
+
+    if (is_pm_report or is_dev_report) and (instance.status == PROGRESS_REPORT_STATUS_STUCK or  instance.status == PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK):
+        slack_msg = "The status for the _*%s*_ %s has been classified as stuck. Please contact the stakeholders." % (instance.event.task.title, instance.event.task.is_task and 'task' or 'project')
+        attachments = create_progress_report_slack_message_stakeholders_attachment(instance)
+        slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
+            slack_utils.KEY_ATTACHMENTS: attachments
+        })
+
+    if instance.next_deadline_meet == False and (is_pm_report or is_dev_report):
+        slack_msg = "The developers/PM on the _*%s*_ %s have indicated that they might not meet the coming deadline. Please contact the stakeholders." % (instance.event.task.title, instance.event.task.is_task and 'task' or 'project') 
+        attachments = create_progress_report_slack_message_stakeholders_attachment(instance)
+        slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL,
+            slack_utils.KEY_ATTACHMENTS: attachments
+        })
 
 
 @job
