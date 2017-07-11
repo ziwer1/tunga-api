@@ -165,6 +165,10 @@ class MultiTaskPaymentKey(models.Model):
     )
     btc_address = models.CharField(max_length=40, validators=[validate_btc_address])
     btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
+    withhold_tunga_fee = models.BooleanField(
+        default=False,
+        help_text='Only participant portion will be paid if True, and all money paid will be distributed to participants'
+    )
     paid = models.BooleanField(default=False, help_text='True if the task is paid')
     paid_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
