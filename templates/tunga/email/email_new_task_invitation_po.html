@@ -6,9 +6,10 @@
 {% block email_content %}
     <p>Hi {{ invitee.first_name }},</p>
 
-    <p>{{ inviter.display_name }} invited you to the {% if task.is_task %}task{% else %}project{% endif %} as a {% if task.is_task %}task{% else %}project{% endif %} owner:</p>
+    <p>You have been invited to a {% if task.is_task %}task{% else %}project{% endif %} as a {% if task.is_task %}task{% else %}project{% endif %} owner:</p>
 
-    <p>{{ task.summary }}</p>
+    <p>{% if task.is_task %}Task{% else %}Project{% endif %}: "{{ task.summary }}"</p>
+    <p>Created by: {{ inviter.display_name }}</p>
 
     <p>
         Click the link below to view the {% if task.is_task %}task{% else %}project{% endif %}'s details:<br/>
