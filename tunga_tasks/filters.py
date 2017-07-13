@@ -31,8 +31,12 @@ class TaskFilter(GenericDateFilterSet):
         queryset = queryset.filter(closed=True)
         if value in ['paid', 'processing']:
             queryset = queryset.filter(paid=True)
+            request = self.request
+            is_po = request and request.user and request.user.is_authenticated() and request.user.is_project_owner and not request.user.is_admin
+            if is_po and value == 'processing':
+                return queryset.none()
             if value == 'paid':
-                return queryset.filter(pay_distributed=True)
+                return is_po and queryset or queryset.filter(pay_distributed=True)
             else:
                 return queryset.filter(pay_distributed=False)
         elif value == 'pending':
