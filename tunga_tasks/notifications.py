@@ -1050,6 +1050,7 @@ def notify_new_progress_report_email(instance):
             **dict(deal_ids=[instance.event.task.hubspot_deal_id])
         )
 
+
 def create_progress_report_slack_message_stakeholders_attachment(instance):
 
     developers = get_developers_contacts_list(instance.event.task)
