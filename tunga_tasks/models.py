@@ -847,6 +847,9 @@ class WorkActivity(models.Model):
     def __str__(self):
         return 'Activity | {}'.format(self.content_object)
 
+    class Meta:
+        verbose_name_plural = 'work activities'
+
     @property
     def dev_fee(self):
         return Decimal(self.hours) * self.content_object.task.dev_rate
@@ -1033,6 +1036,7 @@ class TimeEntry(models.Model):
 
     class Meta:
         ordering = ['spent_at']
+        verbose_name_plural = 'time entries'
 
     @staticmethod
     @allow_staff_or_superuser

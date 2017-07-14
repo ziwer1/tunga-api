@@ -27,6 +27,7 @@ from tunga_auth.views import VerifyUserView, AccountInfoView, UserViewSet, socia
     slack_connect_callback, harvest_connect_callback, EmailVisitorView, github_connect_callback
 from tunga_comments.views import CommentViewSet
 from tunga_messages.views import MessageViewSet, ChannelViewSet, slack_customer_notification
+from tunga_pages.views import SkillPageViewSet
 from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, ConnectionViewSet, \
     NotificationView, CountryListView, DeveloperApplicationViewSet, RepoListView, IssueListView, SlackIntegrationView, \
     HarvestAPIView, DeveloperInvitationViewSet
@@ -66,6 +67,7 @@ router.register(r'support/page', SupportPageViewSet)
 router.register(r'multi-task-payment', MultiTaskPaymentKeyViewSet)
 router.register(r'task-payment', TaskPaymentViewSet)
 router.register(r'participant-payment', ParticipantPaymentViewSet)
+router.register(r'skill-page', SkillPageViewSet)
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
