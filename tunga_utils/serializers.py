@@ -92,6 +92,25 @@ class SimpleProfileSerializer(serializers.ModelSerializer):
         exclude = ('user',)
 
 
+class SimpleSkillsProfileSerializer(serializers.ModelSerializer):
+    city = serializers.CharField()
+    skills = SkillSerializer(many=True)
+    country = CountryField()
+    country_name = serializers.CharField()
+
+    class Meta:
+        model = UserProfile
+        fields = ('id', 'skills', 'country', 'country_name', 'city', 'bio')
+
+
+class SimpleUserSkillsProfileSerializer(SimpleUserSerializer):
+    profile = SimpleSkillsProfileSerializer(read_only=True, required=False)
+
+    class Meta(SimpleUserSerializer.Meta):
+        model = get_user_model()
+        fields = SimpleUserSerializer.Meta.fields + ('profile',)
+
+
 class InvoiceUserSerializer(serializers.ModelSerializer):
     profile = SimpleProfileSerializer(read_only=True, required=False, source='userprofile')
 

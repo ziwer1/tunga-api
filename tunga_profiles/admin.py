@@ -2,13 +2,20 @@ from django.contrib import admin
 
 from tunga_profiles.notifications import send_developer_accepted_email
 from tunga_profiles.models import Education, Work, Connection, \
-    DeveloperApplication, BTCWallet, UserProfile, AppIntegration, Inquirer, DeveloperInvitation
+    DeveloperApplication, BTCWallet, UserProfile, AppIntegration, Inquirer, DeveloperInvitation, Skill
 from tunga_utils.constants import REQUEST_STATUS_ACCEPTED, REQUEST_STATUS_REJECTED
 
 
 class UserProfileInline(admin.StackedInline):
     verbose_name = 'profile info'
     model = UserProfile
+
+
+@admin.register(Skill)
+class SkillAdmin(admin.ModelAdmin):
+    list_display = ('name', 'slug', 'count', 'protected')
+    list_filter = ('protected',)
+    search_fields = ('name', 'slug')
 
 
 @admin.register(BTCWallet)

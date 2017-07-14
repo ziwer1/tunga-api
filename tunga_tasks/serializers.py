@@ -21,7 +21,7 @@ from tunga_tasks.models import Task, Application, Participation, TimeEntry, Prog
 from tunga_tasks.notifications import notify_new_task
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
     task_integration, estimate_created, estimate_status_changed, quote_status_changed, quote_created, task_approved, \
-    task_call_window_scheduled, task_fully_saved, task_details_completed
+    task_call_window_scheduled, task_fully_saved, task_details_completed, task_owner_added
 from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, USER_TYPE_PROJECT_OWNER, USER_SOURCE_TASK_WIZARD, \
     TASK_SCOPE_ONGOING, VISIBILITY_CUSTOM, TASK_SCOPE_TASK, TASK_SCOPE_PROJECT, TASK_SOURCE_NEW_USER, STATUS_INITIAL, \
     STATUS_ACCEPTED, STATUS_APPROVED, STATUS_DECLINED, STATUS_REJECTED, STATUS_SUBMITTED
@@ -416,6 +416,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         initial_approved = False
         initial_schedule_call_start = None
         initial_description = None
+        initial_owner = None
 
         new_user = None
         is_update = bool(instance)
@@ -426,6 +427,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             initial_approved = instance.approved
             initial_schedule_call_start = instance.schedule_call_start
             initial_description = instance.description
+            initial_owner = instance.owner
 
             if not instance.closed and validated_data.get('closed'):
                 validated_data['closed_at'] = datetime.datetime.utcnow()
@@ -479,6 +481,10 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                 instance.approved_at = datetime.datetime.utcnow()
                 instance.save()
                 task_approved.send(sender=Task, task=instance)
+
+            if not initial_owner and instance.owner:
+                instance.save()
+                task_owner_added.send(sender=Task, task=instance)
 
             if not (current_user and current_user.is_authenticated()):
                 if instance.schedule_call_start and not initial_schedule_call_start:
@@ -682,7 +688,9 @@ class ApplicationSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotated
             'pitch': {'required': True, 'allow_blank': False, 'allow_null': False},
             'hours_needed': {'required': True, 'allow_null': False},
             #'hours_available': {'required': True, 'allow_null': False},
-            'deliver_at': {'required': True, 'allow_null': False}
+            'deliver_at': {'required': True, 'allow_null': False},
+            'update_interval':  {'required': False, 'allow_blank': True, 'allow_null': True},
+            'update_interval_units': {'required': False, 'allow_blank': True, 'allow_null': True}
         }
 
     def update(self, instance, validated_data):

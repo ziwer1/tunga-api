@@ -9,7 +9,7 @@ from tunga_messages.models import Message
 from tunga_messages.tasks import get_or_create_task_channel
 from tunga_tasks.models import Task, Application, Participation, ProgressEvent, ProgressReport, \
     IntegrationActivity, Integration, Estimate, Quote
-from tunga_tasks.notifications import notify_new_task_application, send_new_task_invitation_email, \
+from tunga_tasks.notifications import notify_new_task_application, notify_task_invitation_email, \
     notify_task_invitation_response, \
     send_task_application_not_selected_email, notify_new_progress_report, notify_task_approved, notify_estimate_status_email, \
     notify_task_application_response, notify_new_task_admin, notify_new_task, possibly_trigger_schedule_call_automation, \
@@ -27,6 +27,7 @@ task_fully_saved = Signal(providing_args=["task", "new_user"])
 task_approved = Signal(providing_args=["task"])
 task_call_window_scheduled = Signal(providing_args=["task"])
 task_details_completed = Signal(providing_args=["task"])
+task_owner_added = Signal(providing_args=["task"])
 task_applications_closed = Signal(providing_args=["task"])
 task_closed = Signal(providing_args=["task"])
 
@@ -143,7 +144,7 @@ def activity_handler_new_participant(sender, instance, created, **kwargs):
         action.send(instance.created_by, verb=verbs.ADD, action_object=instance, target=instance.task)
 
         if instance.status == STATUS_INITIAL:
-            send_new_task_invitation_email.delay(instance.id)
+            notify_task_invitation_email.delay(instance.id)
 
         if instance.status == STATUS_ACCEPTED:
             update_task_periodic_updates.delay(instance.task.id)

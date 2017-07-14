@@ -149,20 +149,36 @@ TASK_SOURCE_CHOICES = (
     (TASK_SOURCE_NEW_USER, 'New Wizard User')
 )
 
+
 @python_2_unicode_compatible
 class MultiTaskPaymentKey(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
+    # Payment
+    currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
+    fee = models.DecimalField(
+        max_digits=19, decimal_places=4, blank=True, null=True, default=None
+    )
+    payment_method = models.CharField(
+        max_length=30, choices=TASK_PAYMENT_METHOD_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in TASK_PAYMENT_METHOD_CHOICES]),
+        blank=True, null=True
+    )
     btc_address = models.CharField(max_length=40, validators=[validate_btc_address])
+    btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
+    withhold_tunga_fee = models.BooleanField(
+        default=False,
+        help_text='Only participant portion will be paid if True, and all money paid will be distributed to participants'
+    )
+    paid = models.BooleanField(default=False, help_text='True if the task is paid')
+    paid_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-
     def __str__(self):
-        return 'bitcoin:%s' % (self.btc_address)
+        return 'bitcoin:{}'.format(self.btc_address)
 
     class Meta:
         ordering = ['created_at']
-
 
 
 @python_2_unicode_compatible
@@ -220,7 +236,9 @@ class Task(models.Model):
     )
     btc_address = models.CharField(max_length=40, blank=True, null=True, validators=[validate_btc_address])
     btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
-    multi_task_payment = models.ForeignKey(MultiTaskPaymentKey, related_name='multi_tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
+    multi_pay_key = models.ForeignKey(
+        MultiTaskPaymentKey, related_name='tasks', on_delete=models.DO_NOTHING, blank=True, null=True
+    )
 
     # Classification details
     type = models.IntegerField(choices=TASK_TYPE_CHOICES, default=TASK_TYPE_OTHER)  # Web, Mobile ...
@@ -237,8 +255,10 @@ class Task(models.Model):
     coders_needed = models.IntegerField(choices=TASK_CODERS_NEEDED_CHOICES, blank=True, null=True)
 
     # Update settings
-    update_interval = models.PositiveIntegerField(blank=True, null=True)
-    update_interval_units = models.PositiveSmallIntegerField(choices=UPDATE_SCHEDULE_CHOICES, blank=True, null=True)
+    update_interval = models.PositiveIntegerField(default=1)
+    update_interval_units = models.PositiveSmallIntegerField(
+        choices=UPDATE_SCHEDULE_CHOICES, default=UPDATE_SCHEDULE_DAILY
+    )
     survey_client = models.BooleanField(default=True)
 
     # Audience for the task
@@ -827,6 +847,9 @@ class WorkActivity(models.Model):
     def __str__(self):
         return 'Activity | {}'.format(self.content_object)
 
+    class Meta:
+        verbose_name_plural = 'work activities'
+
     @property
     def dev_fee(self):
         return Decimal(self.hours) * self.content_object.task.dev_rate
@@ -1013,6 +1036,7 @@ class TimeEntry(models.Model):
 
     class Meta:
         ordering = ['spent_at']
+        verbose_name_plural = 'time entries'
 
     @staticmethod
     @allow_staff_or_superuser
@@ -1409,7 +1433,8 @@ TASK_PAYMENT_TYPE_CHOICES = (
 
 @python_2_unicode_compatible
 class TaskPayment(models.Model):
-    task = models.ForeignKey(Task)
+    task = models.ForeignKey(Task, blank=True, null=True)
+    multi_pay_key = models.ForeignKey(MultiTaskPaymentKey, blank=True, null=True)
     ref = models.CharField(max_length=255)
     payment_type = models.CharField(
         max_length=30, choices=TASK_PAYMENT_TYPE_CHOICES,
@@ -1443,7 +1468,7 @@ class TaskPayment(models.Model):
             self.get_payment_type_display(),
             self.payment_type == TASK_PAYMENT_METHOD_STRIPE and self.charge_id or self.btc_address,
             self.payment_type == TASK_PAYMENT_METHOD_STRIPE and self.amount or self.btc_received,
-            self.task.summary
+            self.task and self.task.summary or 'Multi Task Payment'
         )
 
     class Meta:

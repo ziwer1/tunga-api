@@ -1,0 +1,19 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    Woohoo! You've been invited to a {% if task.is_task %}task{% else %}project{% endif %}.
+{% endblock %}
+{% block email_content %}
+    <p>Hi {{ invitee.first_name }},</p>
+
+    <p>You have been invited to a {% if task.is_task %}task{% else %}project{% endif %} as a {% if task.is_task %}task{% else %}project{% endif %} owner:</p>
+
+    <p>{% if task.is_task %}Task{% else %}Project{% endif %}: "{{ task.summary }}"</p>
+    <p>Created by: {{ inviter.display_name }}</p>
+
+    <p>
+        Click the link below to view the {% if task.is_task %}task{% else %}project{% endif %}'s details:<br/>
+        <a href="{{ task_url }}">{{ task_url }}</a>
+    </p>
+
+{% endblock %}

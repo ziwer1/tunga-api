@@ -12,7 +12,7 @@ class ProjectAdmin(admin.ModelAdmin):
     search_fields = ('title',)
 
 
-class TaskAccessInline(admin.TabularInline):
+class TaskAccessInline(admin.StackedInline):
     model = TaskAccess
     exclude = ('created_by',)
     extra = 1
@@ -22,7 +22,7 @@ class TaskAccessInline(admin.TabularInline):
         obj.save()
 
 
-class ParticipationInline(admin.TabularInline):
+class ParticipationInline(admin.StackedInline):
     model = Participation
     exclude = ('created_by',)
     extra = 1
