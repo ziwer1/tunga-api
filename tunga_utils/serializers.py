@@ -108,7 +108,11 @@ class SimpleUserSkillsProfileSerializer(SimpleUserSerializer):
 
     class Meta(SimpleUserSerializer.Meta):
         model = get_user_model()
-        fields = SimpleUserSerializer.Meta.fields + ('profile',)
+        fields = (
+            'id', 'username', 'first_name', 'last_name',
+            'display_name', 'short_name', 'type',
+            'image', 'avatar_url', 'profile'
+        )
 
 
 class InvoiceUserSerializer(serializers.ModelSerializer):
