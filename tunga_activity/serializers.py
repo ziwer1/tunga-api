@@ -81,7 +81,7 @@ class ActivitySerializer(SimpleActivitySerializer):
     })
 
     class Meta(SimpleActivitySerializer.Meta):
-        pass
+        fields = '__all__'
 
     def get_actor_type(self, obj):
         return get_instance_type(obj.actor)

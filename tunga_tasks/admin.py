@@ -1,8 +1,17 @@
 from django.contrib import admin
 
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, ProgressEvent, ProgressReport, \
-    Project, TaskPayment, ParticipantPayment, TaskInvoice, TaskAccess, Estimate, Quote, WorkActivity
+    Project, TaskPayment, ParticipantPayment, TaskInvoice, TaskAccess, Estimate, Quote, WorkActivity, \
+    MultiTaskPaymentKey
 from tunga_utils.admin import ReadOnlyModelAdmin
+
+
+@admin.register(MultiTaskPaymentKey)
+class MultiTaskPaymentKeyAdmin(admin.ModelAdmin):
+    pass
+    #list_display = ('title', 'amount', 'closed', 'created_at', 'archived')
+    #list_filter = ('archived',)
+    #search_fields = ('title',)
 
 
 @admin.register(Project)
