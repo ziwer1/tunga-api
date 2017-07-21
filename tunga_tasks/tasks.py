@@ -233,7 +233,7 @@ def distribute_task_payment(task):
     participation_shares = task.get_payment_shares()
     # Distribute all payments for this task
     payments = TaskPayment.objects.filter(
-        Q(multi_pay_key__tasks=task) | Q(task=task),
+        Q(multi_pay_key__tasks=task) | Q(multi_pay_key__distribute_tasks=task) | Q(task=task),
         received_at__isnull=False, processed=False, payment_type=TASK_PAYMENT_METHOD_BITCOIN
     )
     task_distribution = []
