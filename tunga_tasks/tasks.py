@@ -13,7 +13,7 @@ from tunga.settings import BITPESA_SENDER
 from tunga_profiles.models import ClientNumber
 from tunga_profiles.utils import get_app_integration
 from tunga_tasks.models import ProgressEvent, Task, ParticipantPayment, \
-    TaskInvoice, Integration, IntegrationMeta, Participation
+    TaskInvoice, Integration, IntegrationMeta, Participation, MultiTaskPaymentKey, TaskPayment
 from tunga_utils import bitcoin_utils, coinbase_utils, bitpesa, harvest_utils
 from tunga_utils.constants import CURRENCY_BTC, PAYMENT_METHOD_BTC_WALLET, \
     PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, \
@@ -231,7 +231,9 @@ def distribute_task_payment(task):
     pay_description = task.summary
 
     participation_shares = task.get_payment_shares()
-    payments = task.taskpayment_set.filter(
+    # Distribute all payments for this task
+    payments = TaskPayment.objects.filter(
+        Q(multi_pay_key__tasks=task) | Q(multi_pay_key__distribute_tasks=task) | Q(task=task),
         received_at__isnull=False, processed=False, payment_type=TASK_PAYMENT_METHOD_BITCOIN
     )
     task_distribution = []
@@ -256,7 +258,7 @@ def distribute_task_payment(task):
                         participant_pay.destination = participant.user.btc_address
                     transaction = send_payment_share(
                         destination=participant_pay.destination,
-                        amount=Decimal(share) * payment.btc_received,
+                        amount=Decimal(share) * payment.task_btc_share(task),
                         idem=str(participant_pay.idem_key),
                         description='%s - %s' % (pay_description, participant.user.display_name)
                     )
@@ -270,7 +272,7 @@ def distribute_task_payment(task):
                         participant_pay.save()
                         portion_sent = True
                 elif payment_method == PAYMENT_METHOD_MOBILE_MONEY:
-                    share_amount = Decimal(share) * payment.btc_received
+                    share_amount = Decimal(share) * payment.task_btc_share(task)
                     recipients = [
                         {
                             bitpesa.KEY_REQUESTED_AMOUNT: float(
@@ -317,7 +319,7 @@ def distribute_task_payment(task):
             task_distribution.append(True)
         else:
             task_distribution.append(False)
-    if task_distribution and False not in task_distribution:
+    if task_distribution and not (False in task_distribution):
         task.pay_distributed = True
         task.save()
 
@@ -495,3 +497,65 @@ def create_or_update_hubspot_deal_task(task, **kwargs):
     print('Create deal', kwargs)
     task = clean_instance(task, Task)
     create_or_update_hubspot_deal(task, **kwargs)
+
+
+@job
+def distribute_multi_task_payment(multi_task_key):
+    multi_task_key = clean_instance(multi_task_key, MultiTaskPaymentKey)
+    if not multi_task_key.paid:
+        return
+
+    # Distribute connected tasks
+    for task in multi_task_key.tasks.all():
+        distribute_task_payment(task)
+
+
+@job
+def update_multi_tasks(multi_task_key, distribute=False):
+    multi_task_key = clean_instance(multi_task_key, MultiTaskPaymentKey)
+
+    if multi_task_key.distribute_only:
+        connected_tasks = multi_task_key.distribute_tasks
+        connected_tasks.filter(paid=True).update(
+            btc_price=multi_task_key.btc_price,
+            withhold_tunga_fee=multi_task_key.withhold_tunga_fee,
+            btc_paid=multi_task_key.paid,
+            btc_paid_at=multi_task_key.paid_at
+        )
+    else:
+        connected_tasks = multi_task_key.tasks
+        connected_tasks.filter(paid=False).update(
+            payment_method=multi_task_key.payment_method,
+            btc_price=multi_task_key.btc_price,
+            withhold_tunga_fee=multi_task_key.withhold_tunga_fee,
+            paid=multi_task_key.paid,
+            paid_at=multi_task_key.paid_at
+        )
+
+    # Generate invoices for all connected tasks
+    for task in connected_tasks.all():
+        if task.paid and multi_task_key.distribute_only and multi_task_key.paid:
+            distribute_task_payment.delay(task.id)
+            return
+
+        # Save Invoice
+        if not task.btc_address or not bitcoin_utils.is_valid_btc_address(task.btc_address):
+            address = coinbase_utils.get_new_address(coinbase_utils.get_api_client())
+            task.btc_address = address
+            task.save()
+
+        TaskInvoice.objects.create(
+            task=task,
+            user=multi_task_key.user,
+            title=task.title,
+            fee=task.pay,
+            client=task.owner or task.user,
+            #developer=developer,
+            payment_method=multi_task_key.payment_method,
+            btc_price=multi_task_key.btc_price,
+            btc_address=task.btc_address,
+            withhold_tunga_fee=multi_task_key.withhold_tunga_fee
+        )
+
+        if distribute and multi_task_key.paid:
+            distribute_task_payment.delay(task.id)

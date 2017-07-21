@@ -155,7 +155,7 @@ class MultiTaskPaymentKey(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
     # Payment
     currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
-    fee = models.DecimalField(
+    amount = models.DecimalField(
         max_digits=19, decimal_places=4, blank=True, null=True, default=None
     )
     payment_method = models.CharField(
@@ -163,11 +163,13 @@ class MultiTaskPaymentKey(models.Model):
         help_text=','.join(['%s - %s' % (item[0], item[1]) for item in TASK_PAYMENT_METHOD_CHOICES]),
         blank=True, null=True
     )
+    distribute_only = models.BooleanField(default=False, help_text='True if the task is paid')
     btc_address = models.CharField(max_length=40, validators=[validate_btc_address])
     btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
     withhold_tunga_fee = models.BooleanField(
         default=False,
-        help_text='Only participant portion will be paid if True, and all money paid will be distributed to participants'
+        help_text='Only participant portion will be paid if True, '
+                  'and all money paid will be distributed to participants'
     )
     paid = models.BooleanField(default=False, help_text='True if the task is paid')
     paid_at = models.DateTimeField(blank=True, null=True)
@@ -175,10 +177,55 @@ class MultiTaskPaymentKey(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return 'bitcoin:{}'.format(self.btc_address)
+        return 'Batch Payment #{}'.format(self.id)
 
     class Meta:
         ordering = ['created_at']
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return request.user == self.user
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.is_project_owner
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_create_permission(request):
+        return request.user.is_project_owner
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_update_permission(request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user
+
+    @property
+    def pay(self):
+        if self.withhold_tunga_fee:
+            return self.pay_participants
+        return self.amount
+
+    @property
+    def pay_participants(self):
+        connected_tasks = self.distribute_only and self.distribute_tasks or self.tasks
+        return sum([task.pay*Decimal(1 - task.tunga_ratio_dev) for task in list(connected_tasks.all())])
+
+    def get_task_share_ratio(self, task):
+        if (task.multi_pay_key_id == self.id and not self.distribute_only) or \
+                (task.multi_pay_distribute_key_id == self.id and self.distribute_only):
+            return task.pay/self.amount
+        return 0
 
 
 @python_2_unicode_compatible
@@ -239,6 +286,9 @@ class Task(models.Model):
     multi_pay_key = models.ForeignKey(
         MultiTaskPaymentKey, related_name='tasks', on_delete=models.DO_NOTHING, blank=True, null=True
     )
+    multi_pay_distribute_key = models.ForeignKey(
+        MultiTaskPaymentKey, related_name='distribute_tasks', on_delete=models.DO_NOTHING, blank=True, null=True
+    )
 
     # Classification details
     type = models.IntegerField(choices=TASK_TYPE_CHOICES, default=TASK_TYPE_OTHER)  # Web, Mobile ...
@@ -286,6 +336,7 @@ class Task(models.Model):
     )
     closed = models.BooleanField(default=False, help_text='True if the task is closed')
     paid = models.BooleanField(default=False, help_text='True if the task is paid')
+    btc_paid = models.BooleanField(default=False, help_text='True if BTC has been paid in for a Stripe task')
     pay_distributed = models.BooleanField(
         default=False,
         help_text='True if task has been paid and entire payment has been distributed to participating developers'
@@ -294,7 +345,8 @@ class Task(models.Model):
     reminded_complete_task = models.BooleanField(default=False)
     withhold_tunga_fee = models.BooleanField(
         default=False,
-        help_text='Only participant portion will be paid if True, and all money paid will be distributed to participants'
+        help_text='Only participant portion will be paid if True, '
+                  'and all money paid will be distributed to participants'
     )
 
     # Significant event dates
@@ -303,6 +355,7 @@ class Task(models.Model):
     apply_closed_at = models.DateTimeField(blank=True, null=True)
     closed_at = models.DateTimeField(blank=True, null=True)
     paid_at = models.DateTimeField(blank=True, null=True)
+    btc_paid_at = models.DateTimeField(blank=True, null=True)
     archived_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     invoice_date = models.DateTimeField(blank=True, null=True)
@@ -571,8 +624,14 @@ class Task(models.Model):
     def skills_list(self):
         return str(self.skills)
 
+    @property
     def payment_status(self):
         return self.paid and self.pay_distributed and 'Paid' or self.paid and 'Processing' or 'Pending'
+
+    @property
+    def can_pay_distribution_btc(self):
+        return self.payment_method == TASK_PAYMENT_METHOD_STRIPE and self.paid and \
+               not self.btc_paid and not self.pay_distributed
 
     @property
     def milestones(self):
@@ -1475,6 +1534,12 @@ class TaskPayment(models.Model):
         unique_together = ('task', 'ref')
         ordering = ['created_at']
 
+    def task_btc_share(self, task):
+        share_ratio = 1
+        if self.multi_pay_key:
+            share_ratio = self.multi_pay_key.get_task_share_ratio(task)
+        return share_ratio*self.btc_received
+
 
 PAYMENT_STATUS_CHOICES = (
     (STATUS_PENDING, 'Pending'),
@@ -1521,7 +1586,7 @@ class TaskInvoice(models.Model):
     title = models.CharField(max_length=200)
     fee = models.DecimalField(max_digits=19, decimal_places=4)
     client = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='client_invoices')
-    developer = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='developer_invoices')
+    developer = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='developer_invoices', blank=True, null=True)
     currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
     payment_method = models.CharField(
         max_length=30, choices=TASK_PAYMENT_METHOD_CHOICES,
@@ -1532,7 +1597,8 @@ class TaskInvoice(models.Model):
     number = models.CharField(max_length=20, blank=True, null=True)
     withhold_tunga_fee = models.BooleanField(
         default=False,
-        help_text='Only participant portion will be paid if True, and all money paid will be distributed to participants'
+        help_text='Only participant portion will be paid if True, '
+                  'and all money paid will be distributed to participants'
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

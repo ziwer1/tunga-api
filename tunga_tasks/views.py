@@ -46,7 +46,8 @@ from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, Parti
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
     IntegrationSerializer, TaskPaySerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer, \
     MultiTaskPaymentKeySerializer, TaskPaymentSerializer, ParticipantPaymentSerializer
-from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment
+from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment, \
+    update_multi_tasks
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
 from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa, stripe_utils
 from tunga_utils.constants import TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BANK, STATUS_ACCEPTED, \
@@ -408,21 +409,41 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
             if invoice.number:
                 invoice_data = TaskInvoiceSerializer(invoice).data
 
-                context = {"is_developer": request.user.is_developer}
+                context = request.user.is_developer and "developer" or "client"
                 if request.user.is_developer or request.user.is_staff:
                     invoice_type = request.query_params.get('type', None)
-                    if invoice_type:
-                        context["is_developer"] = invoice_type != 'client'
+                    if invoice_type and invoice_type in ['developer', 'client', 'tunga']:
+                        context = invoice_type
                 invoice_data['date'] = task.invoice.created_at.strftime('%d %B %Y')
 
                 task_developers = []
                 for share_info in task.get_participation_shares():
                     participant = share_info['participant']
                     developer, created = DeveloperNumber.objects.get_or_create(user=participant.user)
+
+                    vat = 0
+                    task_owner = task.user
+                    if task.owner:
+                        task_owner = task.owner
+
+                    if context == 'client' and task_owner.profile and \
+                            task_owner.profile.country and task_owner.profile.country.code == 'NL':
+                        vat = 21
+
+                    amount_details = invoice.get_amount_details(share=share_info['share'])
+                    vat_amount = Decimal(vat)*Decimal(0.01)*amount_details['portion']
+
                     task_developers.append({
                         'developer': InvoiceUserSerializer(participant.user).data,
-                        'amount': invoice.get_amount_details(share=share_info['share']),
-                        'number': invoice_data['number'] + developer.number + (context["is_developer"] and 'D' or 'C')
+                        'amount': amount_details,
+                        'number': '{}{}'.format(
+                            invoice_data['number'],
+                            developer.number,
+                            (context == 'developer' and 'D' or (context == 'tunga' and 'T' or 'C'))
+                        ),
+                        'vat': vat,
+                        'vat_amount': vat_amount,
+                        'plus_tax': amount_details['portion'] + vat_amount
                     })
 
                 invoice_data['developers'] = task_developers
@@ -904,6 +925,93 @@ class MultiTaskPaymentKeyViewSet(viewsets.ModelViewSet):
     serializer_class = MultiTaskPaymentKeySerializer
     permission_classes = [IsAuthenticated]
 
+    @detail_route(
+        methods=['get', 'post'], url_path='pay/(?P<provider>[^/]+)',
+        serializer_class=TaskPaySerializer,
+        permission_classes=[IsAuthenticated]
+    )
+    def pay(self, request, pk=None, provider=None):
+        """
+            Multi Task Payment Provider Endpoint
+            ---
+            omit_serializer: true
+            omit_parameters:
+                - query
+            """
+        multi_task_key = self.get_object()
+
+        if provider == TASK_PAYMENT_METHOD_STRIPE:
+            # Pay with Stripe
+            payload = request.data
+            paid_at = datetime.datetime.utcnow()
+
+            stripe = stripe_utils.get_client()
+
+            try:
+                customer = stripe.Customer.create(**dict(source=payload['token'], email=payload['email']))
+
+                charge = stripe.Charge.create(
+                    idempotency_key=payload.get('idem_key', None),
+                    **dict(
+                        amount=payload['amount'],
+                        description=payload.get('description', multi_task_key.summary),
+                        currency=payload.get('currency', CURRENCY_EUR),
+                        customer=customer.id,
+                        metadata=dict(
+                            multi_task_key=multi_task_key.id,
+                        )
+                    )
+                )
+
+                task_pay, created = TaskPayment.objects.get_or_create(
+                    multi_pay_key=multi_task_key, ref=charge.id, payment_type=TASK_PAYMENT_METHOD_STRIPE,
+                    defaults=dict(
+                        token=payload['token'],
+                        email=payload['email'],
+                        amount=Decimal(charge.amount) * Decimal(0.01),
+                        currency=(charge.currency or CURRENCY_EUR).upper(),
+                        charge_id=charge.id,
+                        paid=charge.paid,
+                        captured=charge.captured,
+                        received_at=paid_at
+                    )
+                )
+                multi_task_key.paid = True
+                multi_task_key.paid_at = paid_at
+                multi_task_key.save()
+
+                # Update attached tasks but don't distribute
+                update_multi_tasks.delay(multi_task_key.id, distribute=False)
+
+                mulit_task_key_serializer = MultiTaskPaymentKeySerializer(multi_task_key, context={'request': request})
+                task_payment_serializer = TaskPaymentSerializer(task_pay, context={'request': request})
+                return Response(dict(multi_task_payment=mulit_task_key_serializer.data, payment=task_payment_serializer.data))
+            except InvalidRequestError:
+                return Response(dict(message='We could not process your payment! Please contact hello@tunga.io'),
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        elif provider == TASK_PAYMENT_METHOD_BITONIC:
+            # Pay with Bitonic
+            callback = '{}://{}/payments/batch/{}/processing'.format(request.scheme, request.get_host(), pk)
+            next_url = callback
+            if multi_task_key and multi_task_key.has_object_write_permission(request) and bitcoin_utils.is_valid_btc_address(
+                    multi_task_key.btc_address):
+                if provider == TASK_PAYMENT_METHOD_BITONIC:
+                    client = oauth1.Client(
+                        BITONIC_CONSUMER_KEY, BITONIC_CONSUMER_SECRET, BITONIC_ACCESS_TOKEN, BITONIC_TOKEN_SECRET,
+                        callback_uri=callback, signature_type=SIGNATURE_TYPE_QUERY
+                    )
+                    amount = multi_task_key.pay
+                    increase_factor = 1 + (Decimal(BITONIC_PAYMENT_COST_PERCENTAGE) * Decimal(0.01))
+                    q_string = urlencode({
+                        'ext_data': str(multi_task_key).encode('utf-8'),
+                        'bitcoinaddress': multi_task_key.btc_address,
+                        'ordertype': 'buy',
+                        'euros': amount * increase_factor
+                    })
+                    req_data = client.sign('{}/?{}'.format(BITONIC_URL, q_string), http_method='GET')
+                    next_url = req_data[0]
+            return redirect(next_url)
+
 
 class TaskPaymentViewSet(viewsets.ModelViewSet):
     """
@@ -966,6 +1074,24 @@ def coinbase_notification(request):
             task.save()
 
             distribute_task_payment.delay(task.id)
+        else:
+            try:
+                multi_task_key = MultiTaskPaymentKey.objects.get(btc_address=address)
+            except:
+                multi_task_key = None
+            if multi_task_key:
+                TaskPayment.objects.get_or_create(
+                    multi_pay_key=multi_task_key, ref=id, payment_type=TASK_PAYMENT_METHOD_BITCOIN, btc_address=multi_task_key.btc_address,
+                    defaults={
+                        'btc_received': amount, 'btc_price': multi_task_key.btc_price, 'received_at': paid_at
+                    }
+                )
+                multi_task_key.paid = True
+                multi_task_key.paid_at = paid_at
+                multi_task_key.save()
+
+                # Update attached tasks and distribute payment
+                update_multi_tasks.delay(multi_task_key.id, distribute=True)
     return Response('Received')
 
 

@@ -2,6 +2,7 @@ import django_filters
 
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent, \
     Estimate, Quote, TaskPayment, ParticipantPayment
+from tunga_utils.constants import TASK_PAYMENT_METHOD_STRIPE
 from tunga_utils.filters import GenericDateFilterSet
 
 
@@ -41,6 +42,11 @@ class TaskFilter(GenericDateFilterSet):
                 return queryset.filter(pay_distributed=False)
         elif value == 'pending':
             queryset = queryset.filter(paid=False)
+        elif value == 'distribute':
+            queryset = queryset.filter(
+                payment_method=TASK_PAYMENT_METHOD_STRIPE,
+                paid=True, btc_paid=False, pay_distributed=False
+            )
         return queryset
 
 
