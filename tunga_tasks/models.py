@@ -163,11 +163,13 @@ class MultiTaskPaymentKey(models.Model):
         help_text=','.join(['%s - %s' % (item[0], item[1]) for item in TASK_PAYMENT_METHOD_CHOICES]),
         blank=True, null=True
     )
+    distribute_only = models.BooleanField(default=False, help_text='True if the task is paid')
     btc_address = models.CharField(max_length=40, validators=[validate_btc_address])
     btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
     withhold_tunga_fee = models.BooleanField(
         default=False,
-        help_text='Only participant portion will be paid if True, and all money paid will be distributed to participants'
+        help_text='Only participant portion will be paid if True, '
+                  'and all money paid will be distributed to participants'
     )
     paid = models.BooleanField(default=False, help_text='True if the task is paid')
     paid_at = models.DateTimeField(blank=True, null=True)
@@ -216,10 +218,12 @@ class MultiTaskPaymentKey(models.Model):
 
     @property
     def pay_participants(self):
-        return sum([task.pay*Decimal(1 - task.tunga_ratio_dev) for task in list(self.tasks.all())])
+        connected_tasks = self.distribute_only and self.distribute_tasks or self.tasks
+        return sum([task.pay*Decimal(1 - task.tunga_ratio_dev) for task in list(connected_tasks.all())])
 
     def get_task_share_ratio(self, task):
-        if task.multi_pay_key_id == self.id:
+        if (task.multi_pay_key_id == self.id and not self.distribute_only) or \
+                (task.multi_pay_distribute_key_id == self.id and self.distribute_only):
             return task.pay/self.amount
         return 0
 
@@ -282,6 +286,9 @@ class Task(models.Model):
     multi_pay_key = models.ForeignKey(
         MultiTaskPaymentKey, related_name='tasks', on_delete=models.DO_NOTHING, blank=True, null=True
     )
+    multi_pay_distribute_key = models.ForeignKey(
+        MultiTaskPaymentKey, related_name='distribute_tasks', on_delete=models.DO_NOTHING, blank=True, null=True
+    )
 
     # Classification details
     type = models.IntegerField(choices=TASK_TYPE_CHOICES, default=TASK_TYPE_OTHER)  # Web, Mobile ...
@@ -329,6 +336,7 @@ class Task(models.Model):
     )
     closed = models.BooleanField(default=False, help_text='True if the task is closed')
     paid = models.BooleanField(default=False, help_text='True if the task is paid')
+    btc_paid = models.BooleanField(default=False, help_text='True if BTC has been paid in for a Stripe task')
     pay_distributed = models.BooleanField(
         default=False,
         help_text='True if task has been paid and entire payment has been distributed to participating developers'
@@ -337,7 +345,8 @@ class Task(models.Model):
     reminded_complete_task = models.BooleanField(default=False)
     withhold_tunga_fee = models.BooleanField(
         default=False,
-        help_text='Only participant portion will be paid if True, and all money paid will be distributed to participants'
+        help_text='Only participant portion will be paid if True, '
+                  'and all money paid will be distributed to participants'
     )
 
     # Significant event dates
@@ -346,6 +355,7 @@ class Task(models.Model):
     apply_closed_at = models.DateTimeField(blank=True, null=True)
     closed_at = models.DateTimeField(blank=True, null=True)
     paid_at = models.DateTimeField(blank=True, null=True)
+    btc_paid_at = models.DateTimeField(blank=True, null=True)
     archived_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     invoice_date = models.DateTimeField(blank=True, null=True)
@@ -614,8 +624,14 @@ class Task(models.Model):
     def skills_list(self):
         return str(self.skills)
 
+    @property
     def payment_status(self):
         return self.paid and self.pay_distributed and 'Paid' or self.paid and 'Processing' or 'Pending'
+
+    @property
+    def can_pay_distribution_btc(self):
+        return self.payment_method == TASK_PAYMENT_METHOD_STRIPE and self.paid and \
+               not self.btc_paid and not self.pay_distributed
 
     @property
     def milestones(self):

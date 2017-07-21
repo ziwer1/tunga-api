@@ -514,17 +514,28 @@ def distribute_multi_task_payment(multi_task_key):
 def update_multi_tasks(multi_task_key, distribute=False):
     multi_task_key = clean_instance(multi_task_key, MultiTaskPaymentKey)
 
-    multi_task_key.tasks.update(
-        payment_method=multi_task_key.payment_method,
-        btc_price=multi_task_key.btc_price,
-        withhold_tunga_fee=multi_task_key.withhold_tunga_fee,
-        paid=multi_task_key.paid,
-        paid_at=multi_task_key.paid_at
-    )
+    if multi_task_key.distribute_only:
+        connected_tasks = multi_task_key.distribute_tasks
+        connected_tasks.filter(paid=True).update(
+            btc_price=multi_task_key.btc_price,
+            withhold_tunga_fee=multi_task_key.withhold_tunga_fee,
+            btc_paid=multi_task_key.paid,
+            btc_paid_at=multi_task_key.paid_at
+        )
+    else:
+        connected_tasks = multi_task_key.tasks
+        connected_tasks.filter(paid=False).update(
+            payment_method=multi_task_key.payment_method,
+            btc_price=multi_task_key.btc_price,
+            withhold_tunga_fee=multi_task_key.withhold_tunga_fee,
+            paid=multi_task_key.paid,
+            paid_at=multi_task_key.paid_at
+        )
 
     # Generate invoices for all connected tasks
-    for task in multi_task_key.tasks.all():
-        if task.paid:
+    for task in connected_tasks.all():
+        if task.paid and multi_task_key.distribute_only and multi_task_key.paid:
+            distribute_task_payment.delay(task.id)
             return
 
         # Save Invoice

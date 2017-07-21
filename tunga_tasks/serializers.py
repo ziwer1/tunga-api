@@ -271,6 +271,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         required=False, error_messages={'blank': 'Please specify the skills required for this task'}
     )
     payment_status = serializers.CharField(required=False, read_only=True)
+    can_pay_distribution_btc = serializers.CharField(required=False, read_only=True)
     deadline = serializers.DateTimeField(required=False, allow_null=True)
     can_apply = serializers.SerializerMethodField(read_only=True, required=False)
     can_claim = serializers.SerializerMethodField(read_only=True, required=False)
@@ -661,15 +662,19 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
 
 class MultiTaskPaymentKeyDetailsSerializer(ContentTypeAnnotatedModelSerializer):
     tasks = SimpleTaskSerializer(many=True)
+    distribute_tasks = SimpleTaskSerializer(many=True)
 
     class Meta:
         model = MultiTaskPaymentKey
-        fields = ('tasks',)
+        fields = ('tasks', 'distribute_tasks')
 
 
 class MultiTaskPaymentKeySerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSerializer):
     user = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
     tasks = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Task.objects.all(), required=False
+    )
+    distribute_tasks = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Task.objects.all(), required=False
     )
     pay = serializers.DecimalField(max_digits=19, decimal_places=4, required=False, read_only=True)
@@ -684,19 +689,12 @@ class MultiTaskPaymentKeySerializer(ContentTypeAnnotatedModelSerializer, DetailA
         details_serializer = MultiTaskPaymentKeyDetailsSerializer
 
     def save_bulk_payment(self, validated_data, instance=None):
-        """
-        tasks = None
-        if 'tasks' in validated_data:
-            tasks = validated_data.pop('tasks')
-        """
-
         initial_payment_method = None
         if instance:
             initial_payment_method = instance.payment_method
             instance = super(MultiTaskPaymentKeySerializer, self).update(instance, validated_data)
         else:
             instance = super(MultiTaskPaymentKeySerializer, self).create(validated_data)
-            # self.save_tasks(instance, tasks)
 
         if not instance.btc_address or not bitcoin_utils.is_valid_btc_address(instance.btc_address):
             btc_price = coinbase_utils.get_btc_price(instance.currency)
@@ -716,12 +714,6 @@ class MultiTaskPaymentKeySerializer(ContentTypeAnnotatedModelSerializer, DetailA
 
     def update(self, instance, validated_data):
         return self.save_bulk_payment(validated_data, instance=instance)
-
-    def save_tasks(self, multi_task_key, tasks):
-        if tasks:
-            for task in tasks:
-                task.multi_pay_key = multi_task_key
-                task.save()
 
 
 class ApplicationDetailsSerializer(SimpleApplicationSerializer):
