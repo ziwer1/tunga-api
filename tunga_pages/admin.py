@@ -11,6 +11,7 @@ class SkillPageProfileInline(admin.StackedInline):
     model = SkillPageProfile
     exclude = ('created_by',)
     extra = 1
+    raw_id_fields = ('user',)
 
     def save_model(self, request, obj, form, change):
         obj.created_by = request.user
@@ -42,12 +43,3 @@ class SkillPageAdmin(AdminAutoCreatedBy):
             instance.created_by = request.user
             instance.save()
         formset.save_m2m()
-
-
-"""
-@admin.register(SkillPageProfile)
-class SkillPageProfileAdmin(AdminAutoCreatedBy):
-    list_display = ('user', 'page', 'intro', 'created_by', 'created_by', 'created_at')
-    list_filter = ('created_at',)
-    search_fields = ('user_username', 'user__first_name', 'user__last_name')
-"""
