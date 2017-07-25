@@ -518,7 +518,7 @@ def update_multi_tasks(multi_task_key, distribute=False):
         connected_tasks = multi_task_key.distribute_tasks
         connected_tasks.filter(paid=True).update(
             btc_price=multi_task_key.btc_price,
-            withhold_tunga_fee=multi_task_key.withhold_tunga_fee,
+            withhold_tunga_fee_distribute=multi_task_key.withhold_tunga_fee,
             btc_paid=multi_task_key.paid,
             btc_paid_at=multi_task_key.paid_at
         )
@@ -534,8 +534,9 @@ def update_multi_tasks(multi_task_key, distribute=False):
 
     # Generate invoices for all connected tasks
     for task in connected_tasks.all():
-        if task.paid and multi_task_key.distribute_only and multi_task_key.paid:
-            distribute_task_payment.delay(task.id)
+        if multi_task_key.distribute_only:
+            if task.paid and multi_task_key.paid:
+                distribute_task_payment.delay(task.id)
             return
 
         # Save Invoice

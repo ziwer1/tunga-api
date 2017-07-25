@@ -348,6 +348,11 @@ class Task(models.Model):
         help_text='Only participant portion will be paid if True, '
                   'and all money paid will be distributed to participants'
     )
+    withhold_tunga_fee_distribute = models.BooleanField(
+        default=False,
+        help_text='Only participant portion will be distributed if True, '
+                  'and all money paid will be distributed to participants'
+    )
 
     # Significant event dates
     deadline = models.DateTimeField(blank=True, null=True)
@@ -717,6 +722,12 @@ class Task(models.Model):
             Q(progress_events__task=self) | Q(progress_events__task__parent=self)
         )
 
+    @property
+    def payment_withheld_tunga_fee(self):
+        if self.payment_method == TASK_PAYMENT_METHOD_STRIPE:
+            return self.withhold_tunga_fee_distribute
+        return self.withhold_tunga_fee
+
     def get_participation_shares(self, return_hash=False):
         participants = self.participation_set.filter(status=STATUS_ACCEPTED).order_by('-share')
         num_participants = participants.count()
@@ -750,7 +761,7 @@ class Task(models.Model):
             for data in participation_shares:
                 payment_shares.append({
                     'participant': data['participant'],
-                    'share': Decimal(data['share'])*Decimal(self.withhold_tunga_fee and 1 or (1 - self.tunga_ratio_dev))
+                    'share': Decimal(data['share'])*Decimal(self.payment_withheld_tunga_fee and 1 or (1 - self.tunga_ratio_dev))
                 })
         return payment_shares
 
@@ -765,7 +776,7 @@ class Task(models.Model):
     def get_user_payment_share(self, participation_id):
         share = self.get_user_participation_share(participation_id=participation_id)
         if share:
-            return share*(Decimal(self.withhold_tunga_fee and 100 or (100 - self.tunga_percentage_dev)) / Decimal(100))
+            return share*(Decimal(self.payment_withheld_tunga_fee and 100 or (100 - self.tunga_percentage_dev)) / Decimal(100))
         return 0
 
 
