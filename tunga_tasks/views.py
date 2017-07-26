@@ -440,7 +440,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                     task_developers.append({
                         'developer': InvoiceUserSerializer(participant.user).data,
                         'amount': amount_details,
-                        'number': '{}{}'.format(
+                        'number': '{}{}{}'.format(
                             invoice_data['number'],
                             developer.number,
                             (context == 'developer' and 'D' or (context == 'tunga' and 'T' or 'C'))
