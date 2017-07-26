@@ -171,7 +171,10 @@ class MultiTaskPaymentKey(models.Model):
         help_text='Only participant portion will be paid if True, '
                   'and all money paid will be distributed to participants'
     )
+    processing = models.BooleanField(default=False, help_text='True if the task is processing')
     paid = models.BooleanField(default=False, help_text='True if the task is paid')
+
+    processing_at = models.DateTimeField(blank=True, null=True)
     paid_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -335,6 +338,7 @@ class Task(models.Model):
         default=True, help_text='True if developers can apply for this task (visibility can override this)'
     )
     closed = models.BooleanField(default=False, help_text='True if the task is closed')
+    processing = models.BooleanField(default=False, help_text='True if the task is processing')
     paid = models.BooleanField(default=False, help_text='True if the task is paid')
     btc_paid = models.BooleanField(default=False, help_text='True if BTC has been paid in for a Stripe task')
     pay_distributed = models.BooleanField(
@@ -359,6 +363,7 @@ class Task(models.Model):
     approved_at = models.DateTimeField(blank=True, null=True)
     apply_closed_at = models.DateTimeField(blank=True, null=True)
     closed_at = models.DateTimeField(blank=True, null=True)
+    processing_at = models.DateTimeField(blank=True, null=True)
     paid_at = models.DateTimeField(blank=True, null=True)
     btc_paid_at = models.DateTimeField(blank=True, null=True)
     archived_at = models.DateTimeField(blank=True, null=True)

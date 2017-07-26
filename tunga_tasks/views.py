@@ -368,6 +368,10 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                     })
                     req_data = client.sign('%s/?%s' % (BITONIC_URL, q_string), http_method='GET')
                     next_url = req_data[0]
+
+                    task.processing = True
+                    task.processing_at = datetime.datetime.utcnow()
+                    task.save()
             return redirect(next_url)
 
     @detail_route(
@@ -1010,6 +1014,9 @@ class MultiTaskPaymentKeyViewSet(viewsets.ModelViewSet):
                     })
                     req_data = client.sign('{}/?{}'.format(BITONIC_URL, q_string), http_method='GET')
                     next_url = req_data[0]
+                    multi_task_key.processing = True
+                    multi_task_key.processing_at = datetime.datetime.utcnow()
+                    multi_task_key.save()
             return redirect(next_url)
 
 

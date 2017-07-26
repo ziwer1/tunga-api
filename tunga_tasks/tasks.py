@@ -529,7 +529,9 @@ def update_multi_tasks(multi_task_key, distribute=False):
             btc_price=multi_task_key.btc_price,
             withhold_tunga_fee=multi_task_key.withhold_tunga_fee,
             paid=multi_task_key.paid,
-            paid_at=multi_task_key.paid_at
+            paid_at=multi_task_key.paid_at,
+            processing=multi_task_key.processing,
+            processing_at=multi_task_key.processing_at
         )
 
     # Generate invoices for all connected tasks

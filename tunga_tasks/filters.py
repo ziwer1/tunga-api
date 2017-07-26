@@ -34,14 +34,14 @@ class TaskFilter(GenericDateFilterSet):
             queryset = queryset.filter(paid=True)
             request = self.request
             is_po = request and request.user and request.user.is_authenticated() and request.user.is_project_owner and not request.user.is_admin
-            if is_po and value == 'processing':
-                return queryset.none()
+            if value == 'processing':
+                return queryset.filter(processing=True, paid=False)
             if value == 'paid':
                 return is_po and queryset or queryset.filter(pay_distributed=True)
             else:
                 return queryset.filter(pay_distributed=False)
         elif value == 'pending':
-            queryset = queryset.filter(paid=False)
+            queryset = queryset.filter(processing=False, paid=False)
         elif value == 'distribute':
             queryset = queryset.filter(
                 payment_method=TASK_PAYMENT_METHOD_STRIPE,
