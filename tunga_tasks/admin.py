@@ -44,13 +44,13 @@ class ParticipationInline(admin.StackedInline):
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     list_display = (
-        'summary', 'user', 'type', 'scope', 'source', 'apply', 'closed', 'archived', 'skills_list', 'created_at',
+        'summary', 'user', 'type', 'scope', 'source', 'apply', 'closed', 'paid', 'archived', 'skills_list', 'created_at',
         'fee', 'bid', 'dev_rate', 'pm_rate', 'pm_time_percentage', 'tunga_percentage_dev', 'tunga_percentage_pm',
         'schedule_call_start'
     )
     list_filter = (
         'type', 'scope', 'source', 'apply', 'closed', 'paid', 'pay_distributed', 'archived',
-        'created_at', 'schedule_call_start'
+        'created_at', 'schedule_call_start', 'paid_at'
     )
     search_fields = ('title', 'analytics_id')
     inlines = (TaskAccessInline, ParticipationInline)

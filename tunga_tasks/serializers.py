@@ -681,6 +681,7 @@ class MultiTaskPaymentKeySerializer(ContentTypeAnnotatedModelSerializer, DetailA
     distribute_tasks = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Task.objects.all(), required=False
     )
+    amount = serializers.DecimalField(max_digits=19, decimal_places=4, required=False, read_only=True)
     pay = serializers.DecimalField(max_digits=19, decimal_places=4, required=False, read_only=True)
     pay_participants = serializers.DecimalField(max_digits=19, decimal_places=4, required=False, read_only=True)
 

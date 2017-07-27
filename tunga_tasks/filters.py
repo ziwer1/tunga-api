@@ -1,4 +1,5 @@
 import django_filters
+from django.db.models.query_utils import Q
 
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent, \
     Estimate, Quote, TaskPayment, ParticipantPayment
@@ -34,12 +35,13 @@ class TaskFilter(GenericDateFilterSet):
             queryset = queryset.filter(paid=True)
             request = self.request
             is_po = request and request.user and request.user.is_authenticated() and request.user.is_project_owner and not request.user.is_admin
-            if value == 'processing':
-                return queryset.filter(processing=True, paid=False)
             if value == 'paid':
                 return is_po and queryset or queryset.filter(pay_distributed=True)
             else:
-                return queryset.filter(pay_distributed=False)
+                processing_filter = (Q(processing=True) & Q(paid=False))
+                if not is_po:
+                    processing_filter = processing_filter | (Q(paid=True) & Q(pay_distributed=False))
+                return queryset.filter(processing_filter)
         elif value == 'pending':
             queryset = queryset.filter(processing=False, paid=False)
         elif value == 'distribute':

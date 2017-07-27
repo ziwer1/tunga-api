@@ -214,6 +214,11 @@ class MultiTaskPaymentKey(models.Model):
         return request.user == self.user
 
     @property
+    def amount(self):
+        connected_tasks = self.distribute_only and self.distribute_tasks or self.tasks
+        return sum([task.pay for task in list(connected_tasks.all())])
+
+    @property
     def pay(self):
         if self.withhold_tunga_fee:
             return self.pay_participants
