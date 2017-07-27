@@ -1,4 +1,5 @@
 import datetime
+from copy import copy
 from decimal import Decimal
 
 from allauth.account.signals import user_signed_up
@@ -556,11 +557,14 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                     pass
 
     def save_ratings(self, task, ratings):
+        current_user = self.get_current_user()
         if ratings:
             for item in ratings:
                 try:
+                    defaults = copy(item)
+                    defaults['created_by'] = current_user or task.user
                     Rating.objects.update_or_create(content_type=ContentType.objects.get_for_model(task),
-                                                    object_id=task.id, criteria=item['criteria'], defaults=item)
+                                                    object_id=task.id, criteria=item['criteria'], defaults=defaults)
                 except:
                     pass
 
@@ -677,6 +681,7 @@ class MultiTaskPaymentKeySerializer(ContentTypeAnnotatedModelSerializer, DetailA
     distribute_tasks = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Task.objects.all(), required=False
     )
+    amount = serializers.DecimalField(max_digits=19, decimal_places=4, required=False, read_only=True)
     pay = serializers.DecimalField(max_digits=19, decimal_places=4, required=False, read_only=True)
     pay_participants = serializers.DecimalField(max_digits=19, decimal_places=4, required=False, read_only=True)
 

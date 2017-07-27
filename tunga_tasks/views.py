@@ -368,6 +368,10 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                     })
                     req_data = client.sign('%s/?%s' % (BITONIC_URL, q_string), http_method='GET')
                     next_url = req_data[0]
+
+                    task.processing = True
+                    task.processing_at = datetime.datetime.utcnow()
+                    task.save()
             return redirect(next_url)
 
     @detail_route(
@@ -425,7 +429,6 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                     task_owner = task.user
                     if task.owner:
                         task_owner = task.owner
-
                     if context == 'client' and task_owner.profile and \
                             task_owner.profile.country and task_owner.profile.country.code == 'NL':
                         vat = 21
@@ -436,7 +439,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                     task_developers.append({
                         'developer': InvoiceUserSerializer(participant.user).data,
                         'amount': amount_details,
-                        'number': '{}{}'.format(
+                        'number': '{}{}{}'.format(
                             invoice_data['number'],
                             developer.number,
                             (context == 'developer' and 'D' or (context == 'tunga' and 'T' or 'C'))
@@ -448,10 +451,29 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
                 invoice_data['developers'] = task_developers
 
+                client_country = None
+                if context == 'client' and task_owner.profile and \
+                        task_owner.profile.country and task_owner.profile.country.code:
+                    client_country = task_owner.profile.country.code
+
+                if client_country == 'NL':
+                    invoice_location = 'NL'
+                elif client_country in [
+                    # EU members
+                    'BE', 'BG', 'CZ', 'DK', 'DE', 'EE', 'IE', 'EL', 'ES', 'FR', 'HR', 'IT', 'CY', 'LV', 'LT', 'LU',
+                    'HU', 'MT', 'AT', 'PL', 'PT', 'RO', 'SI', 'SK', 'FI', 'SE', 'UK'
+                    # European Free Trade Association (EFTA)
+                    'IS', 'LI', 'NO', 'CH'
+                ]:
+                    invoice_location = 'europe'
+                else:
+                    invoice_location = 'world'
+
                 ctx = {
                     'user': request.user,
                     'context': context,
-                    'invoice': invoice_data
+                    'invoice': invoice_data,
+                    'location': invoice_location
                 }
 
                 rendered_html = render_to_string("tunga/pdf/invoice.html", context=ctx).encode(encoding="UTF-8")
@@ -954,7 +976,7 @@ class MultiTaskPaymentKeyViewSet(viewsets.ModelViewSet):
                     idempotency_key=payload.get('idem_key', None),
                     **dict(
                         amount=payload['amount'],
-                        description=payload.get('description', multi_task_key.summary),
+                        description=payload.get('description', str(multi_task_key)),
                         currency=payload.get('currency', CURRENCY_EUR),
                         customer=customer.id,
                         metadata=dict(
@@ -1010,6 +1032,9 @@ class MultiTaskPaymentKeyViewSet(viewsets.ModelViewSet):
                     })
                     req_data = client.sign('{}/?{}'.format(BITONIC_URL, q_string), http_method='GET')
                     next_url = req_data[0]
+                    multi_task_key.processing = True
+                    multi_task_key.processing_at = datetime.datetime.utcnow()
+                    multi_task_key.save()
             return redirect(next_url)
 
 

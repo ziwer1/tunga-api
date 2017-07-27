@@ -31,7 +31,7 @@
 
                 {% if context != "client" %}
                     <div {% if context == "developer" %}class="bold"{% endif %} style="margin-top: 20px">
-                        {% if context == "developer" %}Attn: {% elif context == "tunga" %}From: {% endif %}
+                        {% if context == "developer" %}Attn: {% endif %}
                         {{ developer_info.developer.display_name }}<br/>
                         {{ developer_info.developer.profile.street | default:'' }} {{ developer_info.developer.profile.plot_number | default:'' }}<br/>
                         {{ developer_info.developer.profile.postal_code | default:'' }}<br/>
@@ -41,7 +41,7 @@
 
                 {% if context != "tunga" %}
                     <div style="margin: 20px 0;">
-                        From: Tunga BV<br/>
+                        Tunga BV<br/>
                         Ms. van Riemsdijkweg 57<br/>
                         1033 RC, Amsterdam<br/>
                         The Netherlands<br/>
@@ -113,17 +113,42 @@
                 </table>
 
                 <div style="margin-top: 40px">
-                    VAT Reversed Charge
-                </div>
+                    {% if context != "client" %}
+                        <p>VAT Reversed Charge</p>
+                    {% endif %}
 
-                {% if context != "client" %}
-                    <div style="margin-top: 40px">
-                        {% if context == "tunga" %}
-                            Kindly transfer the stated amount within 2 weeks using the following information:<br/>
+                    {% if context == "tunga" %}
+                        <p>Kindly transfer the stated amount within 2 weeks using the following information:</p>
+                        <p>Bitcoin address: {{ invoice.btc_address }}</p>
+                    {% else %}
+                        {% if context == "client" and location != "NL" %}
+                            <p>
+                            {% if location == "europe" %}
+                                VAT is charged in reverse due to articles 44 and 196 VAT directive 2006/112
+                            {% else %}
+                                VAT Reversed Charge
+                            {% endif %}
+                            </p>
                         {% endif %}
-                        Bitcoin address: {{ invoice.btc_address }}
-                    </div>
-                {% endif %}
+                        {% if invoice.payment_method == "bank" %}
+                            <p>
+                            Kindly transfer the stated amount within two weeks of the invoice date. Please use the bank account details
+                            below, indicating the invoice number  {{ developer_info.number | default:'' }}.
+                            </p>
+                        {% endif %}
+
+                        <p>
+                        {% if invoice.payment_method == "bank"  or invoice.payment_method == "stripe" %}
+                            <strong>Tunga BV</strong><br/>
+                            IBAN: NL64 INGB 0007 6631 29<br/>
+                            BIC/SWIFT: INGBNL2A<br/>
+                            BTW: NL.8567.94.636.B.01<br/>
+                        {% else %}
+                            Bitcoin address: {{ invoice.btc_address }}
+                        {% endif %}
+                        </p>
+                    {% endif %}
+                </div>
 
             </div>
 
