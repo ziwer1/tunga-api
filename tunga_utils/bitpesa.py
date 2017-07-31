@@ -154,3 +154,11 @@ def create_sender(sender):
     if r.status_code == 201:
         return get_response_object(r.json())
     return None
+
+
+def get_transaction(transaction_id):
+    r = call_api(get_endpoint_url('transactions/{}'.format(transaction_id)), 'GET', str(uuid4()))
+
+    if r.status_code == 200:
+        return get_response_object(r.json())
+    return r
