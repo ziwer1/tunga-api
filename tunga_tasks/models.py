@@ -1317,6 +1317,41 @@ class ProgressReport(models.Model):
 
 
 @python_2_unicode_compatible
+class SummaryReport(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    developer = models.ForeignKey(ProgressReport, related_name='dev_summary_reports', on_delete=models.CASCADE, blank=True, null=True)
+    pm = models.ForeignKey(ProgressReport, related_name='pm_summary_reports', on_delete=models.CASCADE, blank=True, null=True)
+    owner = models.ForeignKey(ProgressReport, related_name='owner_summary_reports', on_delete=models.CASCADE, blank=True, null=True)
+
+    report_for = models.DateTimeField(auto_now_add=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    email_at = models.DateTimeField(auto_now_add=True)
+    slack_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return '{0} - {1}%'.format(self.task.summary, self.report_for)
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return False
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return False
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return False
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return False
+
+
+@python_2_unicode_compatible
 class IntegrationEvent(models.Model):
     id = models.CharField(max_length=30, primary_key=True)
     name = models.CharField(max_length=30)
