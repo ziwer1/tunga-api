@@ -9,12 +9,13 @@ from tunga_messages.models import Message
 from tunga_messages.tasks import get_or_create_task_channel
 from tunga_tasks.models import Task, Application, Participation, ProgressEvent, ProgressReport, \
     IntegrationActivity, Integration, Estimate, Quote
-from tunga_tasks.notifications import notify_new_task_application, notify_task_invitation_email, \
-    notify_task_invitation_response, \
-    send_task_application_not_selected_email, notify_new_progress_report, notify_task_approved, notify_estimate_status_email, \
-    notify_task_application_response, notify_new_task_admin, notify_new_task, possibly_trigger_schedule_call_automation, \
-    notify_new_progress_report_slack, notify_parties_of_low_rating_email, notify_pm_dev_when_stuck_email,\
-    notify_dev_pm_on_failure_to_meet_deadline
+from tunga_tasks.notifications.generic import possibly_trigger_schedule_call_automation, notify_new_task, \
+    notify_task_approved, notify_new_task_admin, notify_task_invitation_response, notify_new_task_application, \
+    notify_task_application_response, notify_new_progress_report
+from tunga_tasks.notifications.email import notify_estimate_status_email, notify_task_invitation_email, \
+    send_task_application_not_selected_email, notify_parties_of_low_rating_email, notify_pm_dev_when_stuck_email, \
+    notify_dev_pm_on_failure_to_meet_deadline_email
+from tunga_tasks.notifications.slack import notify_new_progress_report_slack
 from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates, \
     complete_harvest_integration, create_or_update_hubspot_deal_task
 from tunga_utils import hubspot_utils
@@ -205,7 +206,7 @@ def activity_handler_progress_report(sender, instance, created, **kwargs):
         else:
             # if pm or dev wont meet deadline
             if instance.event.status in [PROGRESS_REPORT_STATUS_BEHIND]:
-                notify_dev_pm_on_failure_to_meet_deadline.delay(instance.id)
+                notify_dev_pm_on_failure_to_meet_deadline_email.delay(instance.id)
     else:
         notify_new_progress_report_slack.delay(instance.id, updated=True)
 

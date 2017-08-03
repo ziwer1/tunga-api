@@ -40,7 +40,7 @@ from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilt
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent, \
     Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice, Estimate, Quote, \
     MultiTaskPaymentKey, ParticipantPayment
-from tunga_tasks.notifications import notify_task_invoice_request_email
+from tunga_tasks.notifications.email import notify_task_invoice_request_email
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
