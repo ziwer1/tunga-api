@@ -8,13 +8,13 @@
 
     {% if report.deadline_miss_communicated %}
     <p>
-        A deadline has been missed on the {{ event.task.summary }} project.<br/>
+        A deadline has been missed on the {{ event.task.summary }} {% if event.task.is_task %}task{% else %}project{% endif %}..<br/>
         According to our system, this has been communicated between the stakeholders.<br/>
         Please check in with the stakeholders.<br/>
     </p>
     {% else %}
     <p>
-        A deadline has been missed on the {{ event.task.summary }} project. <br/>
+        A deadline has been missed on the {{ event.task.summary }} {% if event.task.is_task %}task{% else %}project{% endif %}.. <br/>
         Please contact the stakeholders.<br/>
     </p>
     {% endif %}

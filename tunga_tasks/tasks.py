@@ -178,7 +178,7 @@ def update_task_client_surveys(task):
         # for sub-tasks, create all surveys on the project
         target_task = task.parent
 
-    if not (target_task.survey_client and target_task.approved and list(target_task.active_participants)):
+    if not (target_task.survey_client and target_task.approved and target_task.active_participants):
         # only conduct survey for approved tasks that have been assigned devs
         return
 

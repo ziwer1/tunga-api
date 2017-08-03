@@ -662,8 +662,12 @@ class Task(models.Model):
         return self.subtask_participants_inclusive_filter.filter(status__in=[STATUS_INITIAL, STATUS_ACCEPTED])
 
     @property
-    def active_participants(self):
+    def active_participation(self):
         return self.subtask_participants_inclusive_filter.filter(status=STATUS_ACCEPTED)
+
+    @property
+    def active_participants(self):
+        return list(set([item.user for item in self.active_participation]))
 
     @property
     def started_at(self):
@@ -1231,7 +1235,7 @@ class ProgressEvent(models.Model):
             else:
                 participants.append(self.task.user)
         else:
-            participants.extend(list(set([item.user for item in self.task.active_participants])))
+            participants.extend(self.task.active_participants)
         return participants
 
     @property
