@@ -110,7 +110,8 @@ class Project(models.Model):
     @property
     def excerpt(self):
         try:
-            return strip_tags(self.description).strip()
+            if self.description:
+                return strip_tags(self.description).strip()
         except:
             return None
 
@@ -890,7 +891,7 @@ class Participation(models.Model):
     ratings = GenericRelation(Rating, related_query_name='participants')
 
     def __str__(self):
-        return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.title)
+        return '#{} | {} - {}'.format(self.id, self.user.get_short_name() or self.user.username, self.task.title)
 
     class Meta:
         unique_together = ('user', 'task')
@@ -1161,6 +1162,7 @@ class ProgressEvent(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='progress_events_created', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     last_reminder_at = models.DateTimeField(blank=True, null=True)
+    missed_notification_at = models.DateTimeField(blank=True, null=True)
 
     activity_objects = GenericRelation(
         Action,
@@ -1211,11 +1213,26 @@ class ProgressEvent(models.Model):
                 return self.task.pm == user
             else:
                 return self.task.user == user
-        if self.type == PROGRESS_EVENT_TYPE_CLIENT:
+        elif self.type == PROGRESS_EVENT_TYPE_CLIENT:
             if self.task.owner:
                 return self.task.owner == user
             return self.task.user == user
         return self.task.get_is_participant(user, active_only=active_only)
+
+    @property
+    def participants(self):
+        participants = []
+        if self.type == PROGRESS_EVENT_TYPE_PM:
+            if self.task.is_project and self.task.pm:
+                participants.append(self.task.pm)
+        elif self.type == PROGRESS_EVENT_TYPE_CLIENT:
+            if self.task.owner:
+                participants.append(self.task.owner)
+            else:
+                participants.append(self.task.user)
+        else:
+            participants.extend(list(set([item.user for item in self.task.active_participants])))
+        return participants
 
     @property
     def pm(self):
@@ -1314,6 +1331,41 @@ class ProgressReport(models.Model):
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
         return request.user == self.user
+
+
+@python_2_unicode_compatible
+class SummaryReport(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    developer = models.ForeignKey(ProgressReport, related_name='dev_summary_reports', on_delete=models.CASCADE, blank=True, null=True)
+    pm = models.ForeignKey(ProgressReport, related_name='pm_summary_reports', on_delete=models.CASCADE, blank=True, null=True)
+    owner = models.ForeignKey(ProgressReport, related_name='owner_summary_reports', on_delete=models.CASCADE, blank=True, null=True)
+
+    report_for = models.DateTimeField(auto_now_add=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    email_at = models.DateTimeField(auto_now_add=True)
+    slack_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return '{0} - {1}%'.format(self.task.summary, self.report_for)
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return False
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return False
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return False
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return False
 
 
 @python_2_unicode_compatible
