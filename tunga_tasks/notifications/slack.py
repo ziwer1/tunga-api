@@ -606,6 +606,15 @@ def notify_missed_progress_event_slack(instance):
     instance.save()
 
 
+@job
+def trigger_progress_report_actionable_events_slack(instance):
+    instance = clean_instance(instance, ProgressReport)
+    is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
+    is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
+    is_pm_or_client_report = is_pm_report or is_client_report
+    is_dev_report = not is_pm_or_client_report
+
+
 def create_progress_report_slack_message_stakeholders_attachment(instance):
     slack_text_suffix = "Project owner: {}, {}".format(instance.event.task.user.first_name, instance.event.task.user.email)
 

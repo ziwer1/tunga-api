@@ -7,11 +7,13 @@ from tunga_tasks.models import Task
 from tunga_tasks.notifications.email import notify_new_task_client_receipt_email, notify_new_task_admin_email, \
     notify_new_task_community_email, notify_task_invitation_response_email, notify_new_task_application_owner_email, \
     confirm_task_application_to_applicant_email, notify_task_application_response_owner_email, \
-    notify_task_application_response_admin_email, remind_progress_event_email, notify_new_progress_report_email
+    notify_task_application_response_admin_email, remind_progress_event_email, notify_new_progress_report_email, \
+    trigger_progress_report_actionable_events_emails
 from tunga_tasks.notifications.slack import notify_new_task_admin_slack, remind_no_task_applications_slack, \
     notify_review_task_admin_slack, notify_new_task_community_slack, notify_task_invitation_response_slack, \
     notify_new_task_application_slack, notify_task_application_response_slack, remind_progress_event_slack, \
-    notify_missed_progress_event_slack, notify_new_progress_report_slack
+    notify_missed_progress_event_slack, notify_new_progress_report_slack, \
+    trigger_progress_report_actionable_events_slack
 from tunga_utils import mailchimp_utils
 from tunga_utils.helpers import clean_instance
 
@@ -122,3 +124,12 @@ def notify_missed_progress_event(instance):
 def notify_new_progress_report(instance):
     notify_new_progress_report_email(instance)
     notify_new_progress_report_slack(instance)
+
+    # Trigger actionable events
+    trigger_progress_report_actionable_events(instance)
+
+
+@job
+def trigger_progress_report_actionable_events(instance):
+    trigger_progress_report_actionable_events_emails(instance)
+    trigger_progress_report_actionable_events_slack(instance)

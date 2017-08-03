@@ -1,12 +1,10 @@
 import datetime
 
-from django.contrib.auth import get_user_model
-from django.db.models import When, Sum, Case, IntegerField, F
 from django_rq import job
 
 from tunga.settings import TUNGA_URL, TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
-from tunga_auth.filterbackends import my_connections_q_filter
 from tunga_tasks.models import Task, Quote, Estimate, Participation, Application, ProgressEvent, ProgressReport
+from tunga_tasks.utils import get_suggested_community_receivers
 from tunga_utils.constants import TASK_SCOPE_TASK, TASK_SOURCE_NEW_USER, USER_TYPE_DEVELOPER, VISIBILITY_MY_TEAM, \
     STATUS_ACCEPTED, VISIBILITY_DEVELOPER, USER_TYPE_PROJECT_MANAGER, STATUS_SUBMITTED, STATUS_APPROVED, \
     STATUS_DECLINED, STATUS_REJECTED, STATUS_INITIAL, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, \
@@ -92,64 +90,6 @@ def notify_new_task_admin_email(instance, new_user=False, completed=False, call_
         'completed_phrase': completed_phrase_body,
     }
     send_mail(subject, 'tunga/email/email_new_task', to, ctx, **dict(deal_ids=[instance.hubspot_deal_id]))
-
-
-def get_suggested_community_receivers(instance, user_type=USER_TYPE_DEVELOPER, respect_visibility=True):
-    # Filter users based on nature of work
-    queryset = get_user_model().objects.filter(
-        type=user_type
-    )
-
-    # Only developers on client's team
-    if respect_visibility and instance.visibility == VISIBILITY_MY_TEAM and user_type == USER_TYPE_DEVELOPER:
-        queryset = queryset.filter(
-            my_connections_q_filter(instance.user)
-        )
-
-    ordering = []
-
-    # Order by matching skills
-    task_skills = instance.skills.all()
-    if task_skills:
-        when = []
-        for skill in task_skills:
-            new_when = When(
-                userprofile__skills=skill,
-                then=1
-            )
-            when.append(new_when)
-        queryset = queryset.annotate(matches=Sum(
-            Case(
-                *when,
-                default=0,
-                output_field=IntegerField()
-            )
-        ))
-        ordering.append('-matches')
-
-    # Order developers by tasks completed
-    if user_type == USER_TYPE_DEVELOPER:
-        queryset = queryset.annotate(
-            tasks_completed=Sum(
-                Case(
-                    When(
-                        participation__task__closed=True,
-                        participation__user__id=F('id'),
-                        participation__status=STATUS_ACCEPTED,
-                        then=1
-                    ),
-                    default=0,
-                    output_field=IntegerField()
-                )
-            )
-        )
-        ordering.append('-tasks_completed')
-
-    if ordering:
-        queryset = queryset.order_by(*ordering)
-    if queryset:
-        return queryset[:15]
-    return
 
 
 @job
@@ -539,8 +479,30 @@ def notify_new_progress_report_email(instance):
         **dict(deal_ids=[instance.event.task.hubspot_deal_id])
     )
 
-    # Trigger additional actionable events from report
 
+@job
+def notify_task_invoice_request_email(instance):
+    instance = clean_instance(instance, Task)
+    subject = "{} requested for an invoice".format(instance.user.display_name)
+    to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+    ctx = {
+        'owner': instance.owner or instance.user,
+        'task': instance,
+        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.id),
+        'invoice_url': '%s/api/task/%s/download/invoice/?format=pdf' % (TUNGA_URL, instance.id)
+    }
+    send_mail(
+        subject, 'tunga/email/email_task_invoice_request', to, ctx, **dict(deal_ids=[instance.hubspot_deal_id])
+    )
+
+
+@job
+def trigger_progress_report_actionable_events_emails(instance):
+    instance = clean_instance(instance, ProgressReport)
+    is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
+    is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
+    is_pm_or_client_report = is_pm_report or is_client_report
+    is_dev_report = not is_pm_or_client_report
 
     if instance.last_deadline_met is not None and not instance.last_deadline_met and (is_pm_report or is_dev_report):
         subject = "A deadline has been missed on the {} project".format(instance.event.task.summary)
@@ -680,23 +642,6 @@ def notify_pm_dev_when_stuck_email(instance):
         **dict(deal_ids=[instance.event.task.hubspot_deal_id])
     )
 
-
-@job
-def notify_task_invoice_request_email(instance):
-    instance = clean_instance(instance, Task)
-    subject = "{} requested for an invoice".format(instance.user.display_name)
-    to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
-    ctx = {
-        'owner': instance.owner or instance.user,
-        'task': instance,
-        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.id),
-        'invoice_url': '%s/api/task/%s/download/invoice/?format=pdf' % (TUNGA_URL, instance.id)
-    }
-    send_mail(
-        subject, 'tunga/email/email_task_invoice_request', to, ctx, **dict(deal_ids=[instance.hubspot_deal_id])
-    )
-
-
 @job
 def notify_dev_pm_on_failure_to_meet_deadline_email(instance):
     instance = clean_instance(instance, ProgressReport)
@@ -714,6 +659,7 @@ def notify_dev_pm_on_failure_to_meet_deadline_email(instance):
     }
     to = [instance.event.task.pm.email]
 
+    email_template = None
     if is_pm_report:
         email_template = 'follow_up_when_wont_meet_deadline_pm'
     elif is_dev_report:
