@@ -51,7 +51,7 @@ def create_task_slack_msg(task, summary='', channel='#general', show_schedule=Tr
         {
             slack_utils.KEY_TITLE: task.summary,
             slack_utils.KEY_TITLE_LINK: task_url,
-            slack_utils.KEY_TEXT: task.excerpt,
+            slack_utils.KEY_TEXT: task.excerpt or task.summary,
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_TUNGA
         }
@@ -850,6 +850,70 @@ def remind_progress_event_email(instance):
         ):
             instance.last_reminder_at = datetime.datetime.utcnow()
             instance.save()
+
+
+@job
+def notify_missed_progress_event(instance):
+    notify_missed_progress_event_slack(instance)
+
+
+@job
+def notify_missed_progress_event_slack(instance):
+    instance = clean_instance(instance, ProgressEvent)
+
+    is_client_report = instance.type == PROGRESS_EVENT_TYPE_CLIENT
+
+    participants = instance.participants
+    if not participants:
+        # No one to report
+        return
+
+    target_user = None
+    if participants and len(participants) == 1:
+        target_user = participants[0]
+
+    task_url = '{}/work/{}'.format(TUNGA_URL, instance.task.id)
+    slack_msg = "{} {} for \"{}\" | <{}|View on Tunga>".format(
+        target_user and '{} missed a'.format(target_user.short_name) or 'Missed',
+        is_client_report and 'weekly survey' or 'progress report',
+        instance.task.summary,
+        task_url
+    )
+
+    attachments = [
+        {
+            slack_utils.KEY_TITLE: instance.task.summary,
+            slack_utils.KEY_TITLE_LINK: task_url,
+            slack_utils.KEY_TEXT: '\n\n'.join(
+                [
+                    '*Due Date:* {}\n\n'
+                    '*Name:* {}\n'
+                    '*Email:* {}{}'.format(
+                        instance.due_at.strftime("%d %b, %Y"),
+                        user.display_name,
+                        user.email,
+                        user.profile and user.profile.phone_number and '\n*Phone Number:* {}'.format(user.profile.phone_number) or '')
+
+                    for user in participants
+                ]
+            ),
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_TUNGA
+        }
+    ]
+
+    slack_utils.send_incoming_webhook(
+        SLACK_STAFF_INCOMING_WEBHOOK,
+        {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_ATTACHMENTS: attachments,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL
+        }
+    )
+
+    # Save notification time
+    instance.missed_notification_at = datetime.datetime.now()
+    instance.save()
 
 
 @job

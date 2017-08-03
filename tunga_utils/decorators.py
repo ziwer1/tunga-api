@@ -18,7 +18,7 @@ def catch_all_exceptions(func):
 
 def convert_first_arg_to_instance(model):
     """
-    Convert the first argument of the function into an instance of the declared model
+    A decorator to convert the first argument of the function into an instance of the declared model
     """
 
     def real_decorator(func):
@@ -37,3 +37,14 @@ def convert_first_arg_to_instance(model):
                 func(*args, **kwargs)
         return func_wrapper
     return real_decorator
+
+
+def object_id_only_comparable(klass):
+    """
+    A decorator that defines __eq__ , __ne__ and __hash__ that allow object comparisons strictly based on id attribute
+    """
+
+    klass.__eq__ = lambda self, other: isinstance(other, klass) and self.id == other.id
+    klass.__ne__ = lambda self, other: not self.__eq__(other)
+    klass.__hash__ = lambda self: hash(self.id)
+    return klass

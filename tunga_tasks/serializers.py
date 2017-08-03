@@ -969,11 +969,12 @@ class TimeEntrySerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedMo
 class ProgressEventDetailsSerializer(serializers.ModelSerializer):
     task = SimpleTaskSerializer()
     created_by = SimpleUserSerializer()
+    participants = SimpleUserSerializer(many=True)
     active_participants = SimpleParticipationSerializer(many=True, source='task.active_participants')
 
     class Meta:
         model = ProgressEvent
-        fields = ('task', 'created_by', 'active_participants')
+        fields = ('task', 'created_by', 'participants', 'active_participants')
 
 
 class ProgressEventSerializer(
