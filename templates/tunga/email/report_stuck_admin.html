@@ -1,0 +1,15 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    {% if event.task.is_task %}Task{% else %}Project{% endif %} has been classified as stuck.
+{% endblock %}
+{% block email_content %}
+    <p>Hello,</p>
+
+    <p>
+        The status for the "{{ event.task.summary }}" {% if event.task.is_task %}task{% else %}project{% endif %} has been classified as stuck.<br/>
+
+        Please contact all stakeholders.
+    </p>
+    {% include "tunga/email/stakeholders.html" %}
+{% endblock %}

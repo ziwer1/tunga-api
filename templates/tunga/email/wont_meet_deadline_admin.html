@@ -1,0 +1,14 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    Developer(s){% if event.task.is_task %}Task{% else %}/PM{% endif %} on have indicated that they might not meet the coming deadline.
+{% endblock %}
+{% block email_content %}
+    <p>Hello,</p>
+
+    <p>
+        The developer(s){% if event.task.is_task %}Task{% else %}/PM{% endif %} on the "{{ event.task.summary }}" {% if event.task.is_task %}task{% else %}project{% endif %} have indicated that they might not meet the coming deadline<br/>
+        Please contact all stakeholders.
+    </p>
+    {% include "tunga/email/stakeholders.html" %}
+{% endblock %}

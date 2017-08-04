@@ -100,6 +100,41 @@ def create_task_slack_msg(task, summary='', channel='#general', show_schedule=Tr
     }
 
 
+def create_task_stakeholders_attachment_slack(task, show_title=True):
+    task_url = '{}/work/{}'.format(TUNGA_URL, task.id)
+    owner = task.owner or task.user
+    body_text = "*Project Owner:*\n" \
+                " {} {}".format(owner.display_name, owner.email)
+
+    if task.pm:
+        body_text += "\n*Project Manager:*\n" \
+                     "{} {} {}".format(
+            task.pm.display_name,
+            task.pm.email,
+            task.pm.profile and task.pm.profile.phone_number and task.pm.profile.phone_number or ''
+        )
+
+    developers = task.active_participants
+    if developers:
+        body_text += "\n*Developer(s):*\n"
+        body_text += '\n'.join(
+            '{}. {} {} {}'.format(
+                idx + 1,
+                dev.display_name,
+                dev.email,
+                dev.profile and dev.profile.phone_number and dev.profile.phone_number or ''
+            ) for idx, dev in enumerate(developers)
+        )
+    attachment = {
+        slack_utils.KEY_TEXT: body_text,
+        slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+        slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
+    }
+    if show_title:
+        attachment[slack_utils.KEY_TITLE] = task.summary
+        attachment[slack_utils.KEY_TITLE_LINK] = task_url
+    return attachment
+
 @job
 def notify_new_task_admin_slack(instance, new_user=False, completed=False, call_scheduled=False):
     instance = clean_instance(instance, Task)
@@ -563,7 +598,7 @@ def notify_missed_progress_event_slack(instance):
         target_user = participants[0]
 
     task_url = '{}/work/{}'.format(TUNGA_URL, instance.task.id)
-    slack_msg = "{} {} for \"{}\" | <{}|View on Tunga>".format(
+    slack_msg = "`Alert (!):` {} {} for \"{}\" | <{}|View on Tunga>".format(
         target_user and '{} missed a'.format(target_user.short_name) or 'Missed',
         is_client_report and 'weekly survey' or 'progress report',
         instance.task.summary,
@@ -610,7 +645,7 @@ def notify_progress_report_deadline_missed_slack_admin(instance):
     instance = clean_instance(instance, ProgressReport)
 
     task_url = '{}/work/{}'.format(TUNGA_URL, instance.event.task.id)
-    slack_msg = "Following up on missed deadline for \"{}\" | <{}|View on Tunga>".format(
+    slack_msg = "`Alert (!):` Follow up on missed deadline for \"{}\" | <{}|View on Tunga>".format(
         instance.event.task.summary,
         task_url
     )
@@ -706,37 +741,69 @@ def notify_progress_report_client_not_satisfied_slack_admin(instance):
     )
 
 
-def create_task_stakeholders_attachment_slack(task, show_title=True):
-    task_url = '{}/work/{}'.format(TUNGA_URL, task.id)
-    owner = task.owner or task.user
-    body_text = "*Project Owner:*\n" \
-                " {} {}".format(owner.display_name, owner.email)
+@job
+def notify_progress_report_stuck_slack_admin(instance):
+    instance = clean_instance(instance, ProgressReport)
 
-    if task.pm:
-        body_text += "\n*Project Manager:*\n" \
-                     "{} {} {}".format(
-            task.pm.display_name,
-            task.pm.email,
-            task.pm.profile and task.pm.profile.phone_number and task.pm.profile.phone_number or ''
-        )
+    task_url = '{}/work/{}/event/{}'.format(TUNGA_URL, instance.event.task.id, instance.event.id)
+    slack_msg = "`Alert (!):` The status for the \"{}\" {} has been classified as stuck | <{}|View on Tunga>".format(
+        instance.event.task.summary,
+        instance.event.task.is_task and 'task' or 'project',
+        task_url
+    )
 
-    developers = task.active_participants
-    if developers:
-        body_text += "\n*Developer(s):*\n"
-        body_text += '\n'.join(
-            '{}. {} {} {}'.format(
-                idx + 1,
-                dev.display_name,
-                dev.email,
-                dev.profile and dev.profile.phone_number and dev.profile.phone_number or ''
-            ) for idx, dev in enumerate(developers)
-        )
-    attachment = {
-        slack_utils.KEY_TEXT: body_text,
-        slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-        slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
-    }
-    if show_title:
-        attachment[slack_utils.KEY_TITLE] = task.summary
-        attachment[slack_utils.KEY_TITLE_LINK] = task_url
-    return attachment
+    attachments = [
+        {
+            slack_utils.KEY_TITLE: instance.event.task.summary,
+            slack_utils.KEY_TITLE_LINK: task_url,
+            slack_utils.KEY_TEXT: 'Please contact all stakeholders.',
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_TUNGA
+        },
+        create_task_stakeholders_attachment_slack(instance.event.task, show_title=False)
+    ]
+
+    slack_utils.send_incoming_webhook(
+        SLACK_STAFF_INCOMING_WEBHOOK,
+        {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_ATTACHMENTS: attachments,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL
+        }
+    )
+
+
+@job
+def notify_progress_report_wont_meet_deadline_slack_admin(instance):
+    instance = clean_instance(instance, ProgressReport)
+
+    task_url = '{}/work/{}/event/{}'.format(TUNGA_URL, instance.event.task.id, instance.event.id)
+    slack_msg = "`Alert (!):` {} doesn't expect to meet the deadline | <{}|View on Tunga>".format(
+        instance.event.type == PROGRESS_EVENT_TYPE_PM and 'PM' or 'Developer',
+        task_url
+    )
+
+    attachments = [
+        {
+            slack_utils.KEY_TITLE: instance.event.task.summary,
+            slack_utils.KEY_TITLE_LINK: task_url,
+            slack_utils.KEY_TEXT: 'The {} on the \"{}\" {} has indicated that they might not meet the coming deadline.\n'
+                                  'Please contact all stakeholders.'.format(
+                instance.event.type == PROGRESS_EVENT_TYPE_PM and 'PM' or 'Developer',
+                instance.event.task.summary,
+                instance.event.task.is_task and 'task' or 'project'
+            ),
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_TUNGA
+        },
+        create_task_stakeholders_attachment_slack(instance.event.task, show_title=False)
+    ]
+
+    slack_utils.send_incoming_webhook(
+        SLACK_STAFF_INCOMING_WEBHOOK,
+        {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_ATTACHMENTS: attachments,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL
+        }
+    )
