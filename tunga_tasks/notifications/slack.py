@@ -641,6 +641,39 @@ def notify_progress_report_deadline_missed_slack_admin(instance):
         }
     )
 
+
+@job
+def notify_progress_report_behind_schedule_by_algo_slack_admin(instance):
+    instance = clean_instance(instance, ProgressReport)
+
+    task_url = '{}/work/{}'.format(TUNGA_URL, instance.event.task.id)
+    slack_msg = "`Alert (!):` \"{}\" {} is running behind schedule | <{}|View on Tunga>".format(
+        instance.event.task.summary,
+        instance.event.task.is_task and 'task' or 'project',
+        task_url
+    )
+
+    attachments = [
+        {
+            slack_utils.KEY_TITLE: instance.event.task.summary,
+            slack_utils.KEY_TITLE_LINK: task_url,
+            slack_utils.KEY_TEXT: 'Please contact the PM and devs.',
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_TUNGA
+        },
+        create_task_stakeholders_attachment_slack(instance.event.task, show_title=False)
+    ]
+
+    slack_utils.send_incoming_webhook(
+        SLACK_STAFF_INCOMING_WEBHOOK,
+        {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_ATTACHMENTS: attachments,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL
+        }
+    )
+
+
 @job
 def trigger_progress_report_actionable_events_slack(instance):
     instance = clean_instance(instance, ProgressReport)

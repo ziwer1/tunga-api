@@ -558,6 +558,31 @@ def trigger_progress_report_actionable_events_emails(instance):
         )
 
 
+# Deadline missed
+@job
+def notify_progress_report_deadline_missed_email_admin(instance):
+    instance = clean_instance(instance, ProgressReport)
+
+    subject = "Following up on missed deadline"
+
+    to = TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS
+
+    ctx = {
+        'owner': instance.event.task.owner or instance.event.task.user,
+        'reporter': instance.user,
+        'pm': instance.event.task.pm,
+        'event': instance.event,
+        'report': instance,
+        'developers': instance.event.task.active_participants,
+        'update_url': '{}/work/{}/event/{}/'.format(TUNGA_URL, instance.event.task.id, instance.event.id)
+    }
+
+    send_mail(
+        subject, 'tunga/email/deadline_missed_admin', to, ctx,
+        **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+    )
+
+
 @job
 def notify_progress_report_deadline_missed_email_client(instance):
     instance = clean_instance(instance, ProgressReport)
@@ -632,10 +657,12 @@ def notify_progress_report_deadline_missed_email_dev(instance):
 
 
 @job
-def notify_progress_report_deadline_missed_email_admin(instance):
+def notify_progress_report_behind_schedule_by_algo_email_admin(instance):
     instance = clean_instance(instance, ProgressReport)
 
-    subject = "Following up on missed deadline"
+    subject = "Alert (!): {} is running behind schedule".format(
+        instance.event.task.is_task and 'Task' or 'Project'
+    )
 
     to = TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS
 
@@ -650,10 +677,58 @@ def notify_progress_report_deadline_missed_email_admin(instance):
     }
 
     send_mail(
-        subject, 'tunga/email/deadline_missed_admin', to, ctx,
+        subject, 'tunga/email/behind_schedule_by_algo_admin', to, ctx,
         **dict(deal_ids=[instance.event.task.hubspot_deal_id])
     )
 
+
+@job
+def notify_progress_report_behind_schedule_by_algo_email_pm(instance):
+    instance = clean_instance(instance, ProgressReport)
+
+    subject = "Alert (!): it appears you're behind schedule"
+
+    pm = instance.event.task.pm
+    if not pm:
+        return
+
+    to = [pm.email]
+
+    ctx = {
+        'owner': instance.event.task.owner or instance.event.task.user,
+        'reporter': instance.user,
+        'pm': pm,
+        'event': instance.event,
+        'report': instance,
+        'update_url': '{}/work/{}/event/{}/'.format(TUNGA_URL, instance.event.task.id, instance.event.id)
+    }
+
+    send_mail(
+        subject, 'tunga/email/behind_schedule_by_algo_pm', to, ctx,
+        **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+    )
+
+
+@job
+def notify_progress_report_behind_schedule_by_algo_email_dev(instance):
+    instance = clean_instance(instance, ProgressReport)
+
+    subject = "Alert (!): it appears you're behind schedule"
+
+    to = [instance.user.email]
+
+    ctx = {
+        'owner': instance.event.task.owner or instance.event.task.user,
+        'reporter': instance.user,
+        'event': instance.event,
+        'report': instance,
+        'update_url': '{}/work/{}/event/{}/'.format(TUNGA_URL, instance.event.task.id, instance.event.id)
+    }
+
+    send_mail(
+        subject, 'tunga/email/behind_schedule_by_algo_dev', to, ctx,
+        **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+    )
 
 @job
 def notify_parties_of_low_rating_email(instance):

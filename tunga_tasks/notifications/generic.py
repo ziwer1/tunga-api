@@ -1,5 +1,6 @@
 import time
 
+import datetime
 from django_rq import job
 
 from tunga.settings import MAILCHIMP_NEW_USER_AUTOMATION_WORKFLOW_ID, MAILCHIMP_NEW_USER_AUTOMATION_EMAIL_ID
@@ -10,12 +11,13 @@ from tunga_tasks.notifications.email import notify_new_task_client_receipt_email
     notify_task_application_response_admin_email, remind_progress_event_email, notify_new_progress_report_email, \
     trigger_progress_report_actionable_events_emails, notify_progress_report_deadline_missed_email_client, \
     notify_progress_report_deadline_missed_email_pm, notify_progress_report_deadline_missed_email_dev, \
-    notify_progress_report_deadline_missed_email_admin
+    notify_progress_report_deadline_missed_email_admin, notify_progress_report_behind_schedule_by_algo_email_admin, \
+    notify_progress_report_behind_schedule_by_algo_email_pm, notify_progress_report_behind_schedule_by_algo_email_dev
 from tunga_tasks.notifications.slack import notify_new_task_admin_slack, remind_no_task_applications_slack, \
     notify_review_task_admin_slack, notify_new_task_community_slack, notify_task_invitation_response_slack, \
     notify_new_task_application_slack, notify_task_application_response_slack, remind_progress_event_slack, \
     notify_missed_progress_event_slack, notify_new_progress_report_slack, \
-    notify_progress_report_deadline_missed_slack_admin
+    notify_progress_report_deadline_missed_slack_admin, notify_progress_report_behind_schedule_by_algo_slack_admin
 from tunga_utils import mailchimp_utils
 from tunga_utils.constants import PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT
 from tunga_utils.helpers import clean_instance
@@ -140,15 +142,45 @@ def trigger_progress_report_actionable_events(instance):
     is_pm_or_client_report = is_pm_report or is_client_report
     is_dev_report = not is_pm_or_client_report
 
+    task = instance.event.task
+    has_pm = instance.event.task.pm
+
+    # Deadline wasn't met
     if instance.last_deadline_met is not None and not instance.last_deadline_met:
         if is_pm_report or is_dev_report:
+            notify_progress_report_deadline_missed_admin(instance)
+
             notify_progress_report_deadline_missed_client(instance)
 
-            if instance.event.task.pm:
+            if has_pm:
                 notify_progress_report_deadline_missed_pm(instance)
 
             if is_dev_report:
                 notify_progress_report_deadline_missed_dev(instance)
+
+    # More than 20% difference between time passed and accomplished
+    if task.deadline:
+        if is_dev_report and instance.started_at and task.deadline > instance.started_at:
+            right_now = datetime.datetime.utcnow()
+            spent_percentage = ((right_now - instance.started_at)/(task.deadline - right_now))*100
+            if ((instance.percentage or 0) + 20) < spent_percentage:
+                notify_progress_report_behind_schedule_by_algo_admin(instance)
+
+                if has_pm:
+                    notify_progress_report_behind_schedule_by_algo_pm(instance)
+
+                notify_progress_report_behind_schedule_by_algo_dev(instance)
+
+    if instance.deliverable_satisfaction is not None and not instance.deliverable_satisfaction:
+        if is_client_report:
+            pass
+
+
+# Deadline missed
+@job
+def notify_progress_report_deadline_missed_admin(instance):
+    notify_progress_report_deadline_missed_slack_admin(instance)
+    notify_progress_report_deadline_missed_email_admin(instance)
 
 
 @job
@@ -166,7 +198,17 @@ def notify_progress_report_deadline_missed_dev(instance):
     notify_progress_report_deadline_missed_email_dev(instance)
 
 
+# More than 20% difference in time spent and accomplished
 @job
-def notify_progress_report_deadline_missed_admin(instance):
-    notify_progress_report_deadline_missed_slack_admin(instance)
-    notify_progress_report_deadline_missed_email_admin(instance)
+def notify_progress_report_behind_schedule_by_algo_admin(instance):
+    notify_progress_report_behind_schedule_by_algo_slack_admin(instance)
+    notify_progress_report_behind_schedule_by_algo_email_admin(instance)
+
+@job
+def notify_progress_report_behind_schedule_by_algo_pm(instance):
+    notify_progress_report_behind_schedule_by_algo_email_pm(instance)
+
+
+@job
+def notify_progress_report_behind_schedule_by_algo_dev(instance):
+    notify_progress_report_behind_schedule_by_algo_email_dev(instance)

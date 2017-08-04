@@ -1,0 +1,18 @@
+<p>
+    Project Owner: <br/>
+    {{ owner.display_name }} {{ owner.email }}
+</p>
+<p>
+    {% if pm %}
+        Project Manager:<br/>
+        {{ pm.display_name }} {{ pm.email }} {% if pm.profile %}{{ pm.profile.phone_number }}{% endif %}<br/>
+    {% endif %}
+</p>
+{% if developers %}
+    <p>
+        Developer(s): <br/>
+        {% for dev in developers %}
+            {{ forloop.counter }}. {{ dev.display_name }} {{ dev.email }} {% if dev.profile %}{{ dev.profile.phone_number }}{% endif %}<br/>
+        {% endfor %}
+    </p>
+{% endif %}

@@ -1,0 +1,14 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    Alert (!): {% if event.task.is_task %}Task{% else %}Project{% endif %} is running behind schedule.
+{% endblock %}
+{% block email_content %}
+    <p>Hello,</p>
+
+    <p>
+        The "{{ event.task.summary }}" {% if event.task.is_task %}task{% else %}project{% endif %} is running behind schedule.<br/>
+        Please contact the PM and devs.
+    </p>
+    {% include "tunga/email/stakeholders.html" %}
+{% endblock %}
