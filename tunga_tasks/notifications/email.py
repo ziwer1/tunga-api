@@ -32,8 +32,8 @@ def notify_new_task_client_receipt_email(instance, new_user=False, reminder=Fals
     ctx = {
         'owner': instance.owner or instance.user,
         'task': instance,
-        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id),
-        'task_edit_url': '%s/task/%s/edit/complete-task/' % (TUNGA_URL, instance.id)
+        'task_url': '{}/task/{}/'.format(TUNGA_URL, instance.id),
+        'task_edit_url': '{}/task/{}/edit/complete-task/'.format(TUNGA_URL, instance.id)
     }
 
     if instance.source == TASK_SOURCE_NEW_USER and not instance.user.is_confirmed:
@@ -86,7 +86,7 @@ def notify_new_task_admin_email(instance, new_user=False, completed=False, call_
     ctx = {
         'owner': instance.owner or instance.user,
         'task': instance,
-        'task_url': '%s/task/%s/' % (TUNGA_URL, instance.id),
+        'task_url': '{}/task/{}/'.format(TUNGA_URL, instance.id),
         'completed_phrase': completed_phrase_body,
     }
     send_mail(subject, 'tunga/email/new_task', to, ctx, **dict(deal_ids=[instance.hubspot_deal_id]))
@@ -240,7 +240,7 @@ def notify_task_invitation_email(instance):
         'inviter': instance.created_by,
         'invitee': instance.user,
         'task': instance.task,
-        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
+        'task_url': '{}/work/{}/'.format(TUNGA_URL, instance.task.id)
     }
     send_mail(
         subject, 'tunga/email/new_task_invitation', to, ctx, **dict(deal_ids=[instance.task.hubspot_deal_id])
@@ -258,7 +258,7 @@ def notify_task_invitation_project_owner_email(instance):
         'inviter': instance.user,
         'invitee': instance.owner,
         'task': instance,
-        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.id)
+        'task_url': '{}/work/{}/'.format(TUNGA_URL, instance.id)
     }
 
     if not instance.owner.is_confirmed:
@@ -286,7 +286,7 @@ def notify_task_invitation_response_email(instance):
         'invitee': instance.user,
         'accepted': instance.status == STATUS_ACCEPTED,
         'task': instance.task,
-        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.task.id)
+        'task_url': '{}/work/{}/'.format(TUNGA_URL, instance.task.id)
     }
     send_mail(
         subject, 'tunga/email/task_invitation_response', to, ctx, **dict(deal_ids=[instance.task.hubspot_deal_id])
@@ -932,7 +932,7 @@ def notify_parties_of_low_rating_email(instance):
         ctx = {
             'owner': instance.event.task.owner or instance.event.task.user,
             'event': instance,
-            'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.event.task.id, instance.event.id)
+            'update_url': '{}/work/{}/event/{}/'.format(TUNGA_URL, instance.event.task.id, instance.event.id)
         }
         # send to client
         if instance.task.owner:
