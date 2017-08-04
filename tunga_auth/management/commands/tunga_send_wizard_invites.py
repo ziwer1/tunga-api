@@ -26,8 +26,8 @@ class Command(BaseCommand):
             if form.is_valid():
                 form.save(
                     subject_template_name='tunga/email/password_set_subject.txt',
-                    email_template_name='tunga/email/password_set_email.html',
-                    html_email_template_name='tunga/email/password_set_email.html',
+                    email_template_name='tunga/email/password_set.html',
+                    html_email_template_name='tunga/email/password_set.html',
                     extra_email_context=dict(tunga_url=TUNGA_URL)
                 )
                 client.last_set_password_email_at = datetime.datetime.utcnow()

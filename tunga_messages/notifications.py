@@ -33,7 +33,7 @@ def notify_new_message_email(instance):
             'message': instance,
             'message_url': '%s/conversation/%s/' % (TUNGA_URL, instance.channel_id)
         }
-        send_mail(subject, 'tunga/email/email_new_message', to, ctx)
+        send_mail(subject, 'tunga/email/new_message', to, ctx)
 
 
 @job
@@ -108,4 +108,4 @@ def notify_new_message_developers(instance):
                     'message': instance,
                     'message_url': '%s/conversation/%s/' % (TUNGA_URL, instance.channel_id)
                 }
-                send_mail(subject, 'tunga/email/email_new_message', to, ctx, bcc=bcc)
+                send_mail(subject, 'tunga/email/new_message', to, ctx, bcc=bcc)

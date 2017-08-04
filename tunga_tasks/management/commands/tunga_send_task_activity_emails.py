@@ -107,7 +107,7 @@ class Command(BaseCommand):
             }
 
             if send_mail(
-                    subject, 'tunga/email/email_unread_task_activity', to, ctx, **dict(deal_ids=[task.hubspot_deal_id])
+                    subject, 'tunga/email/unread_task_activity', to, ctx, **dict(deal_ids=[task.hubspot_deal_id])
             ):
                 user_task.last_email_at = datetime.datetime.utcnow()
                 user_task.save()

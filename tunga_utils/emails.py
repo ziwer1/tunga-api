@@ -85,6 +85,6 @@ def send_contact_request_email(instance):
             msg_suffix
         )
     }
-    if send_mail(subject, 'tunga/email/email_contact_request_message', to, ctx):
+    if send_mail(subject, 'tunga/email/contact_request_message', to, ctx):
         instance.email_sent_at = datetime.datetime.utcnow()
         instance.save()

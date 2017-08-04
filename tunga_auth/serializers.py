@@ -208,8 +208,8 @@ class TungaPasswordResetSerializer(PasswordResetSerializer):
 
     def get_email_options(self):
         return {
-            "email_template_name": "tunga/email/password_reset_email.html",
-            "html_email_template_name": "tunga/email/password_reset_email.html"
+            "email_template_name": "tunga/email/password_reset.html",
+            "html_email_template_name": "tunga/email/password_reset.html"
         }
 
 

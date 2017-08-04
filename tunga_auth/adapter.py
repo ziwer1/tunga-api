@@ -43,9 +43,9 @@ class TungaAccountAdapter(DefaultAccountAdapter):
             "key": emailconfirmation.key,
         }
         if signup:
-            email_template = 'tunga/email/email_confirmation_signup'
+            email_template = 'tunga/email/confirmation_signup'
         else:
-            email_template = 'tunga/email/email_confirmation'
+            email_template = 'tunga/email/confirmation'
         self.send_mail(email_template, emailconfirmation.email_address.email, ctx)
 
 

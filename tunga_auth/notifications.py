@@ -15,4 +15,4 @@ def send_new_user_email(instance):
         'user': instance,
         'user_url': '%s/people/%s/' % (TUNGA_URL, instance.username)
     }
-    send_mail(subject, 'tunga/email/email_new_user', to, ctx)
+    send_mail(subject, 'tunga/email/new_user', to, ctx)
