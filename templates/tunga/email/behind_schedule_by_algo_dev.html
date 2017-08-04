@@ -1,7 +1,7 @@
 {% extends "tunga/email/content.html" %}
 {% load i18n %}
 {% block email_header %}
-    Following up on missed deadline for your {% if event.task.is_task %}task{% else %}project{% endif %}.
+    Alert (!): it appears you’re behind schedule.
 {% endblock %}
 {% block email_content %}
     <p>Hi {{ reporter.first_name }},</p>
