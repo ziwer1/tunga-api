@@ -496,68 +496,6 @@ def notify_task_invoice_request_email(instance):
     )
 
 
-@job
-def trigger_progress_report_actionable_events_emails(instance):
-    instance = clean_instance(instance, ProgressReport)
-    is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
-    is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
-    is_pm_or_client_report = is_pm_report or is_client_report
-    is_dev_report = not is_pm_or_client_report
-
-    if is_client_report and instance.rate_deliverables > 1 and instance.rate_deliverables < 4 and instance.deliverable_satisfaction:
-        subject = "A deadline has been missed on the {} project".format(instance.event.task.summary)
-        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
-
-        ctx = {
-            'owner': instance.event.task.owner or instance.event.task.user,
-            'reporter': instance.user,
-            'event': instance.event,
-            'report': instance
-        }
-
-        email_template = 'deliverable_rating_below_standard'
-        send_mail(
-            subject, 'tunga/email/{}'.format(email_template), to, ctx,
-            **dict(deal_ids=[instance.event.task.hubspot_deal_id])
-        )
-
-    if (is_pm_report or is_dev_report) and (instance.status == PROGRESS_REPORT_STATUS_STUCK or  instance.status == PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK):
-
-        subject = "Status has been reported Stuck on the {} project".format(instance.event.task.summary)
-        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
-
-        ctx = {
-            'owner': instance.event.task.owner or instance.event.task.user,
-            'reporter': instance.user,
-            'event': instance.event,
-            'report': instance,
-        }
-
-        email_template = 'project_status_stuck'
-        send_mail(
-            subject, 'tunga/email/{}'.format(email_template), to, ctx,
-            **dict(deal_ids=[instance.event.task.hubspot_deal_id])
-        )
-
-    if instance.next_deadline_meet == False and (is_pm_report or is_dev_report):
-
-        subject = "The Next Deadline will not be met on the {} project".format(instance.event.task.summary)
-        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
-
-        ctx = {
-            'owner': instance.event.task.owner or instance.event.task.user,
-            'reporter': instance.user,
-            'event': instance.event,
-            'report': instance
-        }
-
-        email_template = 'next_deadline_fail'
-        send_mail(
-            subject, 'tunga/email/{}'.format(email_template), to, ctx,
-            **dict(deal_ids=[instance.event.task.hubspot_deal_id])
-        )
-
-
 # Deadline missed
 @job
 def notify_progress_report_deadline_missed_email_admin(instance):
@@ -656,6 +594,7 @@ def notify_progress_report_deadline_missed_email_dev(instance):
     )
 
 
+# More than 20% difference in time spent and accomplished
 @job
 def notify_progress_report_behind_schedule_by_algo_email_admin(instance):
     instance = clean_instance(instance, ProgressReport)
@@ -729,6 +668,169 @@ def notify_progress_report_behind_schedule_by_algo_email_dev(instance):
         subject, 'tunga/email/behind_schedule_by_algo_dev', to, ctx,
         **dict(deal_ids=[instance.event.task.hubspot_deal_id])
     )
+
+
+# Client not satisfied with deliverable
+@job
+def notify_progress_report_client_not_satisfied_email_admin(instance):
+    instance = clean_instance(instance, ProgressReport)
+
+    subject = "Alert (!): Client dissatisfied"
+
+    to = TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS
+
+    ctx = {
+        'owner': instance.event.task.owner or instance.event.task.user,
+        'reporter': instance.user,
+        'pm': instance.event.task.pm,
+        'event': instance.event,
+        'report': instance,
+        'developers': instance.event.task.active_participants,
+        'update_url': '{}/work/{}/event/{}/'.format(TUNGA_URL, instance.event.task.id, instance.event.id)
+    }
+
+    send_mail(
+        subject, 'tunga/email/client_not_satisfied_admin', to, ctx,
+        **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+    )
+
+
+@job
+def notify_progress_report_client_not_satisfied_email_client(instance):
+    instance = clean_instance(instance, ProgressReport)
+
+    subject = "Following up on {} quality".format(instance.event.task.is_task and 'task' or 'project')
+
+    to = [instance.event.task.user.email]
+    if instance.event.task.owner:
+        to.append(instance.event.task.owner.email)
+
+    ctx = {
+        'owner': instance.event.task.owner or instance.event.task.user,
+        'reporter': instance.user,
+        'event': instance.event,
+        'report': instance,
+        'update_url': '{}/work/{}/event/{}/'.format(TUNGA_URL, instance.event.task.id, instance.event.id)
+    }
+
+    send_mail(
+        subject, 'tunga/email/client_not_satisfied_client', to, ctx,
+        **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+    )
+
+
+@job
+def notify_progress_report_client_not_satisfied_email_pm(instance):
+    instance = clean_instance(instance, ProgressReport)
+
+    subject = "Alert (!): Client dissatisfied"
+
+    pm = instance.event.task.pm
+    if not pm:
+        return
+
+    to = [pm.email]
+
+    ctx = {
+        'owner': instance.event.task.owner or instance.event.task.user,
+        'reporter': instance.user,
+        'pm': pm,
+        'event': instance.event,
+        'report': instance,
+        'update_url': '{}/work/{}/event/{}/'.format(TUNGA_URL, instance.event.task.id, instance.event.id)
+    }
+
+    send_mail(
+        subject, 'tunga/email/client_not_satisfied_pm', to, ctx,
+        **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+    )
+
+
+@job
+def notify_progress_report_client_not_satisfied_email_dev(instance):
+    instance = clean_instance(instance, ProgressReport)
+
+    subject = "Alert (!): Client dissatisfied"
+
+    to = [instance.user.email]
+
+    ctx = {
+        'owner': instance.event.task.owner or instance.event.task.user,
+        'reporter': instance.user,
+        'event': instance.event,
+        'report': instance,
+        'update_url': '{}/work/{}/event/{}/'.format(TUNGA_URL, instance.event.task.id, instance.event.id)
+    }
+
+    send_mail(
+        subject, 'tunga/email/client_not_satisfied_dev', to, ctx,
+        **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+    )
+
+
+
+
+@job
+def trigger_progress_report_actionable_events_emails(instance):
+    instance = clean_instance(instance, ProgressReport)
+    is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
+    is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
+    is_pm_or_client_report = is_pm_report or is_client_report
+    is_dev_report = not is_pm_or_client_report
+
+    if is_client_report and instance.rate_deliverables > 1 and instance.rate_deliverables < 4 and instance.deliverable_satisfaction:
+        subject = "A deadline has been missed on the {} project".format(instance.event.task.summary)
+        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+
+        ctx = {
+            'owner': instance.event.task.owner or instance.event.task.user,
+            'reporter': instance.user,
+            'event': instance.event,
+            'report': instance
+        }
+
+        email_template = 'deliverable_rating_below_standard'
+        send_mail(
+            subject, 'tunga/email/{}'.format(email_template), to, ctx,
+            **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+        )
+
+    if (is_pm_report or is_dev_report) and (instance.status == PROGRESS_REPORT_STATUS_STUCK or  instance.status == PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK):
+
+        subject = "Status has been reported Stuck on the {} project".format(instance.event.task.summary)
+        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+
+        ctx = {
+            'owner': instance.event.task.owner or instance.event.task.user,
+            'reporter': instance.user,
+            'event': instance.event,
+            'report': instance,
+        }
+
+        email_template = 'project_status_stuck'
+        send_mail(
+            subject, 'tunga/email/{}'.format(email_template), to, ctx,
+            **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+        )
+
+    if instance.next_deadline_meet == False and (is_pm_report or is_dev_report):
+
+        subject = "The Next Deadline will not be met on the {} project".format(instance.event.task.summary)
+        to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+
+        ctx = {
+            'owner': instance.event.task.owner or instance.event.task.user,
+            'reporter': instance.user,
+            'event': instance.event,
+            'report': instance
+        }
+
+        email_template = 'next_deadline_fail'
+        send_mail(
+            subject, 'tunga/email/{}'.format(email_template), to, ctx,
+            **dict(deal_ids=[instance.event.task.hubspot_deal_id])
+        )
+
 
 @job
 def notify_parties_of_low_rating_email(instance):
