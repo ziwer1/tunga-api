@@ -582,9 +582,8 @@ def notify_missed_progress_event_slack(instance):
                         instance.due_at.strftime("%d %b, %Y"),
                         user.display_name,
                         user.email,
-                        user.profile and user.profile.phone_number and '\n*Phone Number:* {}'.format(user.profile.phone_number) or '')
-
-                    for user in participants
+                        user.profile and user.profile.phone_number and '\n*Phone Number:* {}'.format(user.profile.phone_number) or ''
+                    ) for user in participants
                 ]
             ),
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
@@ -607,6 +606,42 @@ def notify_missed_progress_event_slack(instance):
 
 
 @job
+def notify_progress_report_deadline_missed_slack_admin(instance):
+    instance = clean_instance(instance, ProgressReport)
+
+    task_url = '{}/work/{}'.format(TUNGA_URL, instance.event.task.id)
+    slack_msg = "Following up on missed deadline for \"{}\" | <{}|View on Tunga>".format(
+        instance.event.task.summary,
+        task_url
+    )
+
+    attachments = [
+        {
+            slack_utils.KEY_TITLE: instance.event.task.summary,
+            slack_utils.KEY_TITLE_LINK: task_url,
+            slack_utils.KEY_TEXT: 'A deadline has been missed on the "{}" {}\n'
+                                  '*Was the client informed before hand?:* {}\n'
+                                  'Please contact the stakeholders.'.format(
+                instance.event.task.summary,
+                instance.event.task.is_task and 'task' or 'project',
+                instance.deadline_miss_communicated and 'Yes' or 'No'
+            ),
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_TUNGA
+        },
+        create_task_stakeholders_attachment_slack(instance.event.task, show_title=False)
+    ]
+
+    slack_utils.send_incoming_webhook(
+        SLACK_STAFF_INCOMING_WEBHOOK,
+        {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_ATTACHMENTS: attachments,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL
+        }
+    )
+
+@job
 def trigger_progress_report_actionable_events_slack(instance):
     instance = clean_instance(instance, ProgressReport)
     is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
@@ -615,17 +650,37 @@ def trigger_progress_report_actionable_events_slack(instance):
     is_dev_report = not is_pm_or_client_report
 
 
-def create_progress_report_slack_message_stakeholders_attachment(instance):
-    slack_text_suffix = "Project owner: {}, {}".format(instance.event.task.user.first_name, instance.event.task.user.email)
+def create_task_stakeholders_attachment_slack(task, show_title=True):
+    task_url = '{}/work/{}'.format(TUNGA_URL, task.id)
+    owner = task.owner or task.user
+    body_text = "*Project Owner:*\n" \
+                " {} {}".format(owner.display_name, owner.email)
 
-    if instance.event.task.pm:
-        slack_text_suffix += "\nPM: {}, {}".format(instance.event.task.pm.first_name, instance.event.task.pm.email)
+    if task.pm:
+        body_text += "\n*Project Manager:*\n" \
+                     " {} {} {}".format(
+            task.pm.display_name,
+            task.pm.email,
+            task.pm.profile and task.pm.profile.phone_number and task.pm.profile.phone_number or ''
+        )
 
-    attachments = [
-        {
-            slack_utils.KEY_TEXT: slack_text_suffix,
-            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
-            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
-        }
-    ]
-    return attachments
+    developers = task.active_participants
+    if developers:
+        body_text += "\n*Developer(s):*\n"
+        body_text += '\n'.join(
+            '{}. {} {} {}'.format(
+                idx + 1,
+                dev.display_name,
+                dev.email,
+                dev.profile and dev.profile.phone_number and dev.profile.phone_number or ''
+            ) for idx, dev in enumerate(developers)
+        )
+    attachment = {
+        slack_utils.KEY_TEXT: body_text,
+        slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+        slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
+    }
+    if show_title:
+        attachment[slack_utils.KEY_TITLE] = task.summary
+        attachment[slack_utils.KEY_TITLE_LINK] = task_url
+    return attachment

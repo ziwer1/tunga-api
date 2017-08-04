@@ -3,18 +3,21 @@ import time
 from django_rq import job
 
 from tunga.settings import MAILCHIMP_NEW_USER_AUTOMATION_WORKFLOW_ID, MAILCHIMP_NEW_USER_AUTOMATION_EMAIL_ID
-from tunga_tasks.models import Task
+from tunga_tasks.models import Task, ProgressReport
 from tunga_tasks.notifications.email import notify_new_task_client_receipt_email, notify_new_task_admin_email, \
     notify_new_task_community_email, notify_task_invitation_response_email, notify_new_task_application_owner_email, \
     confirm_task_application_to_applicant_email, notify_task_application_response_owner_email, \
     notify_task_application_response_admin_email, remind_progress_event_email, notify_new_progress_report_email, \
-    trigger_progress_report_actionable_events_emails
+    trigger_progress_report_actionable_events_emails, notify_progress_report_deadline_missed_email_client, \
+    notify_progress_report_deadline_missed_email_pm, notify_progress_report_deadline_missed_email_dev, \
+    notify_progress_report_deadline_missed_email_admin
 from tunga_tasks.notifications.slack import notify_new_task_admin_slack, remind_no_task_applications_slack, \
     notify_review_task_admin_slack, notify_new_task_community_slack, notify_task_invitation_response_slack, \
     notify_new_task_application_slack, notify_task_application_response_slack, remind_progress_event_slack, \
     notify_missed_progress_event_slack, notify_new_progress_report_slack, \
-    trigger_progress_report_actionable_events_slack
+    notify_progress_report_deadline_missed_slack_admin
 from tunga_utils import mailchimp_utils
+from tunga_utils.constants import PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT
 from tunga_utils.helpers import clean_instance
 
 
@@ -125,11 +128,45 @@ def notify_new_progress_report(instance):
     notify_new_progress_report_email(instance)
     notify_new_progress_report_slack(instance)
 
-    # Trigger actionable events
     trigger_progress_report_actionable_events(instance)
 
 
 @job
 def trigger_progress_report_actionable_events(instance):
-    trigger_progress_report_actionable_events_emails(instance)
-    trigger_progress_report_actionable_events_slack(instance)
+    # Trigger actionable event notifications
+    instance = clean_instance(instance, ProgressReport)
+    is_pm_report = instance.event.type == PROGRESS_EVENT_TYPE_PM
+    is_client_report = instance.event.type == PROGRESS_EVENT_TYPE_CLIENT
+    is_pm_or_client_report = is_pm_report or is_client_report
+    is_dev_report = not is_pm_or_client_report
+
+    if instance.last_deadline_met is not None and not instance.last_deadline_met:
+        if is_pm_report or is_dev_report:
+            notify_progress_report_deadline_missed_client(instance)
+
+            if instance.event.task.pm:
+                notify_progress_report_deadline_missed_pm(instance)
+
+            if is_dev_report:
+                notify_progress_report_deadline_missed_dev(instance)
+
+
+@job
+def notify_progress_report_deadline_missed_client(instance):
+    notify_progress_report_deadline_missed_email_client(instance)
+
+
+@job
+def notify_progress_report_deadline_missed_pm(instance):
+    notify_progress_report_deadline_missed_email_pm(instance)
+
+
+@job
+def notify_progress_report_deadline_missed_dev(instance):
+    notify_progress_report_deadline_missed_email_dev(instance)
+
+
+@job
+def notify_progress_report_deadline_missed_admin(instance):
+    notify_progress_report_deadline_missed_slack_admin(instance)
+    notify_progress_report_deadline_missed_email_admin(instance)
