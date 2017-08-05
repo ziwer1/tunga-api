@@ -19,6 +19,6 @@ class Command(BaseCommand):
         min_date = utc_now - relativedelta(minutes=10)  # 10 minute window to read new messages
 
         # Distribute payments for tasks which where paid at least 10 mins ago
-        tasks = Task.objects.filter(closed=True, pay_distributed=False, paid_at__lte=min_date)
+        tasks = Task.objects.filter(closed=True, paid=True, pay_distributed=False, paid_at__lte=min_date)
         for task in tasks:
             distribute_task_payment.delay(task.id)
