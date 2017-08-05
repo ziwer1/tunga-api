@@ -417,6 +417,8 @@ MAILCHIMP_NEW_USER_LIST = None
 MAILCHIMP_NEW_USER_AUTOMATION_WORKFLOW_ID = None
 MAILCHIMP_NEW_USER_AUTOMATION_EMAIL_ID = None
 
+MANDRILL_API_KEY = None
+
 RAVEN_CONFIG = {
     'dsn': '',  # Raven URL here
     # 'release': raven.fetch_git_sha(os.path.dirname(os.pardir)),
