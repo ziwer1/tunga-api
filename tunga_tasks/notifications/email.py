@@ -937,7 +937,7 @@ def notify_parties_of_low_rating_email(instance):
         # send to client
         if instance.task.owner:
             to = [instance.event.task.owner.email]
-            email_template = 'notification_low_rating_client'
+            email_template = 'low_rating_client'
             send_mail(
                 subject, 'tunga/email/{}'.format(email_template), to, ctx,
                 **dict(deal_ids=[instance.event.task.hubspot_deal_id])
@@ -945,7 +945,7 @@ def notify_parties_of_low_rating_email(instance):
         # send to pm
         if instance.event.task.pm:
             to = [instance.event.task.pm.email]
-            email_template = 'notification_low_rating_pm'
+            email_template = 'low_rating_pm'
             send_mail(
                 subject, 'tunga/email/{}'.format(email_template), to, ctx,
                 **dict(deal_ids=[instance.event.task.hubspot_deal_id])
@@ -953,7 +953,7 @@ def notify_parties_of_low_rating_email(instance):
         # send to user
         if instance.event.task.user:
             to = [instance.event.task.user.email]
-            email_template = 'notification_low_rating_user'
+            email_template = 'low_rating_user'
             send_mail(
                 subject, 'tunga/email/{}'.format(email_template), to, ctx,
                 **dict(deal_ids=[instance.event.task.hubspot_deal_id])
