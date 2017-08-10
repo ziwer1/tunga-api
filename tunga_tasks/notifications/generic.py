@@ -106,10 +106,10 @@ def notify_new_task_application(instance):
     notify_new_task_application_slack(instance, admin=False)
 
     # Send email confirmation to applicant
-    confirm_task_application_to_applicant_email.delay(instance.id)
+    confirm_task_application_to_applicant_email.delay(instance)
 
     # Notify admins
-    notify_new_task_application_slack.delay(instance.id, admin=True)
+    notify_new_task_application_slack.delay(instance, admin=True)
 
 
 @job
