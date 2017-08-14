@@ -138,9 +138,11 @@ class BasicProgressReportSerializer(ContentTypeAnnotatedModelSerializer):
 
 class SimpleProgressEventSerializer(BasicProgressEventSerializer):
     report = BasicProgressReportSerializer(read_only=True, required=False, source='progressreport')
+    status = serializers.CharField(read_only=True, required=False)
 
     class Meta(BasicProgressEventSerializer.Meta):
         model = ProgressEvent
+        fields = '__all__'
 
 
 class SimpleProgressReportSerializer(BasicProgressReportSerializer):
@@ -148,6 +150,7 @@ class SimpleProgressReportSerializer(BasicProgressReportSerializer):
 
     class Meta(BasicProgressReportSerializer.Meta):
         model = ProgressReport
+        fields = '__all__'
 
 
 class NestedTaskParticipationSerializer(ContentTypeAnnotatedModelSerializer):

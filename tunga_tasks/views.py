@@ -45,7 +45,7 @@ from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
     IntegrationSerializer, TaskPaySerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer, \
-    MultiTaskPaymentKeySerializer, TaskPaymentSerializer, ParticipantPaymentSerializer
+    MultiTaskPaymentKeySerializer, TaskPaymentSerializer, ParticipantPaymentSerializer, SimpleProgressEventSerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment, \
     update_multi_tasks
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
@@ -922,6 +922,11 @@ class ProgressEventViewSet(viewsets.ModelViewSet):
         'title', 'description', '^task__title', '^task__skills__name',
         '^created_by__user__username', '^created_by__user__first_name', '^created_by__user__last_name',
     )
+
+    def get_serializer_class(self):
+        if self.request.GET.get('simple', False):
+            return SimpleProgressEventSerializer
+        return self.serializer_class
 
 
 class ProgressReportViewSet(viewsets.ModelViewSet):
