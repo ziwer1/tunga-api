@@ -5,8 +5,10 @@ import re
 import uuid
 from decimal import Decimal
 
+import datetime
 import tagulous.models
 from actstream.models import Action
+from dateutil.relativedelta import relativedelta
 from django.contrib.contenttypes.fields import GenericRelation, GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -1237,6 +1239,15 @@ class ProgressEvent(models.Model):
     @property
     def pm(self):
         return self.task.pm
+
+    @property
+    def status(self):
+        if self.progressreport_set.count() > 0:
+            return 'completed'
+        past_by_24_hours = datetime.datetime.utcnow() - relativedelta(hours=24)
+        if self.due_at > past_by_24_hours:
+            return 'upcoming'
+        return 'missed'
 
 
 PROGRESS_REPORT_STATUS_CHOICES = (

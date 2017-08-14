@@ -985,6 +985,7 @@ class ProgressEventSerializer(
     reports = SimpleProgressReportSerializer(read_only=True, required=False, source='progressreport_set', many=True)
     my_report = serializers.SerializerMethodField(read_only=True, required=False)
     is_participant = serializers.SerializerMethodField(read_only=True, required=False)
+    status = serializers.CharField(read_only=True, required=False)
 
     class Meta:
         model = ProgressEvent
