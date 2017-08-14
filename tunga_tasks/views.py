@@ -45,7 +45,8 @@ from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
     IntegrationSerializer, TaskPaySerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer, \
-    MultiTaskPaymentKeySerializer, TaskPaymentSerializer, ParticipantPaymentSerializer, SimpleProgressEventSerializer
+    MultiTaskPaymentKeySerializer, TaskPaymentSerializer, ParticipantPaymentSerializer, SimpleProgressEventSerializer, \
+    SimpleProgressReportSerializer, SimpleTaskSerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment, \
     update_multi_tasks
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
@@ -100,6 +101,11 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
     filter_class = TaskFilter
     filter_backends = DEFAULT_FILTER_BACKENDS + (TaskFilterBackend,)
     search_fields = ('title', 'description', 'skills__name')
+
+    def get_serializer_class(self):
+        if self.request.GET.get('simple', False):
+            return SimpleTaskSerializer
+        return self.serializer_class
 
     def perform_destroy(self, instance):
         instance.archived = True
@@ -942,6 +948,11 @@ class ProgressReportViewSet(viewsets.ModelViewSet):
         '^user__username', '^user__first_name', '^user__last_name', 'accomplished', 'todo', 'remarks',
         'event__task__title', 'event__task__skills__name'
     )
+
+    def get_serializer_class(self):
+        if self.request.GET.get('simple', False):
+            return SimpleProgressReportSerializer
+        return self.serializer_class
 
 
 class MultiTaskPaymentKeyViewSet(viewsets.ModelViewSet):

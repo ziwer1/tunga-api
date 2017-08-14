@@ -47,8 +47,13 @@ class SimpleTaskSerializer(ContentTypeAnnotatedModelSerializer):
     class Meta:
         model = Task
         fields = (
-            'id', 'user', 'title', 'summary', 'currency', 'fee', 'bid', 'pay', 'closed', 'paid', 'display_fee',
-            'type', 'scope', 'is_project', 'is_task', 'analytics_id'
+            'id', 'user', 'title', 'summary', 'currency', 'fee', 'bid', 'pay', 'display_fee',
+            'type', 'scope', 'is_project', 'is_task', 'update_schedule_display',
+            'approved', 'review', 'apply', 'processing', 'closed', 'paid', 'btc_paid', 'pay_distributed', 'archived',
+            'is_payable', 'is_developer_ready', 'requires_estimate', 'payment_status',
+            'can_pay_distribution_btc', 'started_at', 'started', 'analytics_id',
+            'approved_at', 'deadline', 'apply_closed_at', 'closed_at', 'processing_at', 'paid_at', 'btc_paid_at',
+            'archived_at', 'created_at', 'invoice_date', 'schedule_call_start', 'schedule_call_end'
         )
 
 

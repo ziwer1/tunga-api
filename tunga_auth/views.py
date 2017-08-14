@@ -107,6 +107,11 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             self.lookup_field = 'username'
         return super(UserViewSet, self).get_object()
 
+    def get_serializer_class(self):
+        if self.request.GET.get('simple', False):
+            return SimpleUserSerializer
+        return self.serializer_class
+
     @detail_route(
         methods=['get'], url_path='download/profile',
         renderer_classes=[PDFRenderer, StaticHTMLRenderer],
