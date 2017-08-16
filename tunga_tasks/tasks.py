@@ -63,6 +63,10 @@ def update_task_periodic_updates(task):
         # for sub-tasks, create all periodic updates on the project
         target_task = task.parent
 
+    if target_task.closed:
+        # Only create schedule events for projects which aren't
+        return
+
     if target_task.update_interval and target_task.update_interval_units:
         periodic_start_date = ProgressEvent.objects.filter(
             Q(task=target_task) | Q(task__parent=target_task), type=PROGRESS_EVENT_TYPE_PERIODIC
@@ -124,7 +128,8 @@ def update_task_pm_updates(task):
         # for sub-tasks, create all pm updates on the project
         target_task = task.parent
 
-    if target_task.is_task or not target_task.approved:
+    if target_task.closed or target_task.is_task or not target_task.approved or not target_task.pm:
+        # only request pm updates for project which are approved and not closed
         return
 
     if target_task.update_interval and target_task.update_interval_units:
@@ -178,8 +183,8 @@ def update_task_client_surveys(task):
         # for sub-tasks, create all surveys on the project
         target_task = task.parent
 
-    if not (target_task.survey_client and target_task.approved and target_task.active_participants):
-        # only conduct survey for approved tasks that have been assigned devs
+    if target_task.closed or not (target_task.survey_client and target_task.approved and target_task.active_participants):
+        # only conduct survey for approved tasks that have been assigned devs and aren't closed
         return
 
     if target_task.update_interval and target_task.update_interval_units:
@@ -233,8 +238,8 @@ def distribute_task_payment(task):
     participation_shares = task.get_payment_shares()
     # Distribute all payments for this task
     payments = TaskPayment.objects.filter(
-        Q(multi_pay_key__tasks=task) | Q(multi_pay_key__distribute_tasks=task) | Q(task=task),
-        received_at__isnull=False, processed=False, payment_type=TASK_PAYMENT_METHOD_BITCOIN
+        Q(multi_pay_key__tasks=task) | Q(multi_pay_key__distribute_tasks=task) | (Q(task=task) & Q(processed=False)),
+        received_at__isnull=False, payment_type=TASK_PAYMENT_METHOD_BITCOIN
     )
     task_distribution = []
     for payment in payments:
