@@ -1,0 +1,28 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    Following up on missed deadline for your {% if event.task.is_task %}task{% else %}project{% endif %}.
+{% endblock %}
+{% block email_content %}
+    <p>Hi {{ pm.first_name }},</p>
+
+    {% if report.deadline_miss_communicated %}
+        <p>
+            It seems that a deadline has been missed on your "{{ event.task.summary }}" {% if event.task.is_task %}task{% else %}project{% endif %} for {{ owner.display_name }}.<br/>
+            You’ve let us know that either you or one of the developers in the team contacted the client about the issue.
+        </p>
+        <p>
+            If you have any additional details, please share them by filling in the feedback below.<br/>
+            <a href="{{ update_url }}feedback/deadline-missed-details">SHARE MORE DETAILS</a>
+        </p>
+    {% else %}
+        <p>
+            It seems that a deadline has been missed on your "{{ event.task.summary }}" {% if event.task.is_task %}task{% else %}project{% endif %} for {{ owner.display_name }}.<br/>
+            We are writing to let you know that we’ll be contacting you very shortly about the details of the matter and how we can possibly support you in the project.<br/>
+        </p>
+        <p>
+            In the meanwhile, if you have any additional details, please share them  by clicking the button below.<br/>
+            <a href="{{ update_url }}feedback/deadline-missed-details" class="btn">SHARE MORE DETAILS</a>
+        </p>
+    {% endif %}
+{% endblock %}

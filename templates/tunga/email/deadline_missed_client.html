@@ -1,0 +1,30 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    Following up on missed deadline for your {% if event.task.is_task %}task{% else %}project{% endif %}.
+{% endblock %}
+{% block email_content %}
+    <p>Hi {{ owner.first_name }},</p>
+
+    {% if report.deadline_miss_communicated %}
+        <p>
+            It seems that a deadline on your "{{ event.task.summary }}" {% if event.task.is_task %}task{% else %}project{% endif %} has been missed.<br/>
+            We apologize sincerely for the inconvenience this may have caused. <br/>
+            According to our system, the {% if event.task.is_project %}Project Manager/{% endif %}Developer has communicated and handled the situation with you already.
+        </p>
+        <p>
+            If you would like to contact us about the matter regardless, feel free to press the button below.<br/>
+            <a href="{{ update_url }}feedback/deadline-missed-informed">CONTACT US</a>
+        </p>
+    {% else %}
+        <p>
+            It seems that a deadline on your "{{ event.task.summary }}" {% if event.task.is_task %}task{% else %}project{% endif %} has been missed. <br/>
+            We apologize sincerely for the inconvenience this may have caused.<br/>
+            This email is to notify you that we will be contacting you very soon to discuss the details of it and how we can help in resolving this very quickly.
+        </p>
+        <p>
+            In case you do not want us to contact you or you have already been helped with this matter, please click the button below.<br/>
+            <a href="{{ update_url }}feedback/deadline-missed-not-informed" class="btn">DEADLINE WAS NOT MISSED/I DO NOT NEED TO BE CONTACTED</a>
+        </p>
+    {% endif %}
+{% endblock %}

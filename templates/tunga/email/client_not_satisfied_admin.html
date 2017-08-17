@@ -1,0 +1,14 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    Alert (!): Client dissatisfied.
+{% endblock %}
+{% block email_content %}
+    <p>Hello,</p>
+
+    <p>
+        The project owner of the "{{ event.task.summary }}" {% if event.task.is_task %}task{% else %}project{% endif %} is unsatisfied with the deliverable.<br/>
+        Please contact all stakeholders.
+    </p>
+    {% include "tunga/email/stakeholders.html" %}
+{% endblock %}

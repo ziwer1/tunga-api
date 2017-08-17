@@ -5,8 +5,10 @@ import re
 import uuid
 from decimal import Decimal
 
+import datetime
 import tagulous.models
 from actstream.models import Action
+from dateutil.relativedelta import relativedelta
 from django.contrib.contenttypes.fields import GenericRelation, GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -110,7 +112,8 @@ class Project(models.Model):
     @property
     def excerpt(self):
         try:
-            return strip_tags(self.description).strip()
+            if self.description:
+                return strip_tags(self.description).strip()
         except:
             return None
 
@@ -149,20 +152,91 @@ TASK_SOURCE_CHOICES = (
     (TASK_SOURCE_NEW_USER, 'New Wizard User')
 )
 
+
 @python_2_unicode_compatible
 class MultiTaskPaymentKey(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
+    # Payment
+    currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
+    amount = models.DecimalField(
+        max_digits=19, decimal_places=4, blank=True, null=True, default=None
+    )
+    payment_method = models.CharField(
+        max_length=30, choices=TASK_PAYMENT_METHOD_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in TASK_PAYMENT_METHOD_CHOICES]),
+        blank=True, null=True
+    )
+    distribute_only = models.BooleanField(default=False, help_text='True if the task is paid')
     btc_address = models.CharField(max_length=40, validators=[validate_btc_address])
+    btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
+    withhold_tunga_fee = models.BooleanField(
+        default=False,
+        help_text='Only participant portion will be paid if True, '
+                  'and all money paid will be distributed to participants'
+    )
+    processing = models.BooleanField(default=False, help_text='True if the task is processing')
+    paid = models.BooleanField(default=False, help_text='True if the task is paid')
+
+    processing_at = models.DateTimeField(blank=True, null=True)
+    paid_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-
     def __str__(self):
-        return 'bitcoin:%s' % (self.btc_address)
+        return 'Batch Payment #{}'.format(self.id)
 
     class Meta:
         ordering = ['created_at']
 
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return request.user == self.user
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.is_project_owner
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_create_permission(request):
+        return request.user.is_project_owner
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_update_permission(request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user == self.user
+
+    @property
+    def amount(self):
+        connected_tasks = self.distribute_only and self.distribute_tasks or self.tasks
+        return sum([task.pay for task in list(connected_tasks.all())])
+
+    @property
+    def pay(self):
+        if self.withhold_tunga_fee:
+            return self.pay_participants
+        return self.amount
+
+    @property
+    def pay_participants(self):
+        connected_tasks = self.distribute_only and self.distribute_tasks or self.tasks
+        return sum([task.pay*Decimal(1 - task.tunga_ratio_dev) for task in list(connected_tasks.all())])
+
+    def get_task_share_ratio(self, task):
+        if (task.multi_pay_key_id == self.id and not self.distribute_only) or \
+                (task.multi_pay_distribute_key_id == self.id and self.distribute_only):
+            return task.pay/self.amount
+        return 0
 
 
 @python_2_unicode_compatible
@@ -220,7 +294,12 @@ class Task(models.Model):
     )
     btc_address = models.CharField(max_length=40, blank=True, null=True, validators=[validate_btc_address])
     btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
-    multi_task_payment = models.ForeignKey(MultiTaskPaymentKey, related_name='multi_tasks', on_delete=models.DO_NOTHING, blank=True, null=True)
+    multi_pay_key = models.ForeignKey(
+        MultiTaskPaymentKey, related_name='tasks', on_delete=models.DO_NOTHING, blank=True, null=True
+    )
+    multi_pay_distribute_key = models.ForeignKey(
+        MultiTaskPaymentKey, related_name='distribute_tasks', on_delete=models.DO_NOTHING, blank=True, null=True
+    )
 
     # Classification details
     type = models.IntegerField(choices=TASK_TYPE_CHOICES, default=TASK_TYPE_OTHER)  # Web, Mobile ...
@@ -237,8 +316,10 @@ class Task(models.Model):
     coders_needed = models.IntegerField(choices=TASK_CODERS_NEEDED_CHOICES, blank=True, null=True)
 
     # Update settings
-    update_interval = models.PositiveIntegerField(blank=True, null=True)
-    update_interval_units = models.PositiveSmallIntegerField(choices=UPDATE_SCHEDULE_CHOICES, blank=True, null=True)
+    update_interval = models.PositiveIntegerField(default=1)
+    update_interval_units = models.PositiveSmallIntegerField(
+        choices=UPDATE_SCHEDULE_CHOICES, default=UPDATE_SCHEDULE_DAILY
+    )
     survey_client = models.BooleanField(default=True)
 
     # Audience for the task
@@ -265,7 +346,9 @@ class Task(models.Model):
         default=True, help_text='True if developers can apply for this task (visibility can override this)'
     )
     closed = models.BooleanField(default=False, help_text='True if the task is closed')
+    processing = models.BooleanField(default=False, help_text='True if the task is processing')
     paid = models.BooleanField(default=False, help_text='True if the task is paid')
+    btc_paid = models.BooleanField(default=False, help_text='True if BTC has been paid in for a Stripe task')
     pay_distributed = models.BooleanField(
         default=False,
         help_text='True if task has been paid and entire payment has been distributed to participating developers'
@@ -274,7 +357,13 @@ class Task(models.Model):
     reminded_complete_task = models.BooleanField(default=False)
     withhold_tunga_fee = models.BooleanField(
         default=False,
-        help_text='Only participant portion will be paid if True, and all money paid will be distributed to participants'
+        help_text='Only participant portion will be paid if True, '
+                  'and all money paid will be distributed to participants'
+    )
+    withhold_tunga_fee_distribute = models.BooleanField(
+        default=False,
+        help_text='Only participant portion will be distributed if True, '
+                  'and all money paid will be distributed to participants'
     )
 
     # Significant event dates
@@ -282,7 +371,9 @@ class Task(models.Model):
     approved_at = models.DateTimeField(blank=True, null=True)
     apply_closed_at = models.DateTimeField(blank=True, null=True)
     closed_at = models.DateTimeField(blank=True, null=True)
+    processing_at = models.DateTimeField(blank=True, null=True)
     paid_at = models.DateTimeField(blank=True, null=True)
+    btc_paid_at = models.DateTimeField(blank=True, null=True)
     archived_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     invoice_date = models.DateTimeField(blank=True, null=True)
@@ -551,8 +642,14 @@ class Task(models.Model):
     def skills_list(self):
         return str(self.skills)
 
+    @property
     def payment_status(self):
         return self.paid and self.pay_distributed and 'Paid' or self.paid and 'Processing' or 'Pending'
+
+    @property
+    def can_pay_distribution_btc(self):
+        return self.payment_method == TASK_PAYMENT_METHOD_STRIPE and self.paid and \
+               not self.btc_paid and not self.pay_distributed
 
     @property
     def milestones(self):
@@ -567,8 +664,12 @@ class Task(models.Model):
         return self.subtask_participants_inclusive_filter.filter(status__in=[STATUS_INITIAL, STATUS_ACCEPTED])
 
     @property
-    def active_participants(self):
+    def active_participation(self):
         return self.subtask_participants_inclusive_filter.filter(status=STATUS_ACCEPTED)
+
+    @property
+    def active_participants(self):
+        return list(set([item.user for item in self.active_participation]))
 
     @property
     def started_at(self):
@@ -638,6 +739,12 @@ class Task(models.Model):
             Q(progress_events__task=self) | Q(progress_events__task__parent=self)
         )
 
+    @property
+    def payment_withheld_tunga_fee(self):
+        if self.payment_method == TASK_PAYMENT_METHOD_STRIPE:
+            return self.withhold_tunga_fee_distribute
+        return self.withhold_tunga_fee
+
     def get_participation_shares(self, return_hash=False):
         participants = self.participation_set.filter(status=STATUS_ACCEPTED).order_by('-share')
         num_participants = participants.count()
@@ -671,7 +778,7 @@ class Task(models.Model):
             for data in participation_shares:
                 payment_shares.append({
                     'participant': data['participant'],
-                    'share': Decimal(data['share'])*Decimal(self.withhold_tunga_fee and 1 or (1 - self.tunga_ratio_dev))
+                    'share': Decimal(data['share'])*Decimal(self.payment_withheld_tunga_fee and 1 or (1 - self.tunga_ratio_dev))
                 })
         return payment_shares
 
@@ -686,7 +793,7 @@ class Task(models.Model):
     def get_user_payment_share(self, participation_id):
         share = self.get_user_participation_share(participation_id=participation_id)
         if share:
-            return share*(Decimal(self.withhold_tunga_fee and 100 or (100 - self.tunga_percentage_dev)) / Decimal(100))
+            return share*(Decimal(self.payment_withheld_tunga_fee and 100 or (100 - self.tunga_percentage_dev)) / Decimal(100))
         return 0
 
 
@@ -790,7 +897,7 @@ class Participation(models.Model):
     ratings = GenericRelation(Rating, related_query_name='participants')
 
     def __str__(self):
-        return '%s - %s' % (self.user.get_short_name() or self.user.username, self.task.title)
+        return '#{} | {} - {}'.format(self.id, self.user.get_short_name() or self.user.username, self.task.title)
 
     class Meta:
         unique_together = ('user', 'task')
@@ -826,6 +933,9 @@ class WorkActivity(models.Model):
 
     def __str__(self):
         return 'Activity | {}'.format(self.content_object)
+
+    class Meta:
+        verbose_name_plural = 'work activities'
 
     @property
     def dev_fee(self):
@@ -1013,6 +1123,7 @@ class TimeEntry(models.Model):
 
     class Meta:
         ordering = ['spent_at']
+        verbose_name_plural = 'time entries'
 
     @staticmethod
     @allow_staff_or_superuser
@@ -1057,6 +1168,7 @@ class ProgressEvent(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='progress_events_created', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     last_reminder_at = models.DateTimeField(blank=True, null=True)
+    missed_notification_at = models.DateTimeField(blank=True, null=True)
 
     activity_objects = GenericRelation(
         Action,
@@ -1107,15 +1219,39 @@ class ProgressEvent(models.Model):
                 return self.task.pm == user
             else:
                 return self.task.user == user
-        if self.type == PROGRESS_EVENT_TYPE_CLIENT:
+        elif self.type == PROGRESS_EVENT_TYPE_CLIENT:
             if self.task.owner:
                 return self.task.owner == user
             return self.task.user == user
         return self.task.get_is_participant(user, active_only=active_only)
 
     @property
+    def participants(self):
+        participants = []
+        if self.type == PROGRESS_EVENT_TYPE_PM:
+            if self.task.is_project and self.task.pm:
+                participants.append(self.task.pm)
+        elif self.type == PROGRESS_EVENT_TYPE_CLIENT:
+            if self.task.owner:
+                participants.append(self.task.owner)
+            else:
+                participants.append(self.task.user)
+        else:
+            participants.extend(self.task.active_participants)
+        return participants
+
+    @property
     def pm(self):
         return self.task.pm
+
+    @property
+    def status(self):
+        if self.progressreport_set.count() > 0:
+            return 'completed'
+        past_by_24_hours = datetime.datetime.utcnow() - relativedelta(hours=24)
+        if self.due_at > past_by_24_hours:
+            return 'upcoming'
+        return 'missed'
 
 
 PROGRESS_REPORT_STATUS_CHOICES = (
@@ -1210,6 +1346,41 @@ class ProgressReport(models.Model):
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
         return request.user == self.user
+
+
+@python_2_unicode_compatible
+class SummaryReport(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    developer = models.ForeignKey(ProgressReport, related_name='dev_summary_reports', on_delete=models.CASCADE, blank=True, null=True)
+    pm = models.ForeignKey(ProgressReport, related_name='pm_summary_reports', on_delete=models.CASCADE, blank=True, null=True)
+    owner = models.ForeignKey(ProgressReport, related_name='owner_summary_reports', on_delete=models.CASCADE, blank=True, null=True)
+
+    report_for = models.DateTimeField(auto_now_add=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    email_at = models.DateTimeField(auto_now_add=True)
+    slack_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return '{0} - {1}%'.format(self.task.summary, self.report_for)
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return False
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return False
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return False
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return False
 
 
 @python_2_unicode_compatible
@@ -1409,7 +1580,8 @@ TASK_PAYMENT_TYPE_CHOICES = (
 
 @python_2_unicode_compatible
 class TaskPayment(models.Model):
-    task = models.ForeignKey(Task)
+    task = models.ForeignKey(Task, blank=True, null=True)
+    multi_pay_key = models.ForeignKey(MultiTaskPaymentKey, blank=True, null=True)
     ref = models.CharField(max_length=255)
     payment_type = models.CharField(
         max_length=30, choices=TASK_PAYMENT_TYPE_CHOICES,
@@ -1443,12 +1615,18 @@ class TaskPayment(models.Model):
             self.get_payment_type_display(),
             self.payment_type == TASK_PAYMENT_METHOD_STRIPE and self.charge_id or self.btc_address,
             self.payment_type == TASK_PAYMENT_METHOD_STRIPE and self.amount or self.btc_received,
-            self.task.summary
+            self.task and self.task.summary or 'Multi Task Payment'
         )
 
     class Meta:
         unique_together = ('task', 'ref')
         ordering = ['created_at']
+
+    def task_btc_share(self, task):
+        share_ratio = 1
+        if self.multi_pay_key:
+            share_ratio = self.multi_pay_key.get_task_share_ratio(task)
+        return share_ratio*self.btc_received
 
 
 PAYMENT_STATUS_CHOICES = (
@@ -1496,7 +1674,7 @@ class TaskInvoice(models.Model):
     title = models.CharField(max_length=200)
     fee = models.DecimalField(max_digits=19, decimal_places=4)
     client = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='client_invoices')
-    developer = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='developer_invoices')
+    developer = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='developer_invoices', blank=True, null=True)
     currency = models.CharField(max_length=5, choices=CURRENCY_CHOICES, default=CURRENCY_CHOICES[0][0])
     payment_method = models.CharField(
         max_length=30, choices=TASK_PAYMENT_METHOD_CHOICES,
@@ -1507,7 +1685,8 @@ class TaskInvoice(models.Model):
     number = models.CharField(max_length=20, blank=True, null=True)
     withhold_tunga_fee = models.BooleanField(
         default=False,
-        help_text='Only participant portion will be paid if True, and all money paid will be distributed to participants'
+        help_text='Only participant portion will be paid if True, '
+                  'and all money paid will be distributed to participants'
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

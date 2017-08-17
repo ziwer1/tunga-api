@@ -41,6 +41,9 @@ class TungaUser(AbstractUser):
             self.pending = False
         super(TungaUser, self).save(*args, **kwargs)
 
+    def __str__(self):
+        return '{} ({})'.format(self.display_name, self.get_username())
+
     @staticmethod
     @allow_staff_or_superuser
     def has_read_permission(request):

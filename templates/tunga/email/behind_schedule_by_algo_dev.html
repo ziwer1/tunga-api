@@ -1,0 +1,17 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    Alert (!): it appears you’re behind schedule.
+{% endblock %}
+{% block email_content %}
+    <p>Hi {{ reporter.first_name }},</p>
+
+    <p>
+        It seems that you are behind schedule according to your progress report for the "{{ event.task.summary }}" {% if event.task.is_task %}task{% else %}project{% endif %}.
+        We are writing you to find out if there’s anyway we could support you.
+    </p>
+    <p>
+        Please let us know in the form below if you’ll still meet the deadline.<br/>
+        <a href="{{ update_url }}feedback/behind-algo" class="btn">SHARE MORE DETAILS</a>
+    </p>
+{% endblock %}

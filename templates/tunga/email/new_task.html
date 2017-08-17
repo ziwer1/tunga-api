@@ -1,0 +1,67 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    Woohoo! A new {% if task.is_task %}task{% else %}project{% endif %} was posted on Tunga
+{% endblock %}
+{% block email_content %}
+    <p>Hello,</p>
+
+    <p>{{ owner.display_name }} {% if completed_phrase %}{{ completed_phrase }} for{% else %}created{% endif %} a new {% if task.is_task %}task{% else %}project{% endif %}:</p>
+
+    <p>{{ task.summary }}</p>
+
+    <p>
+        {% if task.type %}Type: {{ task.get_type_display | safe }}<br/>{% endif %}
+
+        {% if task.scope %}Scope: {{ task.get_scope_display | safe }}<br/>{% endif %}
+
+        {% if task.skills %}Skills: {{ task.skills }}<br/>{% endif %}
+
+        {% if task.deadline %}Deadline: {{ task.deadline | date:'jS F Y' }}<br/>{% endif %}
+
+        {% if task.schedule_call_start %}
+            <br/>
+            Available:<br/>
+            Day: {{ task.schedule_call_start | date:'jS F Y' }}<br/>
+            Time: {{ task.schedule_call_start | date:'h:i A' }}{% if task.schedule_call_end %} - {{ task.schedule_call_end | date:'h:i A' }}{% endif %} UTC<br/>
+        {% endif %}
+
+        {% if task.description %}
+            <br/>
+            Description:<br/>
+            {{ task.description | safe }}<br/>
+        {% endif %}
+    </p>
+
+    {% if task.deliverables %}
+        <p>
+            Deliverables:<br/>
+            {{ task.deliverables | safe }}
+        </p>
+    {% endif %}
+
+    {% if task.stack_description %}
+        <p>
+            Stack Description:<br/>
+            {{ task.stack_description | safe }}
+        </p>
+    {% endif %}
+
+    <p>
+        {% for event in task.milestones %}
+
+            {% if forloop.first %}Milestones:<br/>{% endif %}
+
+            {{ forloop.counter }}: {{ event.title }} at {{ event.due_at | date:'jS F Y' }}<br/>
+
+        {% endfor %}
+    </p>
+
+    {% if task.update_schedule_display %}<p>Update schedule: {{ task.update_schedule_display }}</p>{% endif %}
+
+    <p>
+        Click the link below to view the task's details:<br/>
+        <a href="{{ task_url }}">{{ task_url }}</a>
+    </p>
+
+{% endblock %}

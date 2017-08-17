@@ -1,0 +1,17 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    Following up on {% if event.task.is_task %}task{% else %}project{% endif %} quality.
+{% endblock %}
+{% block email_content %}
+    <p>Hi {{ owner.first_name }},</p>
+
+    <p>
+        You’ve let us know that the deliverable on your "{{ event.task.summary }}" {% if event.task.is_task %}task{% else %}project{% endif %} was not up to standard.<br/>
+        We apologize sincerely for the inconvenience this may have caused. This email is to notify you that we will be contacting you very soon to discuss the details of it and how we can help in resolving this very quickly.
+    </p>
+    <p>
+        In case you do not want us to contact you or you have already been helped with this matter, please click the button below.<br/>
+        <a href="{{ update_url }}feedback/unsatisfied" class="btn">DELIVERABLE WAS OKAY/ I DO NOT NEED TO BE CONTACTED</a>
+    </p>
+{% endblock %}

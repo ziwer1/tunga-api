@@ -18,7 +18,7 @@ def send_new_developer_email(instance):
     ctx = {
         'application': instance,
     }
-    send_mail(subject, 'tunga/email/email_new_developer_application', to, ctx)
+    send_mail(subject, 'tunga/email/new_developer_application', to, ctx)
 
 
 @job
@@ -29,7 +29,7 @@ def send_developer_application_received_email(instance):
     ctx = {
         'application': instance
     }
-    send_mail(subject, 'tunga/email/email_developer_application_received', to, ctx)
+    send_mail(subject, 'tunga/email/developer_application_received', to, ctx)
 
 
 @job
@@ -41,7 +41,7 @@ def send_developer_accepted_email(instance):
         'application': instance,
         'invite_url': '%s/signup/developer/%s/' % (TUNGA_URL, instance.confirmation_key)
     }
-    if send_mail(subject, 'tunga/email/email_developer_application_accepted', to, ctx):
+    if send_mail(subject, 'tunga/email/developer_application_accepted', to, ctx):
         instance.confirmation_sent_at = datetime.datetime.utcnow()
         instance.save()
 
@@ -59,7 +59,7 @@ def send_new_skill_email(instance):
         'users': users,
         'tasks': tasks
     }
-    send_mail(subject, 'tunga/email/email_new_skill', to, ctx)
+    send_mail(subject, 'tunga/email/new_skill', to, ctx)
 
 
 @job
@@ -73,7 +73,7 @@ def send_developer_invited_email(instance, resend=False):
         'invite': instance,
         'invite_url': '%s/signup/invite/%s/' % (TUNGA_URL, instance.invitation_key, )
     }
-    if send_mail(subject, 'tunga/email/email_user_invitation', to, ctx):
+    if send_mail(subject, 'tunga/email/user_invitation', to, ctx):
         if resend:
             instance.used = False
             instance.resent = True
@@ -98,7 +98,7 @@ def send_new_developer_invitation_sent_email(instance):
     ctx = {
         'invite': instance
     }
-    send_mail(subject, 'tunga/email/email_user_invitation_sent', to, ctx)
+    send_mail(subject, 'tunga/email/user_invitation_sent', to, ctx)
 
 
 @job
@@ -112,4 +112,4 @@ def send_developer_invitation_accepted_email(instance):
     ctx = {
         'invite': instance
     }
-    send_mail(subject, 'tunga/email/email_user_invitation_accepted', to, ctx)
+    send_mail(subject, 'tunga/email/user_invitation_accepted', to, ctx)

@@ -1,0 +1,25 @@
+{% extends "tunga/email/content.html" %}
+{% load account %}
+{% user_display user as user_display %}
+{% load i18n %}
+{% block email_header %}
+    Welcome to Tunga! Let's get you set up!
+{% endblock %}
+{% block email_content %}
+    <p>Hi {{ user.first_name }},</p>
+
+    <p>You just registered as a {% if user.type == 3 %}project manager{% elif user.type == 2 %}project owner{% else %}developer{% endif %} on Tunga!</p>
+
+    <p>Welcome on board and thank you for joining {% if user.type == 2 %}the platform{% else %}our team{% endif %}.</p>
+
+    <p>
+        To start using our platform you have to activate your account, simply by clicking the following link:<br/>
+        <a href="{{ activate_url }}">{{ activate_url }}</a>
+    </p>
+
+    <p>
+        In case you need further information or help, don’t hesitate to contact us.<br/>
+        We hope you’ll enjoy using our platform.
+    </p>
+
+{% endblock %}

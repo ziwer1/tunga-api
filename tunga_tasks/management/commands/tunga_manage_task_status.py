@@ -6,7 +6,7 @@ from django.db.models.expressions import Case, When
 from django.db.models.fields import DateTimeField
 
 from tunga_tasks.models import Task
-from tunga_tasks.notifications import remind_no_task_applications, notify_review_task_admin
+from tunga_tasks.notifications.generic import remind_no_task_applications, notify_review_task_admin
 from tunga_utils.constants import TASK_SCOPE_TASK
 
 

@@ -5,10 +5,12 @@ from tunga.settings import HUBSPOT_API_KEY, TUNGA_URL, HUBSPOT_DEFAULT_DEAL_STAG
 from tunga_utils.constants import TASK_SOURCE_NEW_USER
 
 HUBSPOT_API_BASE_URL = 'https://api.hubapi.com'
-HUBSPOT_ENDPOINT_CREATE_UPDATE_CONTACT = '/contacts/v1/contact/createOrUpdate/email/{contact_email}'
+HUBSPOT_ENDPOINT_CREATE_UPDATE_CONTACT = '/contacts/v1/contact/createOrUpdate/email/{contact_email}/'
 HUBSPOT_ENDPOINT_CREATE_DEAL = '/deals/v1/deal'
 HUBSPOT_ENDPOINT_CREATE_DEAL_PROPERTY = '/properties/v1/deals/properties/'
+HUBSPOT_ENDPOINT_CREATE_TAG_PROPERTY = '/contacts/v1/properties/tag'
 HUBSPOT_ENDPOINT_CREATE_ENGAGEMENT = '/engagements/v1/engagements'
+HUBSPOT_ENDPOINT_GET_OWNER = '/owners/v2/owners'
 
 KEY_VID = 'vid'
 KEY_NAME = 'name'
@@ -75,7 +77,7 @@ def create_hubspot_contact(email=None, **kwargs):
 
 def get_hubspot_contact_vid(email):
     response = create_hubspot_contact(email)
-    if 'vid' in response:
+    if response and 'vid' in response:
         return response['vid']
     return
 

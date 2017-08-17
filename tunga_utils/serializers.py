@@ -73,7 +73,7 @@ class SimpleUserSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'username', 'email', 'first_name', 'last_name', 'display_name', 'short_name', 'type', 'image',
             'is_developer', 'is_project_owner', 'is_project_manager', 'is_staff', 'verified', 'company', 'avatar_url',
-            'can_contribute'
+            'can_contribute', 'date_joined'
         )
 
     def get_can_contribute(self, obj):
@@ -90,6 +90,29 @@ class SimpleProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         exclude = ('user',)
+
+
+class SimpleSkillsProfileSerializer(serializers.ModelSerializer):
+    city = serializers.CharField()
+    skills = SkillSerializer(many=True)
+    country = CountryField()
+    country_name = serializers.CharField()
+
+    class Meta:
+        model = UserProfile
+        fields = ('id', 'skills', 'country', 'country_name', 'city', 'bio')
+
+
+class SimpleUserSkillsProfileSerializer(SimpleUserSerializer):
+    profile = SimpleSkillsProfileSerializer(read_only=True, required=False)
+
+    class Meta(SimpleUserSerializer.Meta):
+        model = get_user_model()
+        fields = (
+            'id', 'username', 'first_name', 'last_name',
+            'display_name', 'short_name', 'type',
+            'image', 'avatar_url', 'profile'
+        )
 
 
 class InvoiceUserSerializer(serializers.ModelSerializer):

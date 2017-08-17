@@ -1,8 +1,17 @@
 from django.contrib import admin
 
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, ProgressEvent, ProgressReport, \
-    Project, TaskPayment, ParticipantPayment, TaskInvoice, TaskAccess, Estimate, Quote, WorkActivity
+    Project, TaskPayment, ParticipantPayment, TaskInvoice, TaskAccess, Estimate, Quote, WorkActivity, \
+    MultiTaskPaymentKey
 from tunga_utils.admin import ReadOnlyModelAdmin
+
+
+@admin.register(MultiTaskPaymentKey)
+class MultiTaskPaymentKeyAdmin(admin.ModelAdmin):
+    pass
+    #list_display = ('title', 'amount', 'closed', 'created_at', 'archived')
+    #list_filter = ('archived',)
+    #search_fields = ('title',)
 
 
 @admin.register(Project)
@@ -12,7 +21,7 @@ class ProjectAdmin(admin.ModelAdmin):
     search_fields = ('title',)
 
 
-class TaskAccessInline(admin.TabularInline):
+class TaskAccessInline(admin.StackedInline):
     model = TaskAccess
     exclude = ('created_by',)
     extra = 1
@@ -22,7 +31,7 @@ class TaskAccessInline(admin.TabularInline):
         obj.save()
 
 
-class ParticipationInline(admin.TabularInline):
+class ParticipationInline(admin.StackedInline):
     model = Participation
     exclude = ('created_by',)
     extra = 1
@@ -35,13 +44,13 @@ class ParticipationInline(admin.TabularInline):
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     list_display = (
-        'summary', 'user', 'type', 'scope', 'source', 'apply', 'closed', 'archived', 'skills_list', 'created_at',
+        'summary', 'user', 'type', 'scope', 'source', 'apply', 'closed', 'paid', 'archived', 'skills_list', 'created_at',
         'fee', 'bid', 'dev_rate', 'pm_rate', 'pm_time_percentage', 'tunga_percentage_dev', 'tunga_percentage_pm',
         'schedule_call_start'
     )
     list_filter = (
         'type', 'scope', 'source', 'apply', 'closed', 'paid', 'pay_distributed', 'archived',
-        'created_at', 'schedule_call_start'
+        'created_at', 'schedule_call_start', 'paid_at'
     )
     search_fields = ('title', 'analytics_id')
     inlines = (TaskAccessInline, ParticipationInline)

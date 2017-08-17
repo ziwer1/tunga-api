@@ -66,6 +66,6 @@ class Command(BaseCommand):
                 'channel_url': '%s/conversation/%s/' % (TUNGA_URL, user_channel.channel.id)
             }
 
-            if send_mail(subject, 'tunga/email/email_unread_channel_messages', to, ctx):
+            if send_mail(subject, 'tunga/email/unread_channel_messages', to, ctx):
                 user_channel.last_email_at = datetime.datetime.utcnow()
                 user_channel.save()

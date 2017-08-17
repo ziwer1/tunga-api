@@ -1,0 +1,22 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    Following up on missed deadline for the {% if event.task.is_task %}task{% else %}project{% endif %}.
+{% endblock %}
+{% block email_content %}
+    <p>Hello,</p>
+
+    {% if report.deadline_miss_communicated %}
+        <p>
+            A deadline has been missed on the "{{ event.task.summary }}" {% if event.task.is_task %}task{% else %}project{% endif %}.<br/>
+            According to our system, this has been communicated between the stakeholders.<br/>
+            Please check in with the stakeholders.
+        </p>
+    {% else %}
+        <p>
+            A deadline has been missed on the "{{ event.task.summary }}" {% if event.task.is_task %}task{% else %}project{% endif %}.<br/>
+            Please contact the stakeholders.
+        </p>
+    {% endif %}
+    {% include "tunga/email/stakeholders.html" %}
+{% endblock %}

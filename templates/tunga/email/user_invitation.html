@@ -1,0 +1,16 @@
+{% extends "tunga/email/content.html" %}
+{% load i18n %}
+{% block email_header %}
+    Welcome to Tunga! Let's get you set up!
+{% endblock %}
+{% block email_content %}
+    <p>Hi {{ invite.first_name }},</p>
+
+    <p>You have been invited to become a Tunga {{ invite.get_type_display | lower }}.</p>
+
+    <p>
+        Click the link below to accept your invitation:<br/>
+        <a href="{{ invite_url }}">{{ invite_url }}</a>
+    </p>
+
+{% endblock %}

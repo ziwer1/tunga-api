@@ -176,7 +176,7 @@ class ProgressEventFilterBackend(DRYPermissionFiltersBase):
         threshold_date = datetime.datetime.utcnow() - relativedelta(hours=24)
         if label_filter == 'upcoming':
             queryset = queryset.filter(
-                due_at__gt=threshold_date, progressreport__isnull=False
+                due_at__gt=threshold_date, progressreport__isnull=True
             )
         elif label_filter in ['complete', 'finished']:
             queryset = queryset.filter(

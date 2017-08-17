@@ -9,24 +9,24 @@ from tunga_messages.models import Message
 from tunga_messages.tasks import get_or_create_task_channel
 from tunga_tasks.models import Task, Application, Participation, ProgressEvent, ProgressReport, \
     IntegrationActivity, Integration, Estimate, Quote
-from tunga_tasks.notifications import notify_new_task_application, send_new_task_invitation_email, \
-    notify_task_invitation_response, \
-    send_task_application_not_selected_email, notify_new_progress_report, notify_task_approved, notify_estimate_status_email, \
-    notify_task_application_response, notify_new_task_admin, notify_new_task, possibly_trigger_schedule_call_automation, \
-    notify_new_progress_report_slack, notify_parties_of_low_rating_email, notify_pm_dev_when_stuck_email,\
-    notify_dev_pm_on_failure_to_meet_deadline
+from tunga_tasks.notifications.email import notify_estimate_status_email, notify_task_invitation_email, \
+    send_task_application_not_selected_email
+from tunga_tasks.notifications.generic import notify_new_task, \
+    notify_task_approved, notify_new_task_admin, notify_task_invitation_response, notify_new_task_application, \
+    notify_task_application_response, notify_new_progress_report
+from tunga_tasks.notifications.slack import notify_new_progress_report_slack
 from tunga_tasks.tasks import initialize_task_progress_events, update_task_periodic_updates, \
     complete_harvest_integration, create_or_update_hubspot_deal_task
 from tunga_utils import hubspot_utils
 from tunga_utils.constants import APP_INTEGRATION_PROVIDER_HARVEST, STATUS_SUBMITTED, STATUS_APPROVED, STATUS_DECLINED, \
-    STATUS_ACCEPTED, STATUS_REJECTED, STATUS_INITIAL, PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK,\
-    PROGRESS_REPORT_STATUS_BEHIND
+    STATUS_ACCEPTED, STATUS_REJECTED, STATUS_INITIAL
 
 # Task
 task_fully_saved = Signal(providing_args=["task", "new_user"])
 task_approved = Signal(providing_args=["task"])
 task_call_window_scheduled = Signal(providing_args=["task"])
 task_details_completed = Signal(providing_args=["task"])
+task_owner_added = Signal(providing_args=["task"])
 task_applications_closed = Signal(providing_args=["task"])
 task_closed = Signal(providing_args=["task"])
 
@@ -133,7 +133,7 @@ def activity_handler_application_response(sender, application, **kwargs):
 
         if application.status == STATUS_ACCEPTED and application.hours_needed and application.task.is_task:
             task = application.task
-            task.bid = Decimal(application.hours_needed)*application.task.dev_rate
+            task.bid = Decimal(application.hours_needed) * application.task.dev_rate
             task.save()
 
 
@@ -143,7 +143,7 @@ def activity_handler_new_participant(sender, instance, created, **kwargs):
         action.send(instance.created_by, verb=verbs.ADD, action_object=instance, target=instance.task)
 
         if instance.status == STATUS_INITIAL:
-            send_new_task_invitation_email.delay(instance.id)
+            notify_task_invitation_email.delay(instance.id)
 
         if instance.status == STATUS_ACCEPTED:
             update_task_periodic_updates.delay(instance.task.id)
@@ -166,8 +166,8 @@ def activity_handler_participation_response(sender, participation, **kwargs):
 def activity_handler_estimate(sender, instance, created, **kwargs):
     if created:
         action.send(
-                instance.user, verb=verbs.CREATE,
-                action_object=instance, target=instance.task
+            instance.user, verb=verbs.CREATE,
+            action_object=instance, target=instance.task
         )
 
 
@@ -175,8 +175,8 @@ def activity_handler_estimate(sender, instance, created, **kwargs):
 def activity_handler_quote(sender, instance, created, **kwargs):
     if created:
         action.send(
-                instance.user, verb=verbs.CREATE,
-                action_object=instance, target=instance.task
+            instance.user, verb=verbs.CREATE,
+            action_object=instance, target=instance.task
         )
 
 
@@ -184,8 +184,8 @@ def activity_handler_quote(sender, instance, created, **kwargs):
 def activity_handler_progress_event(sender, instance, created, **kwargs):
     if created:
         action.send(
-                instance.created_by or instance.task.user, verb=verbs.CREATE,
-                action_object=instance, target=instance.task
+            instance.created_by or instance.task.user, verb=verbs.CREATE,
+            action_object=instance, target=instance.task
         )
 
 
@@ -195,18 +195,17 @@ def activity_handler_progress_report(sender, instance, created, **kwargs):
         action.send(instance.user, verb=verbs.REPORT, action_object=instance, target=instance.event)
 
         notify_new_progress_report.delay(instance.id)
-        # if clients give rating below 5
-        if instance.event.rate_deliverables not in [5]:
-            notify_parties_of_low_rating_email.delay(instance.id)
-        # if pm or dev is stuck
-        if instance.event.status in [PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK]:
-            notify_pm_dev_when_stuck_email.delay(instance.id)
-        else:
-            # if pm or dev wont meet deadline
-            if instance.event.status in [PROGRESS_REPORT_STATUS_BEHIND]:
-                notify_dev_pm_on_failure_to_meet_deadline.delay(instance.id)
     else:
         notify_new_progress_report_slack.delay(instance.id, updated=True)
+
+
+@receiver(post_save, sender=ProgressEvent)
+def activity_handler_progress_report(sender, instance, created, **kwargs):
+    if created:
+        action.send(
+            instance.task.user, verb=verbs.REPORT,
+            action_object=instance, target=instance.task
+        )
 
 
 @receiver(post_save, sender=Integration)
@@ -278,5 +277,3 @@ def activity_handler_quote_status_changed(sender, quote, **kwargs):
         task.save()
 
     notify_estimate_status_email(quote.id, estimate_type='quote')
-
-

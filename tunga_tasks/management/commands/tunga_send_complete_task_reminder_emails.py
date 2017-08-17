@@ -4,7 +4,7 @@ from dateutil.relativedelta import relativedelta
 from django.core.management.base import BaseCommand
 
 from tunga_tasks.models import Task
-from tunga_tasks.notifications import notify_new_task_client_receipt_email
+from tunga_tasks.notifications.email import notify_new_task_client_receipt_email
 from tunga_utils.constants import TASK_SCOPE_TASK, TASK_SOURCE_NEW_USER
 
 
