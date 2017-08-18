@@ -2,9 +2,11 @@ import datetime
 
 from django_rq import job
 
-from tunga.settings import TUNGA_URL, TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+from tunga.settings import TUNGA_URL, TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, \
+    MANDRILL_VAR_FIRST_NAME
 from tunga_tasks.models import Task, Quote, Estimate, Participation, Application, ProgressEvent, ProgressReport
 from tunga_tasks.utils import get_suggested_community_receivers
+from tunga_utils import mandrill_utils
 from tunga_utils.constants import TASK_SCOPE_TASK, TASK_SOURCE_NEW_USER, USER_TYPE_DEVELOPER, VISIBILITY_MY_TEAM, \
     STATUS_ACCEPTED, VISIBILITY_DEVELOPER, USER_TYPE_PROJECT_MANAGER, STATUS_SUBMITTED, STATUS_APPROVED, \
     STATUS_DECLINED, STATUS_REJECTED, STATUS_INITIAL, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, \
@@ -14,7 +16,61 @@ from tunga_utils.helpers import clean_instance
 
 
 @job
-def notify_new_task_client_receipt_email(instance, new_user=False, reminder=False):
+def notify_new_task_client_drip_one(instance):
+    instance = clean_instance(instance, Task)
+
+    if instance.source != TASK_SOURCE_NEW_USER:
+        # Only target wizard users
+        return False
+
+    to = [instance.user.email]
+    if instance.owner:
+        to.append(instance.owner.email)
+
+    task_url = '{}/task/{}/'.format(TUNGA_URL, instance.id)
+    task_edit_url = '{}/task/{}/edit/complete-task/'.format(TUNGA_URL, instance.id)
+    task_call_url = '{}/task/{}/edit/call/'.format(TUNGA_URL, instance.id)
+    browse_url = '{}/people/filter/developers'.format(TUNGA_URL)
+
+    if not instance.user.is_confirmed:
+        url_prefix = '{}/reset-password/confirm/{}/{}?new_user=true&next='.format(
+            TUNGA_URL, instance.user.uid, instance.user.generate_reset_token()
+        )
+        task_url = '{}{}'.format(url_prefix, task_url)
+        task_edit_url = '{}{}'.format(url_prefix, task_edit_url)
+        task_call_url = '{}{}'.format(url_prefix, task_call_url)
+        browse_url = '{}{}'.format(url_prefix, browse_url)
+
+    merge_vars = [
+        mandrill_utils.create_merge_var(MANDRILL_VAR_FIRST_NAME, instance.user.first_name),
+        mandrill_utils.create_merge_var('task_url', task_edit_url),
+        mandrill_utils.create_merge_var('call_url', task_call_url),
+        mandrill_utils.create_merge_var('browse_url', browse_url)
+    ]
+
+    if instance.schedule_call_start:
+        template = '01-b-welcome-call-scheduled'
+        merge_vars.extend(
+            [
+                mandrill_utils.create_merge_var('date', instance.schedule_call_start.strftime("%d %b, %Y")),
+                mandrill_utils.create_merge_var('time', instance.schedule_call_start.strftime("%I:%M%p")),
+            ]
+        )
+    else:
+        template = '01-welcome'
+
+    if mandrill_utils.send_email(
+        template,
+        to,
+        merge_vars=merge_vars
+    ):
+        instance.last_drip_mail = 'welcome'
+        instance.last_drip_mail_at = datetime.datetime.utcnow()
+        instance.save()
+
+
+@job
+def notify_new_task_client_receipt_email(instance, reminder=False):
     instance = clean_instance(instance, Task)
 
     subject = "Your {} has been posted on Tunga".format(

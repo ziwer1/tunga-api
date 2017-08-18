@@ -365,6 +365,7 @@ class Task(models.Model):
         help_text='Only participant portion will be distributed if True, '
                   'and all money paid will be distributed to participants'
     )
+    last_drip_mail = models.CharField(max_length=50, blank=True, null=True)
 
     # Significant event dates
     deadline = models.DateTimeField(blank=True, null=True)
@@ -381,6 +382,7 @@ class Task(models.Model):
     check_task_email_at = models.DateTimeField(blank=True, null=True)
     schedule_call_start = models.DateTimeField(blank=True, null=True)
     schedule_call_end = models.DateTimeField(blank=True, null=True)
+    last_drip_mail_at = models.DateTimeField(blank=True, null=True)
 
     # Applications and participation info
     owner = models.ForeignKey(
