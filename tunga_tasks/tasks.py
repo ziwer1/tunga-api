@@ -56,8 +56,8 @@ def update_task_submit_milestone(task):
 
 def clean_update_datetime(periodic_start_date, target_task=None):
     return periodic_start_date.replace(
-            hour=target_task and target_task.created_at.hour or 12, minute=0, second=0, microsecond=0
-        )
+        hour=target_task and target_task.created_at.hour or 12, minute=0, second=0, microsecond=0
+    )
 
 
 @job
@@ -107,10 +107,12 @@ def update_task_periodic_updates(task):
                     next_update_at = last_update_at + relativedelta(**delta)
                     if next_update_at.weekday() in [5, 6]:
                         # Don't schedule updates on weekends
-                        next_update_at += relativedelta(days=7-next_update_at.weekday())
+                        next_update_at += relativedelta(days=7 - next_update_at.weekday())
 
                     if next_update_at >= now:
-                        if not target_task.deadline or next_update_at < target_task.deadline:
+                        future_by_18_hours = now + relativedelta(hours=18)
+                        if next_update_at <= future_by_18_hours and (
+                            not target_task.deadline or next_update_at < target_task.deadline):
                             num_updates_within_on_same_day = ProgressEvent.objects.filter(
                                 task=target_task, type=PROGRESS_EVENT_TYPE_PERIODIC,
                                 due_at__contains=next_update_at.date()
@@ -164,7 +166,9 @@ def update_task_pm_updates(task):
                     next_update_at += relativedelta(days=7 - last_update_day)
 
                 if next_update_at >= now:
-                    if not target_task.deadline or next_update_at < target_task.deadline:
+                    future_by_18_hours = now + relativedelta(hours=18)
+                    if next_update_at <= future_by_18_hours and (
+                        not target_task.deadline or next_update_at < target_task.deadline):
                         num_updates_within_on_same_day = ProgressEvent.objects.filter(
                             task=target_task, type=PROGRESS_EVENT_TYPE_PM,
                             due_at__contains=next_update_at.date()
@@ -190,7 +194,8 @@ def update_task_client_surveys(task):
         # for sub-tasks, create all surveys on the project
         target_task = task.parent
 
-    if target_task.closed or not (target_task.survey_client and target_task.approved and target_task.active_participants):
+    if target_task.closed or not (
+            target_task.survey_client and target_task.approved and target_task.active_participants):
         # only conduct survey for approved tasks that have been assigned devs and aren't closed
         return
 
@@ -214,7 +219,9 @@ def update_task_client_surveys(task):
                 next_update_at = last_update_at + relativedelta(days=7 - last_update_day)
 
                 if next_update_at >= now:
-                    if not target_task.deadline or next_update_at < target_task.deadline:
+                    future_by_18_hours = now + relativedelta(hours=18)
+                    if next_update_at <= future_by_18_hours and (
+                        not target_task.deadline or next_update_at < target_task.deadline):
                         num_updates_on_same_day = ProgressEvent.objects.filter(
                             task=target_task, type=PROGRESS_EVENT_TYPE_CLIENT,
                             due_at__contains=next_update_at.date()
@@ -476,7 +483,8 @@ def complete_harvest_integration(integration):
                     task_assignment_id = matches.get('task_assignment_id', None)
 
                     if task_assignment_id:
-                        resp_task_assignment_retrieve = harvest_client.get_one_task_assigment(project_id, task_assignment_id)
+                        resp_task_assignment_retrieve = harvest_client.get_one_task_assigment(project_id,
+                                                                                              task_assignment_id)
                         task_assignment = resp_task_assignment_retrieve.json()
 
                         defaults = {
@@ -565,7 +573,7 @@ def update_multi_tasks(multi_task_key, distribute=False):
             title=task.title,
             fee=task.pay,
             client=task.owner or task.user,
-            #developer=developer,
+            # developer=developer,
             payment_method=multi_task_key.payment_method,
             btc_price=multi_task_key.btc_price,
             btc_address=task.btc_address,
