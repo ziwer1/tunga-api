@@ -69,7 +69,7 @@ def update_task_periodic_updates(task):
         # for sub-tasks, create all periodic updates on the project
         target_task = task.parent
 
-    if target_task.closed:
+    if target_task.closed or not target_task.updates_participants:
         # Only create schedule events for projects which aren't
         return
 
@@ -111,7 +111,8 @@ def update_task_periodic_updates(task):
 
                     if next_update_at >= now:
                         future_by_18_hours = now + relativedelta(hours=18)
-                        if next_update_at <= future_by_18_hours and (
+                        if (not target_task.pause_updates_until or target_task.pause_updates_until < next_update_at) \
+                                and next_update_at <= future_by_18_hours and (
                             not target_task.deadline or next_update_at < target_task.deadline):
                             num_updates_within_on_same_day = ProgressEvent.objects.filter(
                                 task=target_task, type=PROGRESS_EVENT_TYPE_PERIODIC,

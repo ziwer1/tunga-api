@@ -482,9 +482,12 @@ def remind_progress_event_email(instance):
         to = [owner.email]
         if owner.email != instance.task.user.email:
             to.append(instance.task.user.email)
+        admins = instance.task.admins
+        if admins:
+            to.extend([user.email for user in admins])
         bcc = None
     else:
-        participants = instance.task.participation_set.filter(status=STATUS_ACCEPTED)
+        participants = instance.task.participation_set.filter(status=STATUS_ACCEPTED, updates_enabled=True)
         if participants:
             to = [participants[0].user.email]
             bcc = [participant.user.email for participant in participants[1:]] if participants.count() > 1 else None
@@ -517,8 +520,12 @@ def notify_new_progress_report_email(instance):
     )
 
     to = is_pm_or_client_report and TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS or [instance.event.task.user.email]
-    if instance.event.task.owner and not is_pm_or_client_report:
-        to.append(instance.event.task.owner.email)
+    if is_dev_report:
+        if instance.event.task.owner:
+            to.append(instance.event.task.owner.email)
+        admins = instance.event.task.admins
+        if admins:
+            to.extend([user.email for user in admins])
     ctx = {
         'owner': instance.event.task.owner or instance.event.task.user,
         'reporter': instance.user,
