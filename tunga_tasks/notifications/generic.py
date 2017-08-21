@@ -118,7 +118,7 @@ def notify_new_progress_report(instance):
     notify_new_progress_report_email(instance)
     notify_new_progress_report_slack(instance)
 
-    trigger_progress_report_actionable_events(instance)
+    # trigger_progress_report_actionable_events(instance)
 
 
 @job

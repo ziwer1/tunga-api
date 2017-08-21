@@ -6,7 +6,7 @@ from django_rq import job
 from tunga.settings import TUNGA_URL, SLACK_ATTACHMENT_COLOR_TUNGA, SLACK_ATTACHMENT_COLOR_GREEN, \
     SLACK_ATTACHMENT_COLOR_BLUE, SLACK_ATTACHMENT_COLOR_NEUTRAL, SLACK_ATTACHMENT_COLOR_RED, \
     SLACK_STAFF_UPDATES_CHANNEL, SLACK_STAFF_INCOMING_WEBHOOK, SLACK_DEVELOPER_UPDATES_CHANNEL, \
-    SLACK_DEVELOPER_INCOMING_WEBHOOK, SLACK_PMS_UPDATES_CHANNEL
+    SLACK_DEVELOPER_INCOMING_WEBHOOK, SLACK_PMS_UPDATES_CHANNEL, SLACK_STAFF_LEADS_CHANNEL
 from tunga_tasks import slugs
 from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport
 from tunga_tasks.utils import get_task_integration
@@ -153,7 +153,7 @@ def notify_new_task_admin_slack(instance, new_user=False, completed=False, call_
         instance.user.first_name, new_user and ' (New user)' or '',
         task_url
     )
-    slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_UPDATES_CHANNEL, show_contacts=True, is_admin=True)
+    slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_LEADS_CHANNEL, show_contacts=True, is_admin=True)
     slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, slack_msg)
 
 
@@ -173,7 +173,7 @@ def remind_no_task_applications_slack(instance, admin=True):
     )
     slack_msg = create_task_slack_msg(
         instance, summary=summary,
-        channel=admin and SLACK_STAFF_UPDATES_CHANNEL or SLACK_DEVELOPER_UPDATES_CHANNEL,
+        channel=admin and SLACK_STAFF_LEADS_CHANNEL or SLACK_DEVELOPER_UPDATES_CHANNEL,
         show_contacts=admin
     )
     slack_utils.send_incoming_webhook(
@@ -197,7 +197,7 @@ def notify_review_task_admin_slack(instance):
     )
     slack_msg = create_task_slack_msg(
         instance, summary=summary,
-        channel=SLACK_STAFF_UPDATES_CHANNEL,
+        channel=SLACK_STAFF_LEADS_CHANNEL,
         show_contacts=True
     )
     slack_utils.send_incoming_webhook(SLACK_STAFF_INCOMING_WEBHOOK, slack_msg)
@@ -265,7 +265,7 @@ def notify_new_task_application_slack(instance, admin=True):
             {
                 slack_utils.KEY_TEXT: slack_msg,
                 slack_utils.KEY_ATTACHMENTS: attachments,
-                slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL
+                slack_utils.KEY_CHANNEL: SLACK_STAFF_LEADS_CHANNEL
             }
         )
     else:
@@ -307,7 +307,7 @@ def notify_task_application_response_slack(instance, admin=True):
             {
                 slack_utils.KEY_TEXT: slack_msg,
                 slack_utils.KEY_ATTACHMENTS: attachments,
-                slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL
+                slack_utils.KEY_CHANNEL: SLACK_STAFF_LEADS_CHANNEL
             }
         )
     else:
