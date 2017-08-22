@@ -588,6 +588,9 @@ def notify_missed_progress_event_slack(instance):
 
     is_client_report = instance.type == PROGRESS_EVENT_TYPE_CLIENT
 
+    if instance.status != "missed":
+        return
+
     participants = instance.participants
     if not participants or instance.task.closed:
         # No one to report or task is now closed
