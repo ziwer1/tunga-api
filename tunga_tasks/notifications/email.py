@@ -16,7 +16,7 @@ from tunga_utils.helpers import clean_instance
 
 
 @job
-def notify_new_task_client_drip_one(instance):
+def notify_new_task_client_drip_one(instance, template='welcome'):
     instance = clean_instance(instance, Task)
 
     if instance.source != TASK_SOURCE_NEW_USER:
@@ -48,25 +48,30 @@ def notify_new_task_client_drip_one(instance):
         mandrill_utils.create_merge_var('browse_url', browse_url)
     ]
 
-    if instance.schedule_call_start:
-        template = '01-b-welcome-call-scheduled'
-        merge_vars.extend(
-            [
-                mandrill_utils.create_merge_var('date', instance.schedule_call_start.strftime("%d %b, %Y")),
-                mandrill_utils.create_merge_var('time', instance.schedule_call_start.strftime("%I:%M%p")),
-            ]
-        )
-    else:
-        template = '01-welcome'
+    template_code = None
+    if template == 'welcome':
+        if instance.schedule_call_start:
+            template_code = '01-b-welcome-call-scheduled'
+            merge_vars.extend(
+                [
+                    mandrill_utils.create_merge_var('date', instance.schedule_call_start.strftime("%d %b, %Y")),
+                    mandrill_utils.create_merge_var('time', instance.schedule_call_start.strftime("%I:%M%p")),
+                ]
+            )
+        else:
+            template_code = '01-welcome'
+    elif template == 'hiring':
+        template_code = '02-hiring'
 
-    if mandrill_utils.send_email(
-        template,
-        to,
-        merge_vars=merge_vars
-    ):
-        instance.last_drip_mail = 'welcome'
-        instance.last_drip_mail_at = datetime.datetime.utcnow()
-        instance.save()
+    if template_code:
+        if mandrill_utils.send_email(
+                template_code,
+            to,
+            merge_vars=merge_vars
+        ):
+            instance.last_drip_mail = template
+            instance.last_drip_mail_at = datetime.datetime.utcnow()
+            instance.save()
 
 
 @job
