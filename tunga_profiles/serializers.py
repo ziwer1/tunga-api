@@ -50,10 +50,31 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
         user_data = self.get_user_data(validated_data)
         skills = None
         city = None
+        languages = None
+        frameworks = None
+        platforms = None
+        libraries = None
+        storage = None
+        third_party_apis = None
+
         if 'skills' in validated_data:
             skills = validated_data.pop('skills')
         if 'city' in validated_data:
             city = validated_data.pop('city')
+        if 'languages' in validated_data:
+            languages = validated_data.pop('languages')
+        if 'frameworks' in validated_data:
+            frameworks = validated_data.pop('frameworks')
+        if 'platforms' in validated_data:
+            platforms = validated_data.pop('platforms')
+        if 'libraries' in validated_data:
+            libraries = validated_data.pop('libraries')
+        if 'storage' in validated_data:
+            storage = validated_data.pop('storage')
+        if 'third_party_apis' in validated_data:
+            third_party_apis = validated_data.pop('third_party_apis')
+        
+
         if instance:
             instance = super(ProfileSerializer, self).update(instance, validated_data)
         else:
@@ -61,6 +82,12 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
         self.save_user_info(instance, user_data)
         self.save_skills(instance, skills)
         self.save_city(instance, city)
+        self.save_languages(instance, languages)
+        self.save_frameworks(instance, frameworks)
+        self.save_platforms(instance, platforms)
+        self.save_libraries(instance, libraries)
+        self.save_storage(instance, storage)
+        self.save_third_party_apis(instance, third_party_apis)
         return instance
 
     def create(self, validated_data):
@@ -94,6 +121,36 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
     def save_city(self, profile, city):
         if city:
             profile.city = city
+            profile.save()
+
+    def save_languages(self, profile, languages):
+        if languages is not None:
+            profile.languages = languages
+            profile.save()
+
+    def save_frameworks(self, profile, frameworks):
+        if frameworks is not None:
+            profile.frameworks = frameworks
+            profile.save()
+
+    def save_platforms(self, profile, platforms):
+        if platforms is not None:
+            profile.platforms = platforms
+            profile.save()
+
+    def save_libraries(self, profile, libraries):
+        if libraries is not None:
+            profile.libraries = libraries
+            profile.save()
+
+    def save_storage(self, profile, storage):
+        if storage is not None:
+            profile.storage = storage
+            profile.save()
+
+    def save_third_party_apis(self, profile, third_party_apis):
+        if third_party_apis is not None:
+            profile.third_party_apis = third_party_apis
             profile.save()
 
 

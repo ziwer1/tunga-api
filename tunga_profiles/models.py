@@ -40,6 +40,37 @@ class City(tagulous.models.TagModel):
     class TagMeta:
         initial = "Kampala, Entebbe, Jinja, Nairobi, Mombosa, Dar es Salaam, Kigali, Amsterdam"
 
+class Languages(tagulous.models.TagModel):
+    class TagMeta:
+        initial = "PHP, JavaScript"
+        space_delimiter = False
+
+class Frameworks(tagulous.models.TagModel):
+    class TagMeta:
+        initial = "framework1, framework2"
+        space_delimiter = False
+
+class Platforms(tagulous.models.TagModel):
+    class TagMeta:
+        initial = "platform1, platform2"
+        space_delimiter = False
+
+class Libraries(tagulous.models.TagModel):
+    class TagMeta:
+        initial = "library1, library2"
+        space_delimiter = False
+
+class Storage(tagulous.models.TagModel):
+    class TagMeta:
+        initial = "storage1, storage2"
+        space_delimiter = False
+
+class ThirdPartyApis(tagulous.models.TagModel):
+    class TagMeta:
+        initial = "api1, api2"
+        space_delimiter = False
+
+
 
 BTC_WALLET_PROVIDER_CHOICES = (
     (BTC_WALLET_PROVIDER_COINBASE, 'Coinbase'),
@@ -131,6 +162,12 @@ class UserProfile(models.Model):
 
     # Professional Info
     skills = tagulous.models.TagField(to=Skill, blank=True)
+    languages = tagulous.models.TagField(to=Languages, blank=True)
+    frameworks = tagulous.models.TagField(to=Frameworks, blank=True)
+    platforms = tagulous.models.TagField(to=Platforms, blank=True)
+    libraries = tagulous.models.TagField(to=Libraries, blank=True)
+    storage = tagulous.models.TagField(to=Storage, blank=True)
+    third_party_apis = tagulous.models.TagField(to=ThirdPartyApis, blank=True)
 
     # KYC
     id_document = models.ImageField(upload_to='ids/%Y/%m/%d', blank=True, null=True)
