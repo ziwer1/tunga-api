@@ -2,7 +2,8 @@ import datetime
 
 from django_rq import job
 
-from tunga.settings import TUNGA_URL, TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, \
+from tunga.settings import TUNGA_URL, TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS, \
+    TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, \
     MANDRILL_VAR_FIRST_NAME
 from tunga_tasks.models import Task, Quote, Estimate, Participation, Application, ProgressEvent, ProgressReport
 from tunga_tasks.utils import get_suggested_community_receivers
@@ -64,11 +65,7 @@ def notify_new_task_client_drip_one(instance, template='welcome'):
         template_code = '02-hiring'
 
     if template_code:
-        if mandrill_utils.send_email(
-                template_code,
-            to,
-            merge_vars=merge_vars
-        ):
+        if mandrill_utils.send_email(template_code, to, merge_vars=merge_vars):
             instance.last_drip_mail = template
             instance.last_drip_mail_at = datetime.datetime.utcnow()
             instance.save()
@@ -476,7 +473,8 @@ def remind_progress_event_email(instance):
     if is_client_report and not owner:
         return
 
-    subject = is_client_report and "Weekly Survey" or "Upcoming {} Update".format(instance.task.is_task and 'Task' or 'Project')
+    subject = is_client_report and "Weekly Survey" or "Upcoming {} Update".format(
+        instance.task.is_task and 'Task' or 'Project')
 
     to = []
     bcc = None
@@ -500,7 +498,7 @@ def remind_progress_event_email(instance):
         'owner': instance.task.owner or instance.task.user,
         'event': instance,
         'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.task.id, instance.id)
-        }
+    }
 
     if to:
         email_template = is_client_report and 'client_survey_reminder' or 'progress_event_reminder'
