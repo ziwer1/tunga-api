@@ -6,9 +6,12 @@
 {% block email_content %}
     <p>Hi {{ owner.first_name }},</p>
 
-    <p>We'd like to know about your experience on Tunga for your {% if event.task.is_task %}task{% else %}project{% endif %}:</p>
+    <p>Please fill in this weekly survey to report on your Tunga {% if event.task.is_task %}task{% else %}project{% endif %}: {{ event.task.summary }}.<br/>
 
-    <p>{% if event.task.is_task %}Task{% else %}Project{% endif %}: {{ event.task.summary }}</p>
+    It is very important that you complete this survey within 48 hours and it will take you less than a minute.<br/>
+
+    Why? It helps us to monitor and improve the quality of our service for you. And to take direct action where desirable.
+    </p>
 
     <p>
         Click the link below to complete the survey:<br/>
