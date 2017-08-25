@@ -23,6 +23,7 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from stripe.error import InvalidRequestError
 from weasyprint import HTML
+from django.db.models import Sum
 
 from tunga.settings import BITONIC_CONSUMER_KEY, BITONIC_CONSUMER_SECRET, BITONIC_ACCESS_TOKEN, BITONIC_TOKEN_SECRET, \
     BITONIC_URL, BITONIC_PAYMENT_COST_PERCENTAGE
@@ -806,7 +807,21 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                     activity[slugs.ACTIVITY_INTEGRATION] = integration
                     IntegrationActivity.objects.create(**activity)
         return Response({'status': 'Received'})
+    
+    @detail_route(
+        methods=['get'], url_path='time-report', serializer_class=TimeEntrySerializer
+    )
+    def time_report(self, request, pk=None):
+    
+        task = get_object_or_404(self.get_queryset(), pk=pk)
+        total = task.timeentry_set.all().aggregate(sum=Sum('hours'))['sum']
+        time_entries = task.timeentry_set.all()
+        serializer = self.get_serializer(time_entries, many=True)
 
+        custom_data = {'total': total, 'entries': serializer.data}
+
+        return Response(custom_data)
+        
 
 class ApplicationViewSet(viewsets.ModelViewSet):
     """
