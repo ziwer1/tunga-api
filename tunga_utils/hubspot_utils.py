@@ -113,7 +113,7 @@ def create_or_update_hubspot_deal(task, trials=0, **kwargs):
         [
             dict(
                 name=KEY_DEALNAME,
-                value=task.summary
+                value=task.detailed_summary
             ),
             dict(
                 name=KEY_DEALURL,
