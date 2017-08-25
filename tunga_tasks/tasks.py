@@ -54,6 +54,12 @@ def update_task_submit_milestone(task):
         ProgressEvent.objects.update_or_create(task=task, type=PROGRESS_EVENT_TYPE_COMPLETE, defaults=submit_defaults)
 
 
+def clean_update_datetime(periodic_start_date, target_task=None):
+    return periodic_start_date.replace(
+        hour=target_task and target_task.created_at.hour or 12, minute=0, second=0, microsecond=0
+    )
+
+
 @job
 def update_task_periodic_updates(task):
     task = clean_instance(task, Task)
@@ -63,7 +69,7 @@ def update_task_periodic_updates(task):
         # for sub-tasks, create all periodic updates on the project
         target_task = task.parent
 
-    if target_task.closed:
+    if target_task.closed or not target_task.updates_participants:
         # Only create schedule events for projects which aren't
         return
 
@@ -96,24 +102,28 @@ def update_task_periodic_updates(task):
                 multiplier = isinstance(period_info, dict) and period_info.values()[0] or 1
                 delta = dict()
                 delta[unit] = multiplier * target_task.update_interval
-                last_update_at = periodic_start_date
+                last_update_at = clean_update_datetime(periodic_start_date, target_task)
                 while True:
                     next_update_at = last_update_at + relativedelta(**delta)
                     if next_update_at.weekday() in [5, 6]:
                         # Don't schedule updates on weekends
-                        next_update_at += relativedelta(days=7-next_update_at.weekday())
-                    if not target_task.deadline or next_update_at < target_task.deadline:
-                        num_updates_within_on_same_day = ProgressEvent.objects.filter(
-                            task=target_task, type=PROGRESS_EVENT_TYPE_PERIODIC,
-                            due_at__contains=next_update_at.date()
-                        ).count()
+                        next_update_at += relativedelta(days=7 - next_update_at.weekday())
 
-                        if num_updates_within_on_same_day == 0:
-                            # Schedule at most one periodic update for any day
-                            ProgressEvent.objects.update_or_create(
-                                task=target_task, type=PROGRESS_EVENT_TYPE_PERIODIC, due_at=next_update_at
-                            )
-                    if next_update_at > now:
+                    if next_update_at >= now:
+                        future_by_18_hours = now + relativedelta(hours=18)
+                        if (not target_task.pause_updates_until or target_task.pause_updates_until < next_update_at) \
+                                and next_update_at <= future_by_18_hours and (
+                            not target_task.deadline or next_update_at < target_task.deadline):
+                            num_updates_within_on_same_day = ProgressEvent.objects.filter(
+                                task=target_task, type=PROGRESS_EVENT_TYPE_PERIODIC,
+                                due_at__contains=next_update_at.date()
+                            ).count()
+
+                            if num_updates_within_on_same_day == 0:
+                                # Schedule at most one periodic update for any day
+                                ProgressEvent.objects.update_or_create(
+                                    task=target_task, type=PROGRESS_EVENT_TYPE_PERIODIC, due_at=next_update_at
+                                )
                         break
                     else:
                         last_update_at = next_update_at
@@ -142,10 +152,10 @@ def update_task_pm_updates(task):
             return
 
         if not periodic_start_date:
-            periodic_start_date = target_task.created_at
+            periodic_start_date = datetime.datetime.utcnow()
 
         if periodic_start_date:
-            last_update_at = periodic_start_date
+            last_update_at = clean_update_datetime(periodic_start_date, target_task)
             while True:
                 last_update_day = last_update_at.weekday()
                 next_update_at = last_update_at
@@ -156,19 +166,21 @@ def update_task_pm_updates(task):
                     # Last was on after Thursday so schedule for Monday
                     next_update_at += relativedelta(days=7 - last_update_day)
 
-                if not target_task.deadline or next_update_at < target_task.deadline:
-                    num_updates_within_on_same_day = ProgressEvent.objects.filter(
-                        task=target_task, type=PROGRESS_EVENT_TYPE_PM,
-                        due_at__contains=next_update_at.date()
-                    ).count()
-
-                    if num_updates_within_on_same_day == 0:
-                        # Schedule at most one pm update for any day
-                        ProgressEvent.objects.update_or_create(
+                if next_update_at >= now:
+                    future_by_18_hours = now + relativedelta(hours=18)
+                    if next_update_at <= future_by_18_hours and (
+                        not target_task.deadline or next_update_at < target_task.deadline):
+                        num_updates_within_on_same_day = ProgressEvent.objects.filter(
                             task=target_task, type=PROGRESS_EVENT_TYPE_PM,
-                            due_at=next_update_at, defaults={'title': 'PM Report'}
-                        )
-                if next_update_at > now:
+                            due_at__contains=next_update_at.date()
+                        ).count()
+
+                        if num_updates_within_on_same_day == 0:
+                            # Schedule at most one pm update for any day
+                            ProgressEvent.objects.update_or_create(
+                                task=target_task, type=PROGRESS_EVENT_TYPE_PM,
+                                due_at=next_update_at, defaults={'title': 'PM Report'}
+                            )
                     break
                 else:
                     last_update_at = next_update_at
@@ -183,7 +195,8 @@ def update_task_client_surveys(task):
         # for sub-tasks, create all surveys on the project
         target_task = task.parent
 
-    if target_task.closed or not (target_task.survey_client and target_task.approved and target_task.active_participants):
+    if target_task.closed or not (
+            target_task.survey_client and target_task.approved and target_task.active_participants):
         # only conduct survey for approved tasks that have been assigned devs and aren't closed
         return
 
@@ -197,28 +210,30 @@ def update_task_client_surveys(task):
             return
 
         if not periodic_start_date:
-            periodic_start_date = target_task.created_at
+            periodic_start_date = datetime.datetime.utcnow()
 
         if periodic_start_date:
-            last_update_at = periodic_start_date
+            last_update_at = clean_update_datetime(periodic_start_date, target_task)
             while True:
                 last_update_day = last_update_at.weekday()
                 # Schedule next survey for Monday
                 next_update_at = last_update_at + relativedelta(days=7 - last_update_day)
 
-                if not target_task.deadline or next_update_at < target_task.deadline:
-                    num_updates_on_same_day = ProgressEvent.objects.filter(
-                        task=target_task, type=PROGRESS_EVENT_TYPE_CLIENT,
-                        due_at__contains=next_update_at.date()
-                    ).count()
-
-                    if num_updates_on_same_day == 0:
-                        # Schedule at most one survey for any day
-                        ProgressEvent.objects.update_or_create(
+                if next_update_at >= now:
+                    future_by_18_hours = now + relativedelta(hours=18)
+                    if next_update_at <= future_by_18_hours and (
+                        not target_task.deadline or next_update_at < target_task.deadline):
+                        num_updates_on_same_day = ProgressEvent.objects.filter(
                             task=target_task, type=PROGRESS_EVENT_TYPE_CLIENT,
-                            due_at=next_update_at, defaults={'title': 'Weekly Survey'}
-                        )
-                if next_update_at > now:
+                            due_at__contains=next_update_at.date()
+                        ).count()
+
+                        if num_updates_on_same_day == 0:
+                            # Schedule at most one survey for any day
+                            ProgressEvent.objects.update_or_create(
+                                task=target_task, type=PROGRESS_EVENT_TYPE_CLIENT,
+                                due_at=next_update_at, defaults={'title': 'Weekly Survey'}
+                            )
                     break
                 else:
                     last_update_at = next_update_at
@@ -469,7 +484,8 @@ def complete_harvest_integration(integration):
                     task_assignment_id = matches.get('task_assignment_id', None)
 
                     if task_assignment_id:
-                        resp_task_assignment_retrieve = harvest_client.get_one_task_assigment(project_id, task_assignment_id)
+                        resp_task_assignment_retrieve = harvest_client.get_one_task_assigment(project_id,
+                                                                                              task_assignment_id)
                         task_assignment = resp_task_assignment_retrieve.json()
 
                         defaults = {
@@ -558,7 +574,7 @@ def update_multi_tasks(multi_task_key, distribute=False):
             title=task.title,
             fee=task.pay,
             client=task.owner or task.user,
-            #developer=developer,
+            # developer=developer,
             payment_method=multi_task_key.payment_method,
             btc_price=multi_task_key.btc_price,
             btc_address=task.btc_address,

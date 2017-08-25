@@ -365,6 +365,7 @@ class Task(models.Model):
         help_text='Only participant portion will be distributed if True, '
                   'and all money paid will be distributed to participants'
     )
+    last_drip_mail = models.CharField(max_length=50, blank=True, null=True)
 
     # Significant event dates
     deadline = models.DateTimeField(blank=True, null=True)
@@ -381,6 +382,8 @@ class Task(models.Model):
     check_task_email_at = models.DateTimeField(blank=True, null=True)
     schedule_call_start = models.DateTimeField(blank=True, null=True)
     schedule_call_end = models.DateTimeField(blank=True, null=True)
+    last_drip_mail_at = models.DateTimeField(blank=True, null=True)
+    pause_updates_until = models.DateTimeField(blank=True, null=True)
 
     # Applications and participation info
     owner = models.ForeignKey(
@@ -672,6 +675,18 @@ class Task(models.Model):
         return list(set([item.user for item in self.active_participation]))
 
     @property
+    def updates_participation(self):
+        return self.subtask_participants_inclusive_filter.filter(status=STATUS_ACCEPTED, updates_enabled=True)
+
+    @property
+    def updates_participants(self):
+        return list(set([item.user for item in self.updates_participation]))
+
+    @property
+    def admins(self):
+        return list(set([item.user for item in self.taskaccess_set.all()]))
+
+    @property
     def started_at(self):
         return self.subtask_participants_inclusive_filter.filter(status=STATUS_ACCEPTED).aggregate(
             start_date=Min('activated_at'))['start_date']
@@ -887,11 +902,13 @@ class Participation(models.Model):
     assignee = models.BooleanField(default=False)
     role = models.CharField(max_length=100, default='Developer')
     share = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
+    updates_enabled = models.BooleanField(default=True)
+    paid = models.BooleanField(default=False)
     satisfaction = models.SmallIntegerField(blank=True, null=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='participants_added')
     created_at = models.DateTimeField(auto_now_add=True)
     activated_at = models.DateTimeField(blank=True, null=True)
-    paid = models.BooleanField(default=False)
+    pause_updates_until = models.DateTimeField(blank=True, null=True)
     paid_at = models.DateTimeField(blank=True, null=True)
 
     ratings = GenericRelation(Rating, related_query_name='participants')
@@ -1220,9 +1237,7 @@ class ProgressEvent(models.Model):
             else:
                 return self.task.user == user
         elif self.type == PROGRESS_EVENT_TYPE_CLIENT:
-            if self.task.owner:
-                return self.task.owner == user
-            return self.task.user == user
+            return self.task.has_admin_access(user)
         return self.task.get_is_participant(user, active_only=active_only)
 
     @property

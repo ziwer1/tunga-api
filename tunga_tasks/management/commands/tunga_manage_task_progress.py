@@ -25,13 +25,13 @@ class Command(BaseCommand):
             initialize_task_progress_events(task)
 
         right_now = datetime.datetime.utcnow()
-        future_by_24_hours = right_now + relativedelta(hours=24)
+        future_by_8_hours = right_now + relativedelta(hours=8)
         past_by_24_hours = right_now - relativedelta(hours=24)
         past_by_48_hours = right_now - relativedelta(hours=48)
 
         # Send reminders for tasks updates due in the current 24 hr period
         events = ProgressEvent.objects.filter(
-            task__closed=False, due_at__range=[right_now, future_by_24_hours], last_reminder_at__isnull=True
+            task__closed=False, due_at__range=[right_now, future_by_8_hours], last_reminder_at__isnull=True
         )
         for event in events:
             remind_progress_event(event.id)

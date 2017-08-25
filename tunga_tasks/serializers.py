@@ -16,7 +16,7 @@ from tunga_tasks import slugs
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, ProgressEvent, ProgressReport, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
     TaskInvoice, Estimate, Quote, WorkActivity, WorkPlan, AbstractEstimate, TaskPayment, ParticipantPayment, \
-    MultiTaskPaymentKey, SkillsApproval
+    MultiTaskPaymentKey, TaskAccess, SkillsApproval
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
     task_integration, estimate_created, estimate_status_changed, quote_status_changed, quote_created, task_approved, \
     task_call_window_scheduled, task_fully_saved, task_details_completed, task_owner_added
@@ -168,6 +168,15 @@ class NestedTaskParticipationSerializer(ContentTypeAnnotatedModelSerializer):
         exclude = ('task', 'created_at')
 
 
+class ParticipantUpdatesSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=True)
+    enabled = serializers.BooleanField(required=True)
+
+    class Meta:
+        model = Participation
+        fields = ('id', 'enabled')
+
+
 class NestedProgressEventSerializer(ContentTypeAnnotatedModelSerializer):
     created_by = SimpleUserSerializer(
         required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
@@ -177,6 +186,14 @@ class NestedProgressEventSerializer(ContentTypeAnnotatedModelSerializer):
     class Meta:
         model = ProgressEvent
         exclude = ('task', 'created_at')
+
+
+class SimpleTaskAccessSerializer(ContentTypeAnnotatedModelSerializer):
+    user = SimpleUserSerializer()
+
+    class Meta:
+        model = TaskAccess
+        fields = ('user',)
 
 
 class ProjectDetailsSerializer(ContentTypeAnnotatedModelSerializer):
@@ -248,12 +265,13 @@ class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
     parent = SimpleTaskSerializer()
     skills = SkillSerializer(many=True)
     applications = SimpleApplicationSerializer(many=True, source='application_set')
-    participation = SimpleParticipationSerializer(many=True, source='participation_set')
+    participation = SimpleParticipationSerializer(many=True)
     participation_shares = ParticipantShareSerializer(many=True, source='get_participation_shares')
     active_participation = SimpleParticipationSerializer(many=True)
     active_participants = SimpleUserSerializer(many=True)
     owner = SimpleUserSerializer()
     pm = SimpleUserSerializer()
+    admins = SimpleUserSerializer(many=True)
 
     class Meta:
         model = Task
@@ -261,7 +279,7 @@ class TaskDetailsSerializer(ContentTypeAnnotatedModelSerializer):
             'project', 'is_project', 'parent',
             'amount', 'skills', 'applications',
             'participation', 'participation_shares', 'active_participation', 'active_participants',
-            'owner', 'pm'
+            'owner', 'pm', 'admins'
         )
 
 
@@ -297,6 +315,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     )
     update_schedule_display = serializers.CharField(required=False, read_only=True)
     participation = NestedTaskParticipationSerializer(required=False, read_only=False, many=True)
+    participant_updates = ParticipantUpdatesSerializer(required=False, read_only=False, many=True)
     milestones = NestedProgressEventSerializer(required=False, read_only=False, many=True)
     progress_events = NestedProgressEventSerializer(required=False, read_only=True, many=True)
     ratings = SimpleRatingSerializer(required=False, read_only=False, many=True)
@@ -409,6 +428,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         participation = None
         milestones = None
         participants = None
+        participant_updates = None
         ratings = None
         if 'skills' in validated_data:
             skills = validated_data.pop('skills')
@@ -418,6 +438,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             milestones = validated_data.pop('milestones')
         if 'participants' in validated_data:
             participants = validated_data.pop('participants')
+        if 'participant_updates' in validated_data:
+            participant_updates = validated_data.pop('participant_updates')
         if 'ratings' in validated_data:
             ratings = validated_data.pop('ratings')
 
@@ -481,9 +503,10 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             instance = super(TaskSerializer, self).create(validated_data)
 
         self.save_skills(instance, skills)
-        self.save_participants(instance, participants)
         self.save_participation(instance, participation)
         self.save_milestones(instance, milestones)
+        self.save_participants(instance, participants)
+        self.save_participant_updates(participant_updates)
         self.save_ratings(instance, ratings)
 
         if is_update:
@@ -549,6 +572,18 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                     pass
             if new_assignee:
                 Participation.objects.exclude(user=new_assignee).filter(task=task).update(assignee=False)
+
+    def save_participant_updates(self, participant_updates):
+        if participant_updates:
+            for item in participant_updates:
+                participation_id = item.get('id', None)
+                enabled = item.get('enabled', None)
+
+                if participation_id and enabled is not None:
+                    try:
+                        Participation.objects.filter(id=participation_id).update(updates_enabled=enabled)
+                    except:
+                        pass
 
     def save_milestones(self, task, milestones):
         if milestones:

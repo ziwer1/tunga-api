@@ -32,26 +32,6 @@ from tunga_utils.helpers import clean_instance
 
 
 @job
-def possibly_trigger_schedule_call_automation(instance, wait=15*60):
-    # Wait for user to possibly schedule a call
-    time.sleep(wait)
-
-    instance = clean_instance(isinstance(instance, Task) and instance.id or instance, Task)  # needs to be refreshed
-    if not instance.schedule_call_start:
-        # Make sure user is in mailing list
-        mailchimp_utils.subscribe_new_user(
-            instance.user.email, **dict(FNAME=instance.user.first_name, LNAME=instance.user.last_name)
-        )
-
-        # Trigger email from automation
-        mailchimp_utils.add_email_to_automation_queue(
-            email_address=instance.user.email,
-            workflow_id=MAILCHIMP_NEW_USER_AUTOMATION_WORKFLOW_ID,
-            email_id=MAILCHIMP_NEW_USER_AUTOMATION_EMAIL_ID
-        )
-
-
-@job
 def notify_new_task(instance, new_user=False):
     notify_new_task_client_receipt_email(instance)
 
@@ -64,7 +44,7 @@ def notify_new_task(instance, new_user=False):
 
 @job
 def notify_task_approved(instance, new_user=False):
-    notify_new_task_client_receipt_email(instance)
+    # notify_new_task_client_receipt_email(instance)
     notify_new_task_admin(instance, new_user=new_user, completed=True)
     notify_new_task_community(instance)
 
@@ -138,7 +118,7 @@ def notify_new_progress_report(instance):
     notify_new_progress_report_email(instance)
     notify_new_progress_report_slack(instance)
 
-    trigger_progress_report_actionable_events(instance)
+    # trigger_progress_report_actionable_events(instance)
 
 
 @job

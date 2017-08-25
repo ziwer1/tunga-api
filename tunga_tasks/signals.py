@@ -199,15 +199,6 @@ def activity_handler_progress_report(sender, instance, created, **kwargs):
         notify_new_progress_report_slack.delay(instance.id, updated=True)
 
 
-@receiver(post_save, sender=ProgressEvent)
-def activity_handler_progress_report(sender, instance, created, **kwargs):
-    if created:
-        action.send(
-            instance.task.user, verb=verbs.REPORT,
-            action_object=instance, target=instance.task
-        )
-
-
 @receiver(post_save, sender=Integration)
 def activity_handler_integration(sender, instance, created, **kwargs):
     if created:

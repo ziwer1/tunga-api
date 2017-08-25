@@ -2,9 +2,12 @@ import datetime
 
 from django_rq import job
 
-from tunga.settings import TUNGA_URL, TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS, TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+from tunga.settings import TUNGA_URL, TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS, \
+    TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, \
+    MANDRILL_VAR_FIRST_NAME
 from tunga_tasks.models import Task, Quote, Estimate, Participation, Application, ProgressEvent, ProgressReport
 from tunga_tasks.utils import get_suggested_community_receivers
+from tunga_utils import mandrill_utils
 from tunga_utils.constants import TASK_SCOPE_TASK, TASK_SOURCE_NEW_USER, USER_TYPE_DEVELOPER, VISIBILITY_MY_TEAM, \
     STATUS_ACCEPTED, VISIBILITY_DEVELOPER, USER_TYPE_PROJECT_MANAGER, STATUS_SUBMITTED, STATUS_APPROVED, \
     STATUS_DECLINED, STATUS_REJECTED, STATUS_INITIAL, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, \
@@ -14,7 +17,62 @@ from tunga_utils.helpers import clean_instance
 
 
 @job
-def notify_new_task_client_receipt_email(instance, new_user=False, reminder=False):
+def notify_new_task_client_drip_one(instance, template='welcome'):
+    instance = clean_instance(instance, Task)
+
+    if instance.source != TASK_SOURCE_NEW_USER:
+        # Only target wizard users
+        return False
+
+    to = [instance.user.email]
+    if instance.owner:
+        to.append(instance.owner.email)
+
+    task_url = '{}/task/{}/'.format(TUNGA_URL, instance.id)
+    task_edit_url = '{}/task/{}/edit/complete-task/'.format(TUNGA_URL, instance.id)
+    task_call_url = '{}/task/{}/edit/call/'.format(TUNGA_URL, instance.id)
+    browse_url = '{}/people/filter/developers'.format(TUNGA_URL)
+
+    if not instance.user.is_confirmed:
+        url_prefix = '{}/reset-password/confirm/{}/{}?new_user=true&next='.format(
+            TUNGA_URL, instance.user.uid, instance.user.generate_reset_token()
+        )
+        task_url = '{}{}'.format(url_prefix, task_url)
+        task_edit_url = '{}{}'.format(url_prefix, task_edit_url)
+        task_call_url = '{}{}'.format(url_prefix, task_call_url)
+        browse_url = '{}{}'.format(url_prefix, browse_url)
+
+    merge_vars = [
+        mandrill_utils.create_merge_var(MANDRILL_VAR_FIRST_NAME, instance.user.first_name),
+        mandrill_utils.create_merge_var('task_url', task_edit_url),
+        mandrill_utils.create_merge_var('call_url', task_call_url),
+        mandrill_utils.create_merge_var('browse_url', browse_url)
+    ]
+
+    template_code = None
+    if template == 'welcome':
+        if instance.schedule_call_start:
+            template_code = '01-b-welcome-call-scheduled'
+            merge_vars.extend(
+                [
+                    mandrill_utils.create_merge_var('date', instance.schedule_call_start.strftime("%d %b, %Y")),
+                    mandrill_utils.create_merge_var('time', instance.schedule_call_start.strftime("%I:%M%p")),
+                ]
+            )
+        else:
+            template_code = '01-welcome'
+    elif template == 'hiring':
+        template_code = '02-hiring'
+
+    if template_code:
+        if mandrill_utils.send_email(template_code, to, merge_vars=merge_vars):
+            instance.last_drip_mail = template
+            instance.last_drip_mail_at = datetime.datetime.utcnow()
+            instance.save()
+
+
+@job
+def notify_new_task_client_receipt_email(instance, reminder=False):
     instance = clean_instance(instance, Task)
 
     subject = "Your {} has been posted on Tunga".format(
@@ -415,7 +473,8 @@ def remind_progress_event_email(instance):
     if is_client_report and not owner:
         return
 
-    subject = is_client_report and "Weekly Survey" or "Upcoming {} Update".format(instance.task.is_task and 'Task' or 'Project')
+    subject = is_client_report and "Weekly Survey" or "Upcoming {} Update".format(
+        instance.task.is_task and 'Task' or 'Project')
 
     to = []
     bcc = None
@@ -426,9 +485,12 @@ def remind_progress_event_email(instance):
         to = [owner.email]
         if owner.email != instance.task.user.email:
             to.append(instance.task.user.email)
+        admins = instance.task.admins
+        if admins:
+            to.extend([user.email for user in admins])
         bcc = None
     else:
-        participants = instance.task.participation_set.filter(status=STATUS_ACCEPTED)
+        participants = instance.task.participation_set.filter(status=STATUS_ACCEPTED, updates_enabled=True)
         if participants:
             to = [participants[0].user.email]
             bcc = [participant.user.email for participant in participants[1:]] if participants.count() > 1 else None
@@ -436,7 +498,7 @@ def remind_progress_event_email(instance):
         'owner': instance.task.owner or instance.task.user,
         'event': instance,
         'update_url': '%s/work/%s/event/%s/' % (TUNGA_URL, instance.task.id, instance.id)
-        }
+    }
 
     if to:
         email_template = is_client_report and 'client_survey_reminder' or 'progress_event_reminder'
@@ -461,8 +523,12 @@ def notify_new_progress_report_email(instance):
     )
 
     to = is_pm_or_client_report and TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS or [instance.event.task.user.email]
-    if instance.event.task.owner and not is_pm_or_client_report:
-        to.append(instance.event.task.owner.email)
+    if is_dev_report:
+        if instance.event.task.owner:
+            to.append(instance.event.task.owner.email)
+        admins = instance.event.task.admins
+        if admins:
+            to.extend([user.email for user in admins])
     ctx = {
         'owner': instance.event.task.owner or instance.event.task.user,
         'reporter': instance.user,
