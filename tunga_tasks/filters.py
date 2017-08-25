@@ -2,7 +2,7 @@ import django_filters
 from django.db.models.query_utils import Q
 
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent, \
-    Estimate, Quote, TaskPayment, ParticipantPayment
+    Estimate, Quote, TaskPayment, ParticipantPayment, SkillsApproval
 from tunga_utils.constants import TASK_PAYMENT_METHOD_STRIPE
 from tunga_utils.filters import GenericDateFilterSet
 
@@ -121,3 +121,13 @@ class ParticipantPaymentFilter(GenericDateFilterSet):
     class Meta:
         model = ParticipantPayment
         fields = ('participant', 'source', 'destination', 'ref', 'idem_key', 'status', 'user', 'task')
+
+
+class SkillsApprovalFilter(GenericDateFilterSet):
+    developer = django_filters.NumberFilter(name='participant__user')
+    task = django_filters.NumberFilter(name='participant__task')
+    event_type = django_filters.NumberFilter(name='event__type')
+
+    class Meta:
+        model = SkillsApproval
+        fields = ('developer', 'event', 'task', 'event_type', 'status')

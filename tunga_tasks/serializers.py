@@ -16,7 +16,7 @@ from tunga_tasks import slugs
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, ProgressEvent, ProgressReport, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
     TaskInvoice, Estimate, Quote, WorkActivity, WorkPlan, AbstractEstimate, TaskPayment, ParticipantPayment, \
-    MultiTaskPaymentKey
+    MultiTaskPaymentKey, SkillsApproval
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
     task_integration, estimate_created, estimate_status_changed, quote_status_changed, quote_created, task_approved, \
     task_call_window_scheduled, task_fully_saved, task_details_completed, task_owner_added
@@ -1222,3 +1222,21 @@ class ParticipantPaymentSerializer(ContentTypeAnnotatedModelSerializer, DetailAn
         model = ParticipantPayment
         fields = '__all__'
         details_serializer = ParticipantPaymentDetailsSerializer
+
+
+class SkillsApprovalDetailsSerializer(serializers.ModelSerializer):
+    participant = SimpleParticipationSerializer()
+    created_by = SimpleUserSerializer()
+
+    class Meta:
+        model = TimeEntry
+        fields = ('participant', 'created_by')
+
+
+class SkillsApprovalSerializer(serializers.ModelSerializer):
+    created_by = SimpleUserSerializer(required=False, read_only=True, default=CreateOnlyCurrentUserDefault())
+
+    class Meta:
+        model = SkillsApproval
+        fields = '__all__'
+        details_serializer = SkillsApprovalDetailsSerializer

@@ -37,17 +37,17 @@ from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBacke
     ProgressEventFilterBackend
 from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TimeEntryFilter, \
     ProjectFilter, ProgressReportFilter, ProgressEventFilter, EstimateFilter, QuoteFilter, TaskPaymentFilter, \
-    ParticipantPaymentFilter
+    ParticipantPaymentFilter, SkillsApprovalFilter
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent, \
     Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice, Estimate, Quote, \
-    MultiTaskPaymentKey, ParticipantPayment
+    MultiTaskPaymentKey, ParticipantPayment, SkillsApproval
 from tunga_tasks.notifications.email import notify_task_invoice_request_email
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
     IntegrationSerializer, TaskPaySerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer, \
     MultiTaskPaymentKeySerializer, TaskPaymentSerializer, ParticipantPaymentSerializer, SimpleProgressEventSerializer, \
-    SimpleProgressReportSerializer, SimpleTaskSerializer
+    SimpleProgressReportSerializer, SimpleTaskSerializer, SkillsApprovalSerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment, \
     update_multi_tasks
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
@@ -1093,6 +1093,19 @@ class ParticipantPaymentViewSet(viewsets.ModelViewSet):
     search_fields = (
         'source__task__title', '^source__task__user__username',
         '^source__task__user__first_name', '^source__task__user__last_name'
+    )
+
+
+class SkillsApprovalViewSet(viewsets.ModelViewSet):
+    """
+    Skills Approval Resource
+    """
+    queryset = SkillsApproval.objects.all()
+    serializer_class = SkillsApprovalSerializer
+    permission_classes = [IsAuthenticated, DRYPermissions]
+    filter_class = SkillsApprovalFilter
+    search_fields = (
+        '^participant__user__username', '^participant__user__first_name', '^participant__user__last_name'
     )
 
 

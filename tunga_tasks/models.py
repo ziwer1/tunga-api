@@ -1763,7 +1763,46 @@ class TaskInvoiceMeta(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return '%s | %s - %s' % (self.invoice, self.meta_key)
+        return '{} | {}'.format(self.invoice, self.meta_key)
 
     class Meta:
         ordering = ['created_at']
+
+
+APPROVED_WITH_CHOICES = (
+    (1, 'By the Tunga onboarding procedure'),
+    (2, 'A skills testing platform'),
+    (3, 'Has worked on Tunga tasks successfully before'),
+)
+
+
+@python_2_unicode_compatible
+class SkillsApproval(models.Model):
+    participant = models.ForeignKey(Participation)
+    approved_with = models.IntegerField(
+        choices=APPROVED_WITH_CHOICES,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in APPROVED_WITH_CHOICES])
+    )
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='skills_approvals')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return '{} - {} | {}'.format(self.participant, self.created_by, self.approved_with)
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_read_permission(request):
+        return True
+
+    @allow_staff_or_superuser
+    def has_object_read_permission(self, request):
+        return request.user.is_project_manager
+
+    @staticmethod
+    @allow_staff_or_superuser
+    def has_write_permission(request):
+        return request.user.is_project_manager
+
+    @allow_staff_or_superuser
+    def has_object_write_permission(self, request):
+        return request.user.is_project_manager and request.user == self.created_by
