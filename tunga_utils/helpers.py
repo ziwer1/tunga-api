@@ -79,6 +79,8 @@ def convert_to_text(body):
     txt_body = striptags(txt_body)  # Striptags
     txt_body = re.sub(r'&nbsp;', ' ', txt_body, flags=re.IGNORECASE)  # Replace &nbsp; with space
     txt_body = re.sub(r' {2,}', ' ', txt_body, flags=re.IGNORECASE)  # Squash all multi spaces
+    txt_body = re.sub(r'\r\n', '\n', txt_body, flags=re.IGNORECASE)  # single new line format
+    txt_body = re.sub(r'\t', '\n', txt_body, flags=re.IGNORECASE)  # Remove indents
     txt_body = re.sub(r'\n( )+', '\n', txt_body, flags=re.IGNORECASE)  # Remove indents
     txt_body = re.sub(r'\n{3,}', '\n\n', txt_body, flags=re.IGNORECASE)  # Limit consecutive new lines to a max of 2
     return txt_body
