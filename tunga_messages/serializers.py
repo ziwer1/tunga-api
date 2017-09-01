@@ -24,6 +24,7 @@ class DirectChannelSerializer(serializers.Serializer):
 
 
 class SupportChannelSerializer(serializers.Serializer, GetCurrentUserAnnotatedSerializerMixin):
+    id = serializers.IntegerField(required=False, allow_null=True)
     name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
     subject = serializers.CharField(required=False, allow_blank=True, allow_null=True)
@@ -162,11 +163,11 @@ class ChannelSerializer(DetailAnnotatedModelSerializer, GetCurrentUserAnnotatedS
 
 
 class SenderSerializer(serializers.Serializer):
-    id = serializers.CharField()
+    id = serializers.CharField(required=False)
     username = serializers.CharField(required=False)
     name = serializers.CharField(required=False)
-    display_name = serializers.CharField()
-    short_name = serializers.CharField()
+    display_name = serializers.CharField(required=False)
+    short_name = serializers.CharField(required=False)
     email = serializers.EmailField(required=False)
     avatar_url = serializers.URLField(required=False)
     inquirer = serializers.BooleanField(required=False)
