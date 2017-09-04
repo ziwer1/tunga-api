@@ -651,7 +651,11 @@ class Task(models.Model):
 
     @property
     def payment_status(self):
-        return self.paid and self.pay_distributed and 'Paid' or self.paid and 'Processing' or 'Pending'
+        if self.paid and self.pay_distributed:
+            return 'Paid'
+        if self.paid or self.processing:
+            return 'Processing'
+        return 'Pending'
 
     @property
     def can_pay_distribution_btc(self):
@@ -1722,7 +1726,7 @@ class TaskInvoice(models.Model):
 
     @property
     def pay_pm(self):
-        if self.task.is_project and self.pm:
+        if self.task.is_project and self.task.pm:
             return self.task.pm_time_ratio * self.fee
         return 0
 
