@@ -174,6 +174,9 @@ class MultiTaskPaymentKey(models.Model):
         help_text='Only participant portion will be paid if True, '
                   'and all money paid will be distributed to participants'
     )
+    tax_rate = models.DecimalField(
+        max_digits=19, decimal_places=4, default=0
+    )
     processing = models.BooleanField(default=False, help_text='True if the task is processing')
     paid = models.BooleanField(default=False, help_text='True if the task is paid')
 
@@ -228,6 +231,10 @@ class MultiTaskPaymentKey(models.Model):
         return self.amount
 
     @property
+    def tax_ratio(self):
+        return Decimal(self.tax_rate) * Decimal(0.01)
+
+    @property
     def pay_participants(self):
         connected_tasks = self.distribute_only and self.distribute_tasks or self.tasks
         return sum([task.pay*Decimal(1 - task.tunga_ratio_dev) for task in list(connected_tasks.all())])
@@ -270,6 +277,9 @@ class Task(models.Model):
     pm_rate = models.DecimalField(
         max_digits=19, decimal_places=4, default=39
     )
+    tax_rate = models.DecimalField(
+        max_digits=19, decimal_places=4, default=0
+    )
     # Used to calculate PM hours given the development hrs
     pm_time_percentage = models.DecimalField(
         max_digits=7, decimal_places=4, default=15
@@ -281,6 +291,9 @@ class Task(models.Model):
     # Percentage of pm fee that goes to Tunga
     tunga_percentage_pm = models.DecimalField(
         max_digits=7, decimal_places=4, default=48.71
+    )
+    unpaid_balance = models.DecimalField(
+        max_digits=19, decimal_places=4, default=0
     )
 
     # Contact info
@@ -564,6 +577,14 @@ class Task(models.Model):
             return self.pm_time_ratio*self.pay
         return 0
 
+    @property
+    def tunga_ratio_pm(self):
+        return Decimal(self.tunga_percentage_pm) * Decimal(0.01)
+
+    @property
+    def tax_ratio(self):
+        return Decimal(self.tax_rate) * Decimal(0.01)
+
     def display_fee(self, amount=None):
         if amount is None:
             amount = self.pay
@@ -621,6 +642,15 @@ class Task(models.Model):
             )
             amount_details['tunga'] = self.pay - (amount_details['developer'] + amount_details['pm'])
             amount_details['total'] = self.pay + amount_details['processing']
+
+            task_owner = self.user
+            if self.owner:
+                task_owner = self.owner
+            vat = task_owner.tax_rate
+            vat_amount = Decimal(vat) * Decimal(0.01) * amount_details['total']
+            amount_details['vat'] = vat
+            amount_details['vat_amount'] = round_decimal(vat_amount, 2)
+            amount_details['plus_tax'] = round_decimal(amount_details['total'] + vat_amount, 2)
         return amount_details
 
     @property
@@ -801,7 +831,7 @@ class Task(models.Model):
             for data in participation_shares:
                 payment_shares.append({
                     'participant': data['participant'],
-                    'share': Decimal(data['share'])*Decimal(self.payment_withheld_tunga_fee and 1 or (1 - self.tunga_ratio_dev))
+                    'share': Decimal(data['share'])*Decimal(self.payment_withheld_tunga_fee and 1 or (1 - self.tunga_ratio_dev))*Decimal(1 - self.tax_ratio)
                 })
         return payment_shares
 
@@ -816,7 +846,7 @@ class Task(models.Model):
     def get_user_payment_share(self, participation_id):
         share = self.get_user_participation_share(participation_id=participation_id)
         if share:
-            return share*(Decimal(self.payment_withheld_tunga_fee and 100 or (100 - self.tunga_percentage_dev)) / Decimal(100))
+            return share*Decimal(self.payment_withheld_tunga_fee and 1 or (1 - self.tunga_ratio_dev))*Decimal(1 - self.tax_ratio)
         return 0
 
 
@@ -1711,6 +1741,9 @@ class TaskInvoice(models.Model):
         help_text='Only participant portion will be paid if True, '
                   'and all money paid will be distributed to participants'
     )
+    tax_rate = models.DecimalField(
+        max_digits=19, decimal_places=4, default=0
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1770,7 +1803,20 @@ class TaskInvoice(models.Model):
         amount_details['total'] = round_decimal(fee_portion + amount_details['processing'], 2)
         amount_details['total_dev'] = round_decimal(Decimal(self.task.tunga_ratio_dev)*fee_portion_dev + processing_fee, 2)
         amount_details['total_pm'] = round_decimal(Decimal(self.task.tunga_ratio_dev)*fee_portion_pm + processing_fee, 2)
+
+        task_owner = self.task.user
+        if self.task.owner:
+            task_owner = self.task.owner
+        vat = task_owner.tax_rate
+        vat_amount = Decimal(vat) * Decimal(0.01) * amount_details['total']
+        amount_details['vat'] = vat
+        amount_details['vat_amount'] = round_decimal(vat_amount, 2)
+        amount_details['plus_tax'] = round_decimal(amount_details['total'] + vat_amount, 2)
         return amount_details
+
+    @property
+    def tax_ratio(self):
+        return Decimal(self.tax_rate) * Decimal(0.01)
 
     @property
     def summary(self):

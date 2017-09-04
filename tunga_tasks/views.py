@@ -246,6 +246,12 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
             task.payment_method = payment_method
             task.withhold_tunga_fee = withhold_tunga_fee
 
+            task_owner = task.user
+            if task.owner:
+                task_owner = task.owner
+
+            task.tax_rate = task_owner.tax_rate
+
             btc_price = coinbase_utils.get_btc_price(task.currency)
             task.btc_price = btc_price
 
@@ -281,7 +287,8 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                 payment_method=task.payment_method,
                 btc_price=btc_price,
                 btc_address=task.btc_address,
-                withhold_tunga_fee=task.withhold_tunga_fee
+                withhold_tunga_fee=task.withhold_tunga_fee,
+                tax_rate=task.tax_rate
             )
 
             if task.payment_method == TASK_PAYMENT_METHOD_BANK:
@@ -345,6 +352,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                 )
                 task.paid = True
                 task.paid_at = paid_at
+                task.unpaid_balance = 0
                 task.save()
 
                 # distribute_task_payment.delay(task.id)
@@ -377,6 +385,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
 
                     task.processing = True
                     task.processing_at = datetime.datetime.utcnow()
+                    task.unpaid_balance = 0
                     task.save()
             return redirect(next_url)
 
@@ -426,21 +435,17 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                         context = invoice_type
                 invoice_data['date'] = task.invoice.created_at.strftime('%d %B %Y')
 
+                task_owner = task.user
+                if task.owner:
+                    task_owner = task.owner
+
                 task_developers = []
                 for share_info in task.get_participation_shares():
                     participant = share_info['participant']
                     developer, created = DeveloperNumber.objects.get_or_create(user=participant.user)
 
-                    vat = 0
-                    task_owner = task.user
-                    if task.owner:
-                        task_owner = task.owner
-                    if context == 'client' and task_owner.profile and \
-                            task_owner.profile.country and task_owner.profile.country.code == 'NL':
-                        vat = 21
-
                     amount_details = invoice.get_amount_details(share=share_info['share'])
-                    vat_amount = Decimal(vat)*Decimal(0.01)*amount_details['portion']
+                    print amount_details
 
                     task_developers.append({
                         'developer': InvoiceUserSerializer(participant.user).data,
@@ -449,10 +454,7 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                             invoice_data['number'],
                             developer.number,
                             (context == 'developer' and 'D' or (context == 'tunga' and 'T' or 'C'))
-                        ),
-                        'vat': vat,
-                        'vat_amount': vat_amount,
-                        'plus_tax': amount_details['portion'] + vat_amount
+                        )
                     })
 
                 invoice_data['developers'] = task_developers

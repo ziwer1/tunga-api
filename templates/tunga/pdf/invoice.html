@@ -94,8 +94,8 @@
                     </tr>
 
                     <tr class="top-border">
-                        <td>VAT {{ developer_info.vat }}%</td>
-                        <td>{{ developer_info.amount.currency | safe }} {{ developer_info.vat_amount | floatformat:2 }}</td>
+                        <td>VAT {{ developer_info.amount.vat }}%</td>
+                        <td>{{ developer_info.amount.currency | safe }} {{ developer_info.amount.vat_amount | floatformat:2 }}</td>
                     </tr>
 
                     <tr class="top-border">
@@ -106,7 +106,7 @@
                             {% elif context == "tunga" %}
                                 {{ developer_info.amount.total | floatformat:2 }}
                             {% else %}
-                                {{ developer_info.plus_tax | floatformat:2 }}
+                                {{ developer_info.amount.plus_tax | floatformat:2 }}
                             {% endif %}
                         </th>
                     </tr>

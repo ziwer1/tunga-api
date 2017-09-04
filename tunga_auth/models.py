@@ -154,6 +154,12 @@ class TungaUser(AbstractUser):
     def generate_reset_token(self):
         return default_token_generator.make_token(self)
 
+    @property
+    def tax_rate(self):
+        if self.profile and self.profile.country and self.profile.country.code == 'NL':
+            return 21
+        return 0
+
 
 @python_2_unicode_compatible
 class EmailVisitor(models.Model):
