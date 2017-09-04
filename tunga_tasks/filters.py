@@ -129,4 +129,4 @@ class SkillsApprovalFilter(GenericDateFilterSet):
 
     class Meta:
         model = SkillsApproval
-        fields = ('developer', 'event', 'task', 'event_type', 'status')
+        fields = ('created_by', 'developer', 'task', 'participant', 'approved_with')
