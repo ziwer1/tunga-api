@@ -278,11 +278,17 @@ class Message(models.Model):
         inquirer = self.inquirer
         if inquirer:
             return GenericObject(**dict(
-                id='inquirer#%s' % inquirer.id,
+                id='inquirer#{}'.format(inquirer.id),
                 name=inquirer.name,
                 display_name=inquirer.name.title(),
                 short_name=inquirer.name.title(),
                 email=inquirer.email,
                 inquirer=True
             ))
-        return GenericObject()
+        return GenericObject(**dict(
+            id='visitor#{}'.format(self.channel.id),
+            name='Guest',
+            display_name='Guest',
+            short_name='Guest',
+            inquirer=True
+        ))

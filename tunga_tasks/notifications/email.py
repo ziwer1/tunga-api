@@ -65,15 +65,21 @@ def notify_new_task_client_drip_one(instance, template='welcome'):
         template_code = '02-hiring'
 
     if template_code:
-        if mandrill_utils.send_email(template_code, to, merge_vars=merge_vars):
+        mandrill_response = mandrill_utils.send_email(template_code, to, merge_vars=merge_vars)
+        if mandrill_response:
             instance.last_drip_mail = template
             instance.last_drip_mail_at = datetime.datetime.utcnow()
             instance.save()
+
+            mandrill_utils.log_emails.delay(mandrill_response, to, deal_ids=[instance.hubspot_deal_id])
 
 
 @job
 def notify_new_task_client_receipt_email(instance, reminder=False):
     instance = clean_instance(instance, Task)
+
+    if instance.source == TASK_SOURCE_NEW_USER:
+        return
 
     subject = "Your {} has been posted on Tunga".format(
         instance.scope == TASK_SCOPE_TASK and 'task' or 'project'

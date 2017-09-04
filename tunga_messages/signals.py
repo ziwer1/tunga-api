@@ -51,6 +51,8 @@ def activity_handler_new_message(sender, instance, created, **kwargs):
             actor = instance.channel
         elif instance.channel.content_object and ContentType.objects.get_for_model(Inquirer) == ContentType.objects.get_for_model(instance.channel.content_object):
             actor = instance.channel.content_object
+        elif instance.channel.type == CHANNEL_TYPE_SUPPORT:
+            actor = instance.channel
 
         if actor:
             action.send(

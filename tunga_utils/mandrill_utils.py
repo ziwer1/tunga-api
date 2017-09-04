@@ -1,8 +1,11 @@
-from copy import copy
+from time import sleep
 
 import mandrill
+from django_rq import job
 
 from tunga.settings import MANDRILL_API_KEY, DEFAULT_FROM_EMAIL
+from tunga_utils.helpers import convert_to_text
+from tunga_utils.hubspot_utils import create_hubspot_engagement
 
 
 def get_client():
@@ -40,64 +43,51 @@ def send_email(template_name, to, subject=None, merge_vars=None, cc=None, bcc=No
     )
     if subject:
         message['subject'] = '[Tunga] {}'.format(subject)
-    response = mandrill_client.messages.send_template(template_name, [], message)
-    print('mandrill response: ', response)
-    return response
+    responses = mandrill_client.messages.send_template(template_name, [], message)
+    return responses
 
 
-general_vars = [
-    dict(name="developers_browse_url", content="https://tunga.io/people/filter/developers"),
-    dict(name="project_url", content="https://tunga.io/work"),
-    dict(name="project_complete_url", content="https://tunga.io/work"),
-    dict(name="project_tour_url", content="https://tunga.io/work/"),
-    dict(name="project_applications_url", content="https://tunga.io/work/"),
-    dict(name="task_url", content="https://tunga.io/work"),
-    dict(name="task_complete_url", content="https://tunga.io/work"),
-    dict(name="task_tour_url", content="https://tunga.io/work/"),
-    dict(name="task_applications_url", content="https://tunga.io/work/"),
-    dict(name="work_url", content="https://tunga.io/work"),
-    dict(name="work_title", content="Task Title"),
-    dict(name="work_applications_url", content="https://tunga.io/work/"),
-    dict(name="number_of_applications", content="4"),
-]
-general_to = [
-    dict(email="tdsemakula@gmail.com", type="bcc")
-]
+@job
+def log_emails(responses, to, subject=None, cc=None, bcc=None, deal_ids=None):
+    mandrill_client = get_client()
+
+    print('logging responses: ', responses)
+
+    if responses:
+        for response in responses:
+            content_id = response.get('_id')
+            print('mandrill response', content_id, response)
+
+            if response.get('status') == 'sent':
+                tries = 0
+                while True:
+                    try:
+                        sent_details = mandrill_client.messages.content(content_id)
+                    except mandrill.UnknownMessageError:
+                        sent_details = None
+
+                    print('sent_details', sent_details)
+                    if sent_details:
+                        email_html = sent_details.get('html', '')
+                        email_text = sent_details.get('text', '')
 
 
-def send_generic(template_name, subject=None, external=False):
-    to = copy(general_to)
-    if external:
-        to.append(dict(email="bart@tunga.io"))
-
-    merge_vars = copy(general_vars)
-    merge_vars.append(dict(name="first_name", content=external and "Bart" or "David"))
-
-    if subject:
-        merge_vars.append(dict(name="subject", content=subject))
-
-    send_email(template_name, to, subject=subject, merge_vars=merge_vars)
-
-
-def send_1(external=False):
-    send_generic('1', 'Welcome to Tunga', external=external)
-
-
-def send_2(external=False):
-    send_generic('2', 'Hiring software developers just got easier', external=external)
+                        create_hubspot_engagement(
+                            from_email=sent_details.get('from_email', DEFAULT_FROM_EMAIL),
+                            to_emails=isinstance(to, (str, unicode)) and [to] or to,
+                            subject=sent_details.get('subject', subject),
+                            body=email_text or convert_to_text(email_html),
+                            **dict(cc=cc, bcc=bcc, html=email_html, deal_ids=deal_ids)
+                        )
+                        break
+                    else:
+                        # Hacks to wait to Mandrill indicates the message so it can be logged in hubspot
+                        tries += 1
+                        if tries >= 60:
+                            # Give up after for 15 minutes
+                            break
+                        else:
+                            # Wait for 15 seconds
+                            sleep(15)
 
 
-def send_7(external=False):
-    send_generic('7', "Thanks for posting a project. What's next...", external=external)
-
-
-def send_9(external=False):
-    send_generic('9', "Thanks for posting a task on Tunga. What's next...", external=external)
-
-
-def send_10(external=False):
-    send_generic('10', "Last week you posted work on Tunga", external=external)
-
-
-def send_11(external=False):
-    send_generic('10', "Work is about to expire", external=external)

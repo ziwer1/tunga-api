@@ -391,7 +391,7 @@ class DeveloperNumber(UserNumber):
 
 @python_2_unicode_compatible
 class Inquirer(models.Model):
-    name = models.CharField(max_length=50)
+    name = models.CharField(max_length=50, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

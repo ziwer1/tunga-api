@@ -92,10 +92,23 @@ class ChannelViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                 channel = get_or_create_support_channel(request.user)
             else:
                 # Create support channel for anonymous user
-                name = serializer.validated_data['name']
-                email = serializer.validated_data['email']
-                customer = Inquirer.objects.create(name=name, email=email)
-                channel = Channel.objects.create(type=CHANNEL_TYPE_SUPPORT, content_object=customer)
+                channel_id = serializer.validated_data.get('id', None)
+                if channel_id:
+                    channel = get_object_or_404(self.get_queryset(), pk=channel_id)
+                    email = serializer.validated_data.get('email', None)
+                    name = serializer.validated_data.get('name', None)
+                    if email:
+                        customer = Inquirer.objects.create(name=name, email=email)
+                        channel.content_object = customer
+                        channel.save()
+                    else:
+                        return Response(
+                            {'email': "Couldn't get or create a support channel"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                else:
+                    channel = Channel.objects.create(type=CHANNEL_TYPE_SUPPORT)#, content_object=customer)
         if not channel:
             return Response(
                 {'status': "Couldn't get or create a support channel"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR

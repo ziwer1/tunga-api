@@ -635,6 +635,10 @@ class Task(models.Model):
         return task_summary
 
     @property
+    def detailed_summary(self):
+        return '{} - {}'.format((self.owner or self.user).display_name, self.summary)
+
+    @property
     def excerpt(self):
         try:
             return truncatewords(strip_tags(self.description).strip(), 20)

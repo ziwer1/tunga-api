@@ -113,7 +113,7 @@ def create_or_update_hubspot_deal(task, trials=0, **kwargs):
         [
             dict(
                 name=KEY_DEALNAME,
-                value=task.summary
+                value=task.detailed_summary
             ),
             dict(
                 name=KEY_DEALURL,
@@ -232,6 +232,7 @@ def create_hubspot_engagement(from_email, to_emails, subject, body, **kwargs):
             contact_vids.append(vid)
 
     alternatives = kwargs.get('alternatives', ())
+    html = kwargs.get('html', '')
     deal_ids = []
     for deal_id in kwargs.get('deal_ids', []) or []:
         if deal_id:
@@ -256,7 +257,7 @@ def create_hubspot_engagement(from_email, to_emails, subject, body, **kwargs):
             "cc": [{"email": email} for email in kwargs.get('cc', []) or []],
             "bcc": [{"email": email} for email in kwargs.get('bcc', []) or []],
             "subject": subject,
-            "html": alternatives and alternatives[0] or "",
+            "html": alternatives and alternatives[0] or html,
             "text": body
         }
     }
