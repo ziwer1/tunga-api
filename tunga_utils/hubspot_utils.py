@@ -66,7 +66,8 @@ def create_hubspot_contact(email=None, **kwargs):
         get_authed_hubspot_endpoint_url(
             HUBSPOT_ENDPOINT_CREATE_UPDATE_CONTACT.format(contact_email=email), HUBSPOT_API_KEY
         ),
-        json=dict(properties=properties)
+        json=dict(properties=properties),
+        verify=False
     )
 
     if r.status_code in [200, 201]:
@@ -94,7 +95,8 @@ def create_hubspot_deal_property(name, label, description, group_name, property_
             KEY_GROUPNAME: group_name,
             KEY_TYPE: property_type,
             KEY_FIELDTYPE: field_type
-        }
+        },
+        verify=False
     )
 
     if r.status_code in [200, 201]:
@@ -189,13 +191,13 @@ def create_or_update_hubspot_deal(task, trials=0, **kwargs):
         r = requests.put(
             get_authed_hubspot_endpoint_url(
                 '{}/{}'.format(HUBSPOT_ENDPOINT_CREATE_DEAL, task.hubspot_deal_id), HUBSPOT_API_KEY
-            ), json=payload
+            ), json=payload, verify=False
         )
     else:
         r = requests.post(
             get_authed_hubspot_endpoint_url(
                 HUBSPOT_ENDPOINT_CREATE_DEAL, HUBSPOT_API_KEY
-            ), json=payload
+            ), json=payload, verify=False
         )
 
     if r.status_code in [200, 201]:
@@ -264,7 +266,7 @@ def create_hubspot_engagement(from_email, to_emails, subject, body, **kwargs):
     r = requests.post(
         get_authed_hubspot_endpoint_url(
             HUBSPOT_ENDPOINT_CREATE_ENGAGEMENT, HUBSPOT_API_KEY
-        ), json=payload
+        ), json=payload, verify=False
     )
 
     if r.status_code in [200, 201]:

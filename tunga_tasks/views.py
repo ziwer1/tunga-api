@@ -365,7 +365,9 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                 return Response(dict(message='We could not process your payment! Please contact hello@tunga.io'), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         elif provider == TASK_PAYMENT_METHOD_BITONIC:
             # Pay with Bitonic
-            callback = '%s://%s/task/%s/rate/' % (request.scheme, request.get_host(), pk)
+            payload = request.GET
+
+            callback = '{}://{}/task/{}/rate/'.format(request.scheme, request.get_host(), pk)
             next_url = callback
             if task and task.has_object_write_permission(request) and bitcoin_utils.is_valid_btc_address(task.btc_address):
                 if provider == TASK_PAYMENT_METHOD_BITONIC:
@@ -373,13 +375,12 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                         BITONIC_CONSUMER_KEY, BITONIC_CONSUMER_SECRET, BITONIC_ACCESS_TOKEN, BITONIC_TOKEN_SECRET,
                         callback_uri=callback, signature_type=SIGNATURE_TYPE_QUERY
                     )
-                    amount = task.pay * (task.withhold_tunga_fee and (1 - task.tunga_ratio_dev) or 1)
-                    increase_factor = 1 + (Decimal(BITONIC_PAYMENT_COST_PERCENTAGE)*Decimal(0.01))
+
                     q_string = urlencode({
                         'ext_data': task.summary.encode('utf-8'),
                         'bitcoinaddress': task.btc_address,
                         'ordertype': 'buy',
-                        'euros': amount * increase_factor
+                        'euros': payload['amount']
                     })
                     req_data = client.sign('%s/?%s' % (BITONIC_URL, q_string), http_method='GET')
                     next_url = req_data[0]
@@ -1046,6 +1047,8 @@ class MultiTaskPaymentKeyViewSet(viewsets.ModelViewSet):
                                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         elif provider == TASK_PAYMENT_METHOD_BITONIC:
             # Pay with Bitonic
+            payload = request.GET
+
             callback = '{}://{}/payments/batch/{}/processing'.format(request.scheme, request.get_host(), pk)
             next_url = callback
             if multi_task_key and multi_task_key.has_object_write_permission(request) and bitcoin_utils.is_valid_btc_address(
@@ -1055,13 +1058,12 @@ class MultiTaskPaymentKeyViewSet(viewsets.ModelViewSet):
                         BITONIC_CONSUMER_KEY, BITONIC_CONSUMER_SECRET, BITONIC_ACCESS_TOKEN, BITONIC_TOKEN_SECRET,
                         callback_uri=callback, signature_type=SIGNATURE_TYPE_QUERY
                     )
-                    amount = multi_task_key.pay
-                    increase_factor = 1 + (Decimal(BITONIC_PAYMENT_COST_PERCENTAGE) * Decimal(0.01))
+
                     q_string = urlencode({
                         'ext_data': str(multi_task_key).encode('utf-8'),
                         'bitcoinaddress': multi_task_key.btc_address,
                         'ordertype': 'buy',
-                        'euros': amount * increase_factor
+                        'euros': payload['amount']
                     })
                     req_data = client.sign('{}/?{}'.format(BITONIC_URL, q_string), http_method='GET')
                     next_url = req_data[0]

@@ -831,7 +831,7 @@ class Task(models.Model):
             for data in participation_shares:
                 payment_shares.append({
                     'participant': data['participant'],
-                    'share': Decimal(data['share'])*Decimal(self.payment_withheld_tunga_fee and 1 or (1 - self.tunga_ratio_dev))*Decimal(1 - self.tax_ratio)
+                    'share': Decimal(data['share'])*Decimal(self.payment_withheld_tunga_fee and 1 or (1 - self.tunga_ratio_dev))*Decimal(self.payment_withheld_tunga_fee and 1 or (1 - self.tax_ratio))
                 })
         return payment_shares
 
@@ -846,7 +846,7 @@ class Task(models.Model):
     def get_user_payment_share(self, participation_id):
         share = self.get_user_participation_share(participation_id=participation_id)
         if share:
-            return share*Decimal(self.payment_withheld_tunga_fee and 1 or (1 - self.tunga_ratio_dev))*Decimal(1 - self.tax_ratio)
+            return share*Decimal(self.payment_withheld_tunga_fee and 1 or (1 - self.tunga_ratio_dev))*Decimal(self.payment_withheld_tunga_fee and 1 or (1 - self.tax_ratio))
         return 0
 
 
@@ -1673,7 +1673,7 @@ class TaskPayment(models.Model):
 
     class Meta:
         unique_together = ('task', 'ref')
-        ordering = ['created_at']
+        ordering = ['-created_at']
 
     def task_btc_share(self, task):
         share_ratio = 1
@@ -1715,7 +1715,7 @@ class ParticipantPayment(models.Model):
 
     class Meta:
         unique_together = ('participant', 'source')
-        ordering = ['created_at']
+        ordering = ['-created_at']
 
 
 @python_2_unicode_compatible
