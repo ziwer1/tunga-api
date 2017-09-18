@@ -4,10 +4,10 @@ from django_rq import job
 
 from tunga.settings import TUNGA_URL, TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS, \
     TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, \
-    MANDRILL_VAR_FIRST_NAME
+    MANDRILL_VAR_FIRST_NAME, SLACK_DEBUGGING_INCOMING_WEBHOOK
 from tunga_tasks.models import Task, Quote, Estimate, Participation, Application, ProgressEvent, ProgressReport
 from tunga_tasks.utils import get_suggested_community_receivers
-from tunga_utils import mandrill_utils
+from tunga_utils import mandrill_utils, slack_utils
 from tunga_utils.constants import TASK_SCOPE_TASK, TASK_SOURCE_NEW_USER, USER_TYPE_DEVELOPER, VISIBILITY_MY_TEAM, \
     STATUS_ACCEPTED, VISIBILITY_DEVELOPER, USER_TYPE_PROJECT_MANAGER, STATUS_SUBMITTED, STATUS_APPROVED, \
     STATUS_DECLINED, STATUS_REJECTED, STATUS_INITIAL, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, \
@@ -72,6 +72,15 @@ def notify_new_task_client_drip_one(instance, template='welcome'):
             instance.save()
 
             mandrill_utils.log_emails.delay(mandrill_response, to, deal_ids=[instance.hubspot_deal_id])
+
+            # Notify via Slack of sent email to double check and prevent multiple sends
+            slack_utils.send_incoming_webhook(
+                SLACK_DEBUGGING_INCOMING_WEBHOOK,
+                {
+                    slack_utils.KEY_TEXT: "Mandrill Email sent to {} for  <{}|{}>".format(', '.join(to), task_url, instance.summary),
+                    slack_utils.KEY_CHANNEL: '#alerts'
+                }
+            )
 
 
 @job
