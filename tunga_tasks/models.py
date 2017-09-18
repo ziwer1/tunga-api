@@ -359,6 +359,7 @@ class Task(models.Model):
         default=True, help_text='True if developers can apply for this task (visibility can override this)'
     )
     closed = models.BooleanField(default=False, help_text='True if the task is closed')
+    payment_approved = models.BooleanField(default=False)
     processing = models.BooleanField(default=False, help_text='True if the task is processing')
     paid = models.BooleanField(default=False, help_text='True if the task is paid')
     btc_paid = models.BooleanField(default=False, help_text='True if BTC has been paid in for a Stripe task')
@@ -385,6 +386,7 @@ class Task(models.Model):
     approved_at = models.DateTimeField(blank=True, null=True)
     apply_closed_at = models.DateTimeField(blank=True, null=True)
     closed_at = models.DateTimeField(blank=True, null=True)
+    payment_approved_at = models.DateTimeField(blank=True, null=True)
     processing_at = models.DateTimeField(blank=True, null=True)
     paid_at = models.DateTimeField(blank=True, null=True)
     btc_paid_at = models.DateTimeField(blank=True, null=True)
@@ -412,6 +414,10 @@ class Task(models.Model):
     participants = models.ManyToManyField(
             settings.AUTH_USER_MODEL, through='Participation', through_fields=('task', 'user'),
             related_name='task_participants', blank=True)
+    payment_approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='tasks_payments_approved',
+        on_delete=models.DO_NOTHING, blank=True, null=True
+    )
 
     # Allow non-authenticated wizard user to edit after creation
     edit_token = models.UUIDField(default=uuid.uuid4, editable=False)
