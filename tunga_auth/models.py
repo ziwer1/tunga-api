@@ -64,15 +64,15 @@ class TungaUser(AbstractUser):
 
     @property
     def display_name(self):
-        return (self.get_full_name() or self.username).title()
+        return (self.get_full_name() or self.username).title().encode('utf-8')
 
     @property
     def short_name(self):
-        return (self.get_short_name() or self.username).title()
+        return (self.get_short_name() or self.username).title().encode('utf-8')
 
     @property
     def name(self):
-        return (self.get_full_name() or self.username).title()
+        return (self.get_full_name() or self.username).title().encode('utf-8')
 
     @property
     def display_type(self):
