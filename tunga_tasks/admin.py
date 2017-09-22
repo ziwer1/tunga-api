@@ -111,6 +111,7 @@ class ProgressReportAdmin(admin.ModelAdmin):
 class TaskPaymentAdmin(ReadOnlyModelAdmin):
     list_display = ('task', 'payment_type', 'ref', 'btc_address', 'btc_received', 'btc_price', 'amount', 'currency', 'email', 'paid', 'captured', 'processed', 'created_at', 'received_at')
     list_filter = ('processed', 'created_at', 'received_at')
+    search_fields = ('task__title',)
 
 
 @admin.register(ParticipantPayment)
@@ -120,10 +121,14 @@ class ParticipantPaymentAdmin(ReadOnlyModelAdmin):
         'destination', 'ref', 'status', 'created_at', 'received_at'
     )
     list_filter = ('status', 'created_at', 'received_at')
+    search_fields = (
+        'participant__user__username', 'participant__user__first_name',
+        'participant__user__last_name', 'participant__task__title'
+    )
 
 
 @admin.register(TaskInvoice)
 class TaskInvoiceAdmin(ReadOnlyModelAdmin):
     list_display = ('number', 'task', 'display_fee', 'payment_method', 'created_at')
     list_filter = ('payment_method', 'created_at')
-    search_fields = ('number',)
+    search_fields = ('number', 'task__title')

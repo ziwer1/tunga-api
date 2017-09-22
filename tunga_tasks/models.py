@@ -472,6 +472,8 @@ class Task(models.Model):
                 return True
             if user == self.owner:
                 return True
+            if user == self.pm:
+                return True
             return self.taskaccess_set.filter(user=user).count() == 1
         return False
 
@@ -541,7 +543,7 @@ class Task(models.Model):
         if request.method in ['PUT', 'PATCH']:
             allowed_keys = [
                 'assignee', 'participation', 'participants',
-                'confirmed_participants', 'rejected_participants'
+                'confirmed_participants', 'rejected_participants', 'pause_updates_until'
             ]
             if not [x for x in request.data.keys() if not (x in allowed_keys or re.match(r'^file\d*$', x))]:
                 return (self.pm and self.pm.id == request.user.id) or self.participation_set.filter(

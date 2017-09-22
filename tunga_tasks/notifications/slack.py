@@ -150,7 +150,7 @@ def notify_new_task_admin_slack(instance, new_user=False, completed=False, call_
         (completed or call_scheduled) and 'New wizard' or 'New',
         instance.scope == TASK_SCOPE_TASK and 'task' or 'project',
         completed_phrase or 'created',
-        instance.user.first_name, new_user and ' (New user)' or '',
+        instance.user.display_name, new_user and ' (New user)' or '',
         task_url
     )
     slack_msg = create_task_slack_msg(instance, summary=summary, channel=SLACK_STAFF_LEADS_CHANNEL, show_contacts=True, is_admin=True)
