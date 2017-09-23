@@ -47,16 +47,16 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                         Q(participation__user=request.user) & Q(participation__status__in=[STATUS_INITIAL, STATUS_ACCEPTED])
                     )
                 )
-        elif label_filter in ['new-projects', 'estimates', 'quotes']:
+        elif label_filter in ['new-projects', 'estimates', 'quotes', 'proposals']:
             queryset = queryset.exclude(scope=TASK_SCOPE_TASK)
             if label_filter == 'new-projects':
                 queryset = queryset.filter(pm__isnull=True)
-            elif label_filter in ['estimates', 'quotes']:
+            elif label_filter in ['estimates', 'quotes', 'proposals']:
                 if request.user.is_project_manager:
                     queryset = queryset.filter(pm=request.user)
-                if label_filter == 'estimates':
+                if label_filter in ['estimates', 'proposals']:
                     queryset = queryset.exclude(estimate__status=STATUS_ACCEPTED)
-                if label_filter == 'quotes':
+                elif label_filter == 'quotes':
                     queryset = queryset.filter(estimate__status=STATUS_ACCEPTED).exclude(quote__status=STATUS_ACCEPTED)
         elif label_filter == 'skills':
             try:
