@@ -359,6 +359,7 @@ class Task(models.Model):
         default=True, help_text='True if developers can apply for this task (visibility can override this)'
     )
     closed = models.BooleanField(default=False, help_text='True if the task is closed')
+    payment_approved = models.BooleanField(default=False)
     processing = models.BooleanField(default=False, help_text='True if the task is processing')
     paid = models.BooleanField(default=False, help_text='True if the task is paid')
     btc_paid = models.BooleanField(default=False, help_text='True if BTC has been paid in for a Stripe task')
@@ -385,6 +386,7 @@ class Task(models.Model):
     approved_at = models.DateTimeField(blank=True, null=True)
     apply_closed_at = models.DateTimeField(blank=True, null=True)
     closed_at = models.DateTimeField(blank=True, null=True)
+    payment_approved_at = models.DateTimeField(blank=True, null=True)
     processing_at = models.DateTimeField(blank=True, null=True)
     paid_at = models.DateTimeField(blank=True, null=True)
     btc_paid_at = models.DateTimeField(blank=True, null=True)
@@ -412,6 +414,10 @@ class Task(models.Model):
     participants = models.ManyToManyField(
             settings.AUTH_USER_MODEL, through='Participation', through_fields=('task', 'user'),
             related_name='task_participants', blank=True)
+    payment_approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name='tasks_payments_approved',
+        on_delete=models.DO_NOTHING, blank=True, null=True
+    )
 
     # Allow non-authenticated wizard user to edit after creation
     edit_token = models.UUIDField(default=uuid.uuid4, editable=False)
@@ -465,6 +471,8 @@ class Task(models.Model):
             if user == self.user:
                 return True
             if user == self.owner:
+                return True
+            if user == self.pm:
                 return True
             return self.taskaccess_set.filter(user=user).count() == 1
         return False
@@ -535,7 +543,7 @@ class Task(models.Model):
         if request.method in ['PUT', 'PATCH']:
             allowed_keys = [
                 'assignee', 'participation', 'participants',
-                'confirmed_participants', 'rejected_participants'
+                'confirmed_participants', 'rejected_participants', 'pause_updates_until'
             ]
             if not [x for x in request.data.keys() if not (x in allowed_keys or re.match(r'^file\d*$', x))]:
                 return (self.pm and self.pm.id == request.user.id) or self.participation_set.filter(
