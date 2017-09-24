@@ -49,7 +49,7 @@ class DetailAnnotatedModelSerializer(serializers.ModelSerializer):
 class SkillSerializer(serializers.ModelSerializer):
     class Meta:
         model = Skill
-        fields = ('id', 'name', 'slug')
+        fields = ('id', 'name', 'slug', 'type')
 
 
 class CitySerializer(serializers.ModelSerializer):
@@ -80,12 +80,22 @@ class SimpleUserSerializer(serializers.ModelSerializer):
         return profile_check(obj)
 
 
+class SkillsDetailsSerializer(serializers.Serializer):
+
+    def to_representation(self, instance):
+        json = dict()
+        for category in instance:
+            json[category] = SkillSerializer(instance=instance[category], many=True).data
+        return json
+
+
 class SimpleProfileSerializer(serializers.ModelSerializer):
     city = serializers.CharField()
     skills = SkillSerializer(many=True)
     country = CountryField()
     country_name = serializers.CharField()
     btc_wallet = SimpleBTCWalletSerializer()
+    skills_details = SkillsDetailsSerializer()
 
     class Meta:
         model = UserProfile
@@ -97,10 +107,11 @@ class SimpleSkillsProfileSerializer(serializers.ModelSerializer):
     skills = SkillSerializer(many=True)
     country = CountryField()
     country_name = serializers.CharField()
+    skills_details = SkillsDetailsSerializer()
 
     class Meta:
         model = UserProfile
-        fields = ('id', 'skills', 'country', 'country_name', 'city', 'bio')
+        fields = ('id', 'skills', 'country', 'country_name', 'city', 'bio', 'skills_details')
 
 
 class SimpleUserSkillsProfileSerializer(SimpleUserSerializer):

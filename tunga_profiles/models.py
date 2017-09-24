@@ -14,13 +14,31 @@ from tunga_utils.constants import REQUEST_STATUS_INITIAL, REQUEST_STATUS_ACCEPTE
     BTC_WALLET_PROVIDER_COINBASE, PAYMENT_METHOD_BTC_WALLET, PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, \
     COUNTRY_CODE_UGANDA, COUNTRY_CODE_TANZANIA, COUNTRY_CODE_NIGERIA, APP_INTEGRATION_PROVIDER_SLACK, \
     APP_INTEGRATION_PROVIDER_HARVEST, USER_TYPE_PROJECT_MANAGER, USER_TYPE_DEVELOPER, USER_TYPE_PROJECT_OWNER, \
-    STATUS_INITIAL, STATUS_ACCEPTED, STATUS_REJECTED
+    STATUS_INITIAL, STATUS_ACCEPTED, STATUS_REJECTED, SKILL_TYPE_LANGUAGE, SKILL_TYPE_FRAMEWORK, \
+    SKILL_TYPE_PLATFORM, SKILL_TYPE_LIBRARY, SKILL_TYPE_STORAGE, SKILL_TYPE_API, \
+    SKILL_TYPE_OTHER
 from tunga_utils.helpers import get_serialized_id
 from tunga_utils.models import AbstractExperience
 from tunga_utils.validators import validate_btc_address
 
 
+SKILL_TYPE_CHOICES = (
+    (SKILL_TYPE_LANGUAGE, 'Language'),
+    (SKILL_TYPE_FRAMEWORK, 'Framework'),
+    (SKILL_TYPE_PLATFORM, 'Platform'),
+    (SKILL_TYPE_LIBRARY, 'Library'),
+    (SKILL_TYPE_STORAGE, 'Storage Engine'),
+    (SKILL_TYPE_API, 'API'),
+    (SKILL_TYPE_OTHER, 'Other')
+)
+
+
 class Skill(tagulous.models.TagModel):
+    type = models.CharField(
+        max_length=30, choices=SKILL_TYPE_CHOICES, default=SKILL_TYPE_OTHER,
+        help_text=','.join(['%s - %s' % (item[0], item[1]) for item in SKILL_TYPE_CHOICES])
+    )
+
     class TagMeta:
         initial = "PHP, JavaScript, Python, Ruby, Java, C#, C++, Ruby, Swift, Objective C, .NET, ASP.NET, Node.js," \
                   "HTML, CSS, HTML5, CSS3, XML, JSON, YAML," \
@@ -39,37 +57,6 @@ class Skill(tagulous.models.TagModel):
 class City(tagulous.models.TagModel):
     class TagMeta:
         initial = "Kampala, Entebbe, Jinja, Nairobi, Mombosa, Dar es Salaam, Kigali, Amsterdam"
-
-class Languages(tagulous.models.TagModel):
-    class TagMeta:
-        initial = "PHP, JavaScript"
-        space_delimiter = False
-
-class Frameworks(tagulous.models.TagModel):
-    class TagMeta:
-        initial = "framework1, framework2"
-        space_delimiter = False
-
-class Platforms(tagulous.models.TagModel):
-    class TagMeta:
-        initial = "platform1, platform2"
-        space_delimiter = False
-
-class Libraries(tagulous.models.TagModel):
-    class TagMeta:
-        initial = "library1, library2"
-        space_delimiter = False
-
-class Storage(tagulous.models.TagModel):
-    class TagMeta:
-        initial = "storage1, storage2"
-        space_delimiter = False
-
-class ThirdPartyApis(tagulous.models.TagModel):
-    class TagMeta:
-        initial = "api1, api2"
-        space_delimiter = False
-
 
 
 BTC_WALLET_PROVIDER_CHOICES = (
@@ -162,12 +149,6 @@ class UserProfile(models.Model):
 
     # Professional Info
     skills = tagulous.models.TagField(to=Skill, blank=True)
-    languages = tagulous.models.TagField(to=Languages, blank=True)
-    frameworks = tagulous.models.TagField(to=Frameworks, blank=True)
-    platforms = tagulous.models.TagField(to=Platforms, blank=True)
-    libraries = tagulous.models.TagField(to=Libraries, blank=True)
-    storage = tagulous.models.TagField(to=Storage, blank=True)
-    third_party_apis = tagulous.models.TagField(to=ThirdPartyApis, blank=True)
 
     # KYC
     id_document = models.ImageField(upload_to='ids/%Y/%m/%d', blank=True, null=True)
@@ -221,6 +202,21 @@ class UserProfile(models.Model):
     @allow_staff_or_superuser
     def has_object_write_permission(self, request):
         return request.user == self.user
+
+    def get_category_skills(self, skill_type):
+        return self.skills.filter(type=skill_type)
+
+    @property
+    def skills_details(self):
+        return dict(
+            language=self.get_category_skills(SKILL_TYPE_LANGUAGE),
+            framework=self.get_category_skills(SKILL_TYPE_FRAMEWORK),
+            platform=self.get_category_skills(SKILL_TYPE_PLATFORM),
+            library=self.get_category_skills(SKILL_TYPE_LIBRARY),
+            storage=self.get_category_skills(SKILL_TYPE_STORAGE),
+            api=self.get_category_skills(SKILL_TYPE_API),
+            other=self.get_category_skills(SKILL_TYPE_OTHER),
+        )
 
 
 @python_2_unicode_compatible

@@ -163,3 +163,12 @@ CONTACT_REQUEST_ITEM_PROJECT = "project"
 SESSION_VISITOR_EMAIL = 'visitor_email'
 
 HEADER_EDIT_TOKEN = 'HTTP_X_EDIT_TOKEN'
+
+# Transaction and Action Statuses
+SKILL_TYPE_LANGUAGE = 'language'
+SKILL_TYPE_FRAMEWORK = 'framework'
+SKILL_TYPE_PLATFORM = 'platform'
+SKILL_TYPE_LIBRARY = 'library'
+SKILL_TYPE_STORAGE = 'storage'
+SKILL_TYPE_API = 'api'
+SKILL_TYPE_OTHER = 'other'

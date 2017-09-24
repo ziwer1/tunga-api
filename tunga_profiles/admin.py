@@ -13,8 +13,8 @@ class UserProfileInline(admin.StackedInline):
 
 @admin.register(Skill)
 class SkillAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'count', 'protected')
-    list_filter = ('protected',)
+    list_display = ('name', 'type', 'slug', 'count', 'protected')
+    list_filter = ('type', 'protected')
     search_fields = ('name', 'slug')
 
 

@@ -3,20 +3,22 @@ from django_countries.serializer_fields import CountryField
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from tunga_profiles.models import UserProfile, Education, Work, Connection, DeveloperApplication, DeveloperInvitation
+from tunga_profiles.models import UserProfile, Education, Work, Connection, DeveloperApplication, DeveloperInvitation, \
+    Skill
 from tunga_profiles.notifications import send_developer_invited_email
-from tunga_utils.constants import PAYMENT_METHOD_MOBILE_MONEY, PAYMENT_METHOD_BTC_ADDRESS
+from tunga_utils.constants import PAYMENT_METHOD_MOBILE_MONEY, PAYMENT_METHOD_BTC_ADDRESS, SKILL_TYPE_OTHER
 from tunga_utils.serializers import SimpleProfileSerializer, CreateOnlyCurrentUserDefault, SimpleUserSerializer, AbstractExperienceSerializer, \
-    DetailAnnotatedModelSerializer, SimpleBTCWalletSerializer
+    DetailAnnotatedModelSerializer, SimpleBTCWalletSerializer, SkillsDetailsSerializer
 
 
 class ProfileDetailsSerializer(SimpleProfileSerializer):
     user = SimpleUserSerializer()
     btc_wallet = SimpleBTCWalletSerializer()
+    skills_details = SkillsDetailsSerializer()
 
     class Meta:
         model = UserProfile
-        fields = ('user', 'city', 'skills', 'btc_wallet')
+        fields = ('user', 'city', 'skills', 'btc_wallet', 'skills_details')
 
 
 class ProfileSerializer(DetailAnnotatedModelSerializer):
@@ -25,6 +27,8 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
     last_name = serializers.CharField(required=False, write_only=True, max_length=20)
     city = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     skills = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    skills_details = SkillsDetailsSerializer(required=False, allow_null=True)
+    skill_categories = serializers.JSONField(required=False, write_only=True)
     country = CountryField(required=False)
 
     class Meta:
@@ -50,30 +54,14 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
         user_data = self.get_user_data(validated_data)
         skills = None
         city = None
-        languages = None
-        frameworks = None
-        platforms = None
-        libraries = None
-        storage = None
-        third_party_apis = None
+        skill_categories = None
 
         if 'skills' in validated_data:
             skills = validated_data.pop('skills')
         if 'city' in validated_data:
             city = validated_data.pop('city')
-        if 'languages' in validated_data:
-            languages = validated_data.pop('languages')
-        if 'frameworks' in validated_data:
-            frameworks = validated_data.pop('frameworks')
-        if 'platforms' in validated_data:
-            platforms = validated_data.pop('platforms')
-        if 'libraries' in validated_data:
-            libraries = validated_data.pop('libraries')
-        if 'storage' in validated_data:
-            storage = validated_data.pop('storage')
-        if 'third_party_apis' in validated_data:
-            third_party_apis = validated_data.pop('third_party_apis')
-        
+        if 'skill_categories' in validated_data:
+            skill_categories = validated_data.pop('skill_categories')
 
         if instance:
             instance = super(ProfileSerializer, self).update(instance, validated_data)
@@ -82,12 +70,7 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
         self.save_user_info(instance, user_data)
         self.save_skills(instance, skills)
         self.save_city(instance, city)
-        self.save_languages(instance, languages)
-        self.save_frameworks(instance, frameworks)
-        self.save_platforms(instance, platforms)
-        self.save_libraries(instance, libraries)
-        self.save_storage(instance, storage)
-        self.save_third_party_apis(instance, third_party_apis)
+        self.save_skill_categories(skill_categories)
         return instance
 
     def create(self, validated_data):
@@ -123,35 +106,17 @@ class ProfileSerializer(DetailAnnotatedModelSerializer):
             profile.city = city
             profile.save()
 
-    def save_languages(self, profile, languages):
-        if languages is not None:
-            profile.languages = languages
-            profile.save()
-
-    def save_frameworks(self, profile, frameworks):
-        if frameworks is not None:
-            profile.frameworks = frameworks
-            profile.save()
-
-    def save_platforms(self, profile, platforms):
-        if platforms is not None:
-            profile.platforms = platforms
-            profile.save()
-
-    def save_libraries(self, profile, libraries):
-        if libraries is not None:
-            profile.libraries = libraries
-            profile.save()
-
-    def save_storage(self, profile, storage):
-        if storage is not None:
-            profile.storage = storage
-            profile.save()
-
-    def save_third_party_apis(self, profile, third_party_apis):
-        if third_party_apis is not None:
-            profile.third_party_apis = third_party_apis
-            profile.save()
+    def save_skill_categories(self, skill_categories):
+        if skill_categories is not None:
+            print('skill_categories', skill_categories)
+            for category in skill_categories:
+                print('category', category, skill_categories[category])
+                if category is not SKILL_TYPE_OTHER:
+                    for skill in skill_categories[category]:
+                        try:
+                            print(Skill.objects.filter(name=skill, type=SKILL_TYPE_OTHER).update(type=category))
+                        except:
+                            pass
 
 
 class EducationSerializer(AbstractExperienceSerializer):

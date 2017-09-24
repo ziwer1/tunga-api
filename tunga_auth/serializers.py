@@ -30,7 +30,7 @@ class UserSerializer(SimpleUserSerializer, GetCurrentUserAnnotatedSerializerMixi
     is_developer = serializers.BooleanField(read_only=True, required=False)
     is_project_owner = serializers.BooleanField(read_only=True, required=False)
     is_project_manager = serializers.BooleanField(read_only=True, required=False)
-    profile = SimpleProfileSerializer(read_only=True, required=False, source='userprofile')
+    profile = SimpleProfileSerializer(read_only=True, required=False)
     work = SimpleWorkSerializer(many=True, source='work_set', read_only=True, required=False)
     education = SimpleEducationSerializer(many=True, source='education_set', read_only=True, required=False)
     can_connect = serializers.SerializerMethodField(read_only=True, required=False)
