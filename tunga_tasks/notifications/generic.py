@@ -24,7 +24,7 @@ from tunga_tasks.notifications.slack import notify_new_task_admin_slack, remind_
     notify_missed_progress_event_slack, notify_new_progress_report_slack, \
     notify_progress_report_deadline_missed_slack_admin, notify_progress_report_behind_schedule_by_algo_slack_admin, \
     notify_progress_report_client_not_satisfied_slack_admin, notify_progress_report_stuck_slack_admin, \
-    notify_progress_report_wont_meet_deadline_slack_admin
+    notify_progress_report_wont_meet_deadline_slack_admin, send_survey_summary_report_slack
 from tunga_utils import mailchimp_utils
 from tunga_utils.constants import PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, PROGRESS_REPORT_STATUS_STUCK, \
     PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK
@@ -276,3 +276,8 @@ def notify_progress_report_wont_meet_deadline_pm(instance):
 @job
 def notify_progress_report_wont_meet_deadline_dev(instance):
     notify_progress_report_wont_meet_deadline_email_dev(instance)
+
+
+@job
+def send_survey_summary_report(event, client_report, pm_report, dev_report):
+    send_survey_summary_report_slack(event, client_report, pm_report, dev_report)
