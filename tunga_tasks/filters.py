@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import django_filters
 from django.db.models.query_utils import Q
 
