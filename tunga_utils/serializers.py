@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django_countries.serializer_fields import CountryField

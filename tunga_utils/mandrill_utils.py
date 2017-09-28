@@ -71,7 +71,6 @@ def log_emails(responses, to, subject=None, cc=None, bcc=None, deal_ids=None):
                         email_html = sent_details.get('html', '')
                         email_text = sent_details.get('text', '')
 
-
                         create_hubspot_engagement(
                             from_email=sent_details.get('from_email', DEFAULT_FROM_EMAIL),
                             to_emails=isinstance(to, (str, unicode)) and [to] or to,

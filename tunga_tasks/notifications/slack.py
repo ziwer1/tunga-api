@@ -6,13 +6,15 @@ from django_rq import job
 from tunga.settings import TUNGA_URL, SLACK_ATTACHMENT_COLOR_TUNGA, SLACK_ATTACHMENT_COLOR_GREEN, \
     SLACK_ATTACHMENT_COLOR_BLUE, SLACK_ATTACHMENT_COLOR_NEUTRAL, SLACK_ATTACHMENT_COLOR_RED, \
     SLACK_STAFF_UPDATES_CHANNEL, SLACK_STAFF_INCOMING_WEBHOOK, SLACK_DEVELOPER_UPDATES_CHANNEL, \
-    SLACK_DEVELOPER_INCOMING_WEBHOOK, SLACK_PMS_UPDATES_CHANNEL, SLACK_STAFF_LEADS_CHANNEL
+    SLACK_DEVELOPER_INCOMING_WEBHOOK, SLACK_PMS_UPDATES_CHANNEL, SLACK_STAFF_LEADS_CHANNEL, \
+    SLACK_DEBUGGING_INCOMING_WEBHOOK, SLACK_STAFF_PROJECT_EXECUTION_CHANNEL
 from tunga_tasks import slugs
 from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport
 from tunga_tasks.utils import get_task_integration
 from tunga_utils import slack_utils
 from tunga_utils.constants import TASK_SCOPE_TASK, TASK_SOURCE_NEW_USER, VISIBILITY_DEVELOPER, STATUS_ACCEPTED, \
-    APP_INTEGRATION_PROVIDER_SLACK, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT
+    APP_INTEGRATION_PROVIDER_SLACK, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, PROGRESS_EVENT_TYPE_PERIODIC, \
+    PROGRESS_EVENT_TYPE_DEFAULT, PROGRESS_EVENT_TYPE_SUBMIT, PROGRESS_EVENT_TYPE_COMPLETE
 from tunga_utils.helpers import clean_instance, convert_to_text
 from tunga_utils.slack_utils import get_user_im_id
 
@@ -808,5 +810,146 @@ def notify_progress_report_wont_meet_deadline_slack_admin(instance):
             slack_utils.KEY_TEXT: slack_msg,
             slack_utils.KEY_ATTACHMENTS: attachments,
             slack_utils.KEY_CHANNEL: SLACK_STAFF_UPDATES_CHANNEL
+        }
+    )
+
+
+@job
+def send_survey_summary_report_slack(event, client_report, pm_report, dev_report):
+    event = clean_instance(event, ProgressEvent)
+    client_report = clean_instance(client_report, ProgressReport)
+    pm_report = clean_instance(pm_report, ProgressReport)
+    dev_report = clean_instance(dev_report, ProgressReport)
+
+    print('client reports: ', client_report)
+    print('pm report: ', pm_report)
+    print('dev report: ', dev_report)
+
+    # Notify via Slack of sent email to double check and prevent multiple sends
+
+    attachments = list()
+    if not client_report:
+        attachments.append({
+            slack_utils.KEY_TEXT: '`Client survey was not filled`',
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED,
+        })
+
+    if event.task.pm and not pm_report:
+        attachments.append({
+            slack_utils.KEY_TEXT: '`PM Report was not filled`',
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED,
+        })
+
+    if event.task.active_participants and not dev_report:
+        attachments.append({
+            slack_utils.KEY_TEXT: '`No Developer report was not filled`',
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED,
+        })
+    if client_report or pm_report or dev_report:
+        if client_report:
+            summary_report = list()
+            summary_report.append(dict(
+                title='Was the last deadline met?:',
+                client=client_report and (client_report.last_deadline_met and 'Yes' or 'No') or None,
+                pm=pm_report and (pm_report.last_deadline_met and 'Yes' or 'No') or None,
+                dev=dev_report and (dev_report.last_deadline_met and 'Yes' or 'No') or None,
+                color=client_report.last_deadline_met and SLACK_ATTACHMENT_COLOR_GREEN or SLACK_ATTACHMENT_COLOR_RED
+            ))
+
+            if not client_report.last_deadline_met:
+                summary_report.append(dict(
+                    title='Was the client informed about missing the deadline?:',
+                    client=(client_report.deadline_miss_communicated and 'Yes' or 'No') or None,
+                    pm=pm_report and (pm_report.deadline_miss_communicated and 'Yes' or 'No') or None,
+                    dev=dev_report and (dev_report.deadline_miss_communicated and 'Yes' or 'No') or None,
+                    color=client_report.deadline_miss_communicated and SLACK_ATTACHMENT_COLOR_GREEN or SLACK_ATTACHMENT_COLOR_RED
+                ))
+
+            if client_report.deliverable_satisfaction is not None:
+                summary_report.append(dict(
+                    title='Are you satisfied with the deliverable?:',
+                    client=(client_report.deliverable_satisfaction and 'Yes' or 'No') or None,
+                    pm=None,
+                    dev=None,
+                    color=client_report.deliverable_satisfaction and SLACK_ATTACHMENT_COLOR_GREEN or SLACK_ATTACHMENT_COLOR_RED
+                ))
+
+            if client_report.rate_deliverables is not None:
+                summary_report.append(dict(
+                    title='Deliverable rating:',
+                    client=client_report.rate_deliverables or None,
+                    pm=pm_report and pm_report.rate_deliverables or None,
+                    dev=dev_report and dev_report.rate_deliverables or None,
+                    color=(client_report.rate_deliverables > 3 and SLACK_ATTACHMENT_COLOR_GREEN) or (client_report.rate_deliverables < 3 and SLACK_ATTACHMENT_COLOR_RED or SLACK_ATTACHMENT_COLOR_NEUTRAL)
+                ))
+
+            if pm_report or dev_report:
+                summary_report.append(dict(
+                    title='Status:',
+                    client=None,
+                    pm=pm_report and pm_report.get_status_display() or None,
+                    dev=dev_report and dev_report.get_status_display() or None,
+                    color=SLACK_ATTACHMENT_COLOR_RED
+                ))
+
+                if (pm_report and pm_report.stuck_reason) or (dev_report and dev_report.stuck_reason):
+                    summary_report.append(dict(
+                        title='Stuck reason:',
+                        client=None,
+                        pm=pm_report and pm_report.get_stuck_reason_display() or None,
+                        dev=dev_report and dev_report.get_stuck_reason_display() or None,
+                        color=SLACK_ATTACHMENT_COLOR_BLUE
+                    ))
+
+            for item in summary_report:
+                client = item.get('client', None)
+                pm = item.get('pm', None)
+                dev = item.get('dev', None)
+                attachments.append({
+                    slack_utils.KEY_TITLE: item['title'],
+                    slack_utils.KEY_TEXT: '{} {} {}'.format(
+                        client and 'Client: {}'.format(client) or '',
+                        pm and '{}PM: {}{}'.format(
+                            client_report and '*|* ' or '', pm, dev_report and ' *|*' or ''
+                        ) or '{}'.format(dev_report and '*|*' or ''),
+                        dev and 'Dev: {}'.format(dev) or ''),
+                    slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                    slack_utils.KEY_COLOR: item.get('color', SLACK_ATTACHMENT_COLOR_NEUTRAL)
+                })
+        else:
+            attachments.append({
+                slack_utils.KEY_TEXT: '`Insufficent data for creating a summary report`',
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED,
+            })
+
+        attachments.append({
+            slack_utils.KEY_TITLE: 'Reports:',
+            slack_utils.KEY_TEXT: '{}{}{}'.format(
+                client_report and '<{}|Client Survey>'.format('{}/work/{}/event/{}'.format(TUNGA_URL, event.task.id, client_report.event.id)) or '',
+                pm_report and '{}<{}|PM Report>{}'.format(client_report and '\n' or '', '{}/work/{}/event/{}'.format(TUNGA_URL, event.task.id, pm_report.event.id), dev_report and '\n' or '') or '{}'.format(dev_report and '\n' or ''),
+                dev_report and '<{}|Developer Report>'.format('{}/work/{}/event/{}'.format(TUNGA_URL, event.task.id, dev_report.event.id)) or '',
+            ),
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE,
+        })
+
+    owner = event.task.owner or event.task.user
+
+    slack_utils.send_incoming_webhook(
+        SLACK_STAFF_INCOMING_WEBHOOK,
+        {
+            slack_utils.KEY_TEXT: "*Summary Report:* <{}|{}>\nProject Owner: <{}|{}>{}".format(
+                '{}/work/{}'.format(TUNGA_URL, event.task.id), event.task.summary,
+                '{}/people/{}'.format(TUNGA_URL, owner.username), owner.display_name,
+                event.task.pm and '\nPM: <{}|{}>'.format('{}/people/{}'.format(
+                    TUNGA_URL, event.task.pm.username), event.task.pm.display_name
+                ) or ''
+            ),
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_PROJECT_EXECUTION_CHANNEL,
+            slack_utils.KEY_ATTACHMENTS: attachments
         }
     )

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import datetime
 from copy import copy
 from decimal import Decimal
