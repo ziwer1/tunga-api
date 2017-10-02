@@ -449,7 +449,6 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                     developer, created = DeveloperNumber.objects.get_or_create(user=participant.user)
 
                     amount_details = invoice.get_amount_details(share=share_info['share'])
-                    print amount_details
 
                     task_developers.append({
                         'developer': InvoiceUserSerializer(participant.user).data,
