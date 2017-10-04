@@ -844,7 +844,7 @@ def send_survey_summary_report_slack(event, client_report, pm_report, dev_report
 
     if event.task.active_participants and not dev_report:
         attachments.append({
-            slack_utils.KEY_TEXT: '`No Developer report was not filled`',
+            slack_utils.KEY_TEXT: '`No Developer report was filled`',
             slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
             slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED,
         })
