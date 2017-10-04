@@ -22,7 +22,7 @@
                         {{ invoice.client.profile.company }}<br/>
                         Attn: {{ invoice.client.display_name }}<br/>
                         {{ invoice.client.profile.street | default:'' }} {{ developer_info.client.profile.plot_number | default:'' }}<br/>
-                        {{ invoice.client.profile.postal_code | default:'' }}<br/>
+                        {{ invoice.client.profile.postal_code | default:'' }}, {{ invoice.client.profile.city | default:'' }}<br/>
                         {{ invoice.client.profile.country_name | default:'' }}
                     </div>
 
@@ -33,8 +33,8 @@
                     <div {% if context == "developer" %}class="bold"{% endif %} style="margin-top: 20px">
                         {% if context == "developer" %}Attn: {% endif %}
                         {{ developer_info.developer.display_name }}<br/>
-                        {{ developer_info.developer.profile.street | default:'' }} {{ developer_info.developer.profile.plot_number | default:'' }}<br/>
-                        {{ developer_info.developer.profile.postal_code | default:'' }}<br/>
+                         {{ developer_info.developer.profile.street | default:'' }} {{ developer_info.developer.profile.plot_number | default:'' }}<br/>
+                        {{ developer_info.developer.profile.postal_code | default:'' }}, {{ developer_info.developer.profile.city | default:'' }}<br/>
                         {{ developer_info.developer.profile.country_name | default:'' }}
                     </div>
                 {% endif %}
@@ -94,7 +94,7 @@
                     </tr>
 
                     <tr class="top-border">
-                        <td>VAT {% if context == "client" %}{{ developer_info.amount.vat }}{% else %}0{% endif %}%</td>
+                        <td>VAT {% if context == "client" %}{{ developer_info.amount.vat | floatformat:-2 }}{% else %}0{% endif %}%</td>
                         <td>{{ developer_info.amount.currency | safe }} {% if context == "client" %}{{ developer_info.amount.vat_amount | floatformat:2 }}{% else %}0{% endif %}</td>
                     </tr>
 
