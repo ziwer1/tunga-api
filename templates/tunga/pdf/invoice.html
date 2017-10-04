@@ -22,7 +22,7 @@
                         {{ invoice.client.profile.company }}<br/>
                         Attn: {{ invoice.client.display_name }}<br/>
                         {{ invoice.client.profile.street | default:'' }} {{ developer_info.client.profile.plot_number | default:'' }}<br/>
-                        {{ invoice.client.profile.postal_code | default:'' }}, {{ invoice.client.profile.city | default:'' }}<br/>
+                        {{ invoice.client.profile.postal_code | default:'' }}{% if invoice.client.profile.postal_code and invoice.client.profile.city %}, {% endif %}{{ invoice.client.profile.city | default:'' }}<br/>
                         {{ invoice.client.profile.country_name | default:'' }}
                     </div>
 
@@ -34,7 +34,7 @@
                         {% if context == "developer" %}Attn: {% endif %}
                         {{ developer_info.developer.display_name }}<br/>
                          {{ developer_info.developer.profile.street | default:'' }} {{ developer_info.developer.profile.plot_number | default:'' }}<br/>
-                        {{ developer_info.developer.profile.postal_code | default:'' }}, {{ developer_info.developer.profile.city | default:'' }}<br/>
+                        {{ developer_info.developer.profile.postal_code | default:'' }}{% if developer_info.developer.profile.postal_code and developer_info.developer.profile.city %}, {% endif %}{{ developer_info.developer.profile.city | default:'' }}<br/>
                         {{ developer_info.developer.profile.country_name | default:'' }}
                     </div>
                 {% endif %}
