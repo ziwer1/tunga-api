@@ -1807,10 +1807,7 @@ class TaskInvoice(models.Model):
         amount_details['total_dev'] = round_decimal(Decimal(self.task.tunga_ratio_dev)*fee_portion_dev + processing_fee, 2)
         amount_details['total_pm'] = round_decimal(Decimal(self.task.tunga_ratio_dev)*fee_portion_pm + processing_fee, 2)
 
-        task_owner = self.task.user
-        if self.task.owner:
-            task_owner = self.task.owner
-        vat = task_owner.tax_rate
+        vat = self.tax_rate
         vat_amount = Decimal(vat) * Decimal(0.01) * amount_details['total']
         amount_details['vat'] = vat
         amount_details['vat_amount'] = round_decimal(vat_amount, 2)

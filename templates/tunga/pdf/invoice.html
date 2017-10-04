@@ -94,7 +94,7 @@
                     </tr>
 
                     <tr class="top-border">
-                        <td>VAT {% if context == "client" %}{{ developer_info.amount.vat }}{% else %}0{% endif %}%</td>
+                        <td>VAT {% if context == "client" %}{{ developer_info.amount.vat | floatformat:-2 }}{% else %}0{% endif %}%</td>
                         <td>{{ developer_info.amount.currency | safe }} {% if context == "client" %}{{ developer_info.amount.vat_amount | floatformat:2 }}{% else %}0{% endif %}</td>
                     </tr>
 
