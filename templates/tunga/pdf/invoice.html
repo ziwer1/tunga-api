@@ -74,19 +74,21 @@
                     {% else %}
                         <tr>
                             <td>{{ invoice.title }}</td>
-                            <td>{{ developer_info.amount.currency | safe }} {{ developer_info.amount.portion | floatformat:2 }}</td>
+                            <td>{{ developer_info.amount.currency | safe }} {% if context == "client" %}{{ invoice.amount.portion | floatformat:2 }}{% else %}{{ developer_info.amount.portion | floatformat:2 }}{% endif %}</td>
                         </tr>
                     {% endif %}
 
                     <tr class="top-border">
                         <td>Payment costs</td>
-                        <td>{{ developer_info.amount.currency | safe }} {{ developer_info.amount.processing | floatformat:2 }}</td>
+                        <td>{{ developer_info.amount.currency | safe }} {% if context == "client" %}{{ invoice.amount.processing | floatformat:2 }}{% else %}{{ developer_info.amount.processing | floatformat:2 }}{% endif %}</td>
                     </tr>
 
                     <tr class="top-border">
                         <td>Subtotal</td>
                         <td>{{ invoice.amount.currency | safe }}
-                            {% if context == "developer" %}
+                            {% if context == "client" %}
+                                {{ invoice.amount.total | floatformat:2 }}
+                            {% elif context == "developer" %}
                                 {{ developer_info.amount.total_dev | floatformat:2 }}
                             {% else %}
                                 {{ developer_info.amount.total | floatformat:2 }}
@@ -94,14 +96,16 @@
                     </tr>
 
                     <tr class="top-border">
-                        <td>VAT {% if context == "client" %}{{ developer_info.amount.vat | floatformat:-2 }}{% else %}0{% endif %}%</td>
-                        <td>{{ developer_info.amount.currency | safe }} {% if context == "client" %}{{ developer_info.amount.vat_amount | floatformat:2 }}{% else %}0{% endif %}</td>
+                        <td>VAT {% if context == "client" %}{{ invoice.amount.vat | floatformat:-2 }}{% else %}0{% endif %}%</td>
+                        <td>{{ developer_info.amount.currency | safe }} {% if context == "client" %}{{ invoice.amount.vat_amount | floatformat:2 }}{% else %}0{% endif %}</td>
                     </tr>
 
                     <tr class="top-border">
                         <th>Total</th>
                         <th>{{ developer_info.amount.currency | safe }}
-                            {% if context == "developer" %}
+                            {% if context == "client" %}
+                                {{ invoice.amount.plus_tax | floatformat:2 }}
+                            {% elif context == "developer" %}
                                 {{ developer_info.amount.total_dev | floatformat:2 }}
                             {% elif context == "tunga" %}
                                 {{ developer_info.amount.total | floatformat:2 }}

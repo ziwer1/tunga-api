@@ -459,6 +459,9 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                         )
                     })
 
+                if context == 'client' and task_developers and len(task_developers) > 1:
+                    task_developers = task_developers[:1]
+
                 invoice_data['developers'] = task_developers
 
                 client_country = None
