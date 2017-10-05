@@ -36,7 +36,7 @@ from tunga_support.views import SupportPageViewSet, SupportSectionViewSet
 from tunga_tasks.views import TaskViewSet, ApplicationViewSet, ParticipationViewSet, TimeEntryViewSet, ProjectViewSet, \
     ProgressReportViewSet, ProgressEventViewSet, \
     coinbase_notification, bitpesa_notification, EstimateViewSet, QuoteViewSet, MultiTaskPaymentKeyViewSet, \
-    TaskPaymentViewSet, ParticipantPaymentViewSet, SkillsApprovalViewSet
+    TaskPaymentViewSet, ParticipantPaymentViewSet, SkillsApprovalViewSet, SprintViewSet
 from tunga_utils.views import SkillViewSet, ContactRequestView, get_medium_posts
 
 api_schema_view = get_swagger_view(title='Tunga API')
@@ -51,6 +51,7 @@ router.register(r'application', ApplicationViewSet)
 router.register(r'participation', ParticipationViewSet)
 router.register(r'estimate', EstimateViewSet)
 router.register(r'quote', QuoteViewSet)
+router.register(r'sprint', SprintViewSet)
 router.register(r'time-entry', TimeEntryViewSet)
 router.register(r'progress-event', ProgressEventViewSet)
 router.register(r'progress-report', ProgressReportViewSet)

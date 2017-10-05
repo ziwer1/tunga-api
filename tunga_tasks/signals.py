@@ -8,7 +8,7 @@ from tunga_activity import verbs
 from tunga_messages.models import Message
 from tunga_messages.tasks import get_or_create_task_channel
 from tunga_tasks.models import Task, Application, Participation, ProgressEvent, ProgressReport, \
-    IntegrationActivity, Integration, Estimate, Quote
+    IntegrationActivity, Integration, Estimate, Quote, Sprint
 from tunga_tasks.notifications.email import notify_estimate_status_email, notify_task_invitation_email, \
     send_task_application_not_selected_email
 from tunga_tasks.notifications.generic import notify_new_task, \
@@ -173,6 +173,15 @@ def activity_handler_estimate(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=Quote)
 def activity_handler_quote(sender, instance, created, **kwargs):
+    if created:
+        action.send(
+            instance.user, verb=verbs.CREATE,
+            action_object=instance, target=instance.task
+        )
+
+
+@receiver(post_save, sender=Sprint)
+def activity_handler_estimate(sender, instance, created, **kwargs):
     if created:
         action.send(
             instance.user, verb=verbs.CREATE,

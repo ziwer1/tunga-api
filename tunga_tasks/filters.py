@@ -4,7 +4,7 @@ import django_filters
 from django.db.models.query_utils import Q
 
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent, \
-    Estimate, Quote, TaskPayment, ParticipantPayment, SkillsApproval
+    Estimate, Quote, TaskPayment, ParticipantPayment, SkillsApproval, Sprint
 from tunga_utils.constants import TASK_PAYMENT_METHOD_STRIPE
 from tunga_utils.filters import GenericDateFilterSet
 
@@ -76,6 +76,13 @@ class QuoteFilter(GenericDateFilterSet):
 
     class Meta:
         model = Quote
+        fields = ('user', 'task', 'status', 'moderated_by')
+
+
+class SprintFilter(GenericDateFilterSet):
+
+    class Meta:
+        model = Sprint
         fields = ('user', 'task', 'status', 'moderated_by')
 
 

@@ -10,11 +10,11 @@ from tunga_messages.serializers import MessageSerializer, ChannelSerializer, Cha
 from tunga_profiles.models import Connection
 from tunga_profiles.serializers import ConnectionSerializer
 from tunga_tasks.models import Task, Application, Participation, Integration, ProgressEvent, ProgressReport, \
-    IntegrationActivity, Estimate, Quote
+    IntegrationActivity, Estimate, Quote, Sprint
 from tunga_tasks.serializers import ApplicationSerializer, ParticipationSerializer, \
     SimpleTaskSerializer, SimpleIntegrationSerializer, SimpleProgressEventSerializer, \
     SimpleProgressReportSerializer, SimpleIntegrationActivitySerializer, ProgressReportSerializer, \
-    SimpleEstimateSerializer, SimpleQuoteSerializer
+    SimpleEstimateSerializer, SimpleQuoteSerializer, SimpleSprintSerializer
 from tunga_utils.models import Upload
 from tunga_utils.serializers import SimpleUserSerializer, UploadSerializer
 
@@ -39,6 +39,7 @@ class SimpleActivitySerializer(serializers.ModelSerializer):
         Participation: ParticipationSerializer(),
         Estimate: SimpleEstimateSerializer(),
         Quote: SimpleQuoteSerializer(),
+        Sprint: SimpleSprintSerializer(),
         ProgressEvent: SimpleProgressEventSerializer(),
         ProgressReport: ProgressReportSerializer(),
         Integration: SimpleIntegrationSerializer(),

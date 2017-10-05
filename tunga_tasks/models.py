@@ -622,7 +622,7 @@ class Task(models.Model):
             return True
         if self.scope == TASK_SCOPE_PROJECT and not self.pm_required and self.source != TASK_SOURCE_NEW_USER:
             return True
-        if self.quote and self.quote.status == STATUS_ACCEPTED:
+        if self.estimate and self.estimate.status == STATUS_ACCEPTED:
             return True
         return False
 
@@ -769,6 +769,13 @@ class Task(models.Model):
     def quote(self):
         try:
             return self.quote_set.all().order_by('-id', '-created_at').first()
+        except:
+            return None
+
+    @property
+    def sprints(self):
+        try:
+            return self.sprint_set.all().order_by('start_date', 'end_date', 'id', 'created_at')
         except:
             return None
 
@@ -982,7 +989,7 @@ class Participation(models.Model):
 
 @python_2_unicode_compatible
 class WorkActivity(models.Model):
-    # The target of the activity (estimate or quote)
+    # The target of the activity (estimate, quote or sprint)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name=_('content type'))
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
@@ -991,7 +998,9 @@ class WorkActivity(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     hours = models.FloatField()
+    completed = models.NullBooleanField(default=None)
     due_at = models.DateTimeField(blank=True, null=True)
+    assignee = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, blank=True, null=True, related_name='assigned_work_activities')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1008,7 +1017,7 @@ class WorkActivity(models.Model):
 
 @python_2_unicode_compatible
 class WorkPlan(models.Model):
-    # The target of the activity (estimate or quote)
+    # The target of the activity (estimate, quote or sprint)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name=_('content type'))
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
@@ -1043,6 +1052,7 @@ class AbstractEstimate(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, blank=True, null=True)
     title = models.CharField(max_length=200, blank=True, null=True)
     introduction = models.TextField()
+
     # Status
     status = models.CharField(
         max_length=20, choices=ESTIMATE_STATUS_CHOICES, default=STATUS_INITIAL,
@@ -1170,6 +1180,10 @@ class Quote(AbstractEstimate):
 
     # Relationships
     plan = GenericRelation(WorkPlan, related_query_name='quotes')
+
+
+class Sprint(AbstractEstimate):
+    pass
 
 
 @python_2_unicode_compatible

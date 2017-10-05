@@ -39,17 +39,17 @@ from tunga_tasks.filterbackends import TaskFilterBackend, ApplicationFilterBacke
     ProgressEventFilterBackend
 from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilter, TimeEntryFilter, \
     ProjectFilter, ProgressReportFilter, ProgressEventFilter, EstimateFilter, QuoteFilter, TaskPaymentFilter, \
-    ParticipantPaymentFilter, SkillsApprovalFilter
+    ParticipantPaymentFilter, SkillsApprovalFilter, SprintFilter
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent, \
     Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice, Estimate, Quote, \
-    MultiTaskPaymentKey, ParticipantPayment, SkillsApproval
+    MultiTaskPaymentKey, ParticipantPayment, SkillsApproval, Sprint
 from tunga_tasks.notifications.email import notify_task_invoice_request_email
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
     IntegrationSerializer, TaskPaySerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer, \
     MultiTaskPaymentKeySerializer, TaskPaymentSerializer, ParticipantPaymentSerializer, SimpleProgressEventSerializer, \
-    SimpleProgressReportSerializer, SimpleTaskSerializer, SkillsApprovalSerializer
+    SimpleProgressReportSerializer, SimpleTaskSerializer, SkillsApprovalSerializer, SprintSerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment, \
     update_multi_tasks
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
@@ -859,7 +859,6 @@ class EstimateViewSet(viewsets.ModelViewSet):
     serializer_class = EstimateSerializer
     permission_classes = [IsAuthenticated, DRYPermissions]
     filter_class = EstimateFilter
-    #filter_backends = DEFAULT_FILTER_BACKENDS + (TimeEntryFilterBackend,)
     search_fields = ('title', 'introduction', '^task__title')
 
     @detail_route(
@@ -918,8 +917,18 @@ class QuoteViewSet(viewsets.ModelViewSet):
     serializer_class = QuoteSerializer
     permission_classes = [IsAuthenticated, DRYPermissions]
     filter_class = QuoteFilter
-    #filter_backends = DEFAULT_FILTER_BACKENDS + (TimeEntryFilterBackend,)
     search_fields = ('introduction', '^task__title')
+
+
+class SprintViewSet(viewsets.ModelViewSet):
+    """
+    Sprint Resource
+    """
+    queryset = Sprint.objects.all()
+    serializer_class = SprintSerializer
+    permission_classes = [IsAuthenticated, DRYPermissions]
+    filter_class = SprintFilter
+    search_fields = ('title', 'introduction', '^task__title')
 
 
 class TimeEntryViewSet(viewsets.ModelViewSet):

@@ -18,7 +18,7 @@ from tunga_tasks import slugs
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, ProgressEvent, ProgressReport, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
     TaskInvoice, Estimate, Quote, WorkActivity, WorkPlan, AbstractEstimate, TaskPayment, ParticipantPayment, \
-    MultiTaskPaymentKey, TaskAccess, SkillsApproval
+    MultiTaskPaymentKey, TaskAccess, SkillsApproval, Sprint
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
     task_integration, estimate_created, estimate_status_changed, quote_status_changed, quote_created, task_approved, \
     task_call_window_scheduled, task_fully_saved, task_details_completed, task_owner_added
@@ -79,6 +79,10 @@ class NestedWorkActivitySerializer(serializers.ModelSerializer):
     user = SimpleUserSerializer(
         required=False, read_only=True, default=CreateOnlyCurrentUserDefault()
     )
+    assignee = SimpleUserSerializer(
+        required=False, read_only=True
+    )
+    assignee_id = serializers.IntegerField(required=False, write_only=True)
 
     class Meta:
         model = WorkActivity
@@ -104,7 +108,7 @@ class SimpleAbstractEstimateSerializer(ContentTypeAnnotatedModelSerializer):
     class Meta:
         model = AbstractEstimate
         fields = (
-            'id', 'user', 'task', 'status', 'introduction', 'activities',
+            'id', 'user', 'task', 'status', 'introduction', 'activities', 'start_date', 'end_date',
             'moderated_by', 'moderator_comment', 'moderated_at', 'reviewed_by', 'reviewer_comment', 'reviewed_at'
         )
 
@@ -123,6 +127,12 @@ class SimpleQuoteSerializer(SimpleAbstractEstimateSerializer):
         fields = SimpleAbstractEstimateSerializer.Meta.fields + (
             'plan',
         )
+
+
+class SimpleSprintSerializer(SimpleAbstractEstimateSerializer):
+
+    class Meta(SimpleAbstractEstimateSerializer.Meta):
+        model = Sprint
 
 
 class BasicProgressEventSerializer(ContentTypeAnnotatedModelSerializer):
@@ -326,6 +336,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
     invoice = TaskInvoiceSerializer(required=False, read_only=True)
     estimate = SimpleEstimateSerializer(required=False, read_only=True)
     quote = SimpleQuoteSerializer(required=False, read_only=True)
+    sprints = SimpleSprintSerializer(required=False, read_only=True, many=True)
     tunga_ratio_dev = serializers.DecimalField(max_digits=19, decimal_places=4, required=False, read_only=True)
     tunga_ratio_pm = serializers.DecimalField(max_digits=19, decimal_places=4, required=False, read_only=True)
     tax_ratio = serializers.DecimalField(max_digits=19, decimal_places=4, required=False, read_only=True)
@@ -936,6 +947,7 @@ class AbstractEstimateSerializer(
                     item['content_type'] = c_type
                     item['object_id'] = instance.id
                     item['user'] = self.get_current_user()
+                    item['assignee_id'] = item.get('assignee_id', None)
                     WorkActivity.objects.create(**item)
                 except:
                     pass
@@ -993,6 +1005,18 @@ class QuoteSerializer(AbstractEstimateSerializer):
                     WorkPlan.objects.create(**item)
                 except ValueError:
                     pass
+
+
+class SprintSerializer(AbstractEstimateSerializer):
+
+    class Meta(AbstractEstimateSerializer.Meta):
+        model = Sprint
+
+    #def on_create_complete(self, instance):
+    #    estimate_created.send(sender=self.Meta.model, estimate=instance)
+
+    #def on_status_change(self, instance):
+    #    estimate_status_changed.send(sender=self.Meta.model, estimate=instance)
 
 
 class TimeEntryDetailsSerializer(serializers.ModelSerializer):
