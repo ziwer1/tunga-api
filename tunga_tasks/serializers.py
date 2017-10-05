@@ -108,7 +108,7 @@ class SimpleAbstractEstimateSerializer(ContentTypeAnnotatedModelSerializer):
     class Meta:
         model = AbstractEstimate
         fields = (
-            'id', 'user', 'task', 'status', 'introduction', 'activities', 'start_date', 'end_date',
+            'id', 'user', 'task', 'status', 'title', 'introduction', 'activities', 'start_date', 'end_date',
             'moderated_by', 'moderator_comment', 'moderated_at', 'reviewed_by', 'reviewer_comment', 'reviewed_at'
         )
 
