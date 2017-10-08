@@ -455,10 +455,13 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                         'amount': amount_details,
                         'number': '{}{}{}'.format(
                             invoice_data['number'],
-                            developer.number,
+                            context != 'client' and developer.number or '',
                             (context == 'developer' and 'D' or (context == 'tunga' and 'T' or 'C'))
                         )
                     })
+
+                if context == 'client' and task_developers and len(task_developers) > 1:
+                    task_developers = task_developers[:1]
 
                 invoice_data['developers'] = task_developers
 
