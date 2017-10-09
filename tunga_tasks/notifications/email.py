@@ -1040,9 +1040,8 @@ def notify_new_task_invoice_client_email(instance):
 
     if instance.task.user and instance.task.user.email != instance.user.email:
         to.append(instance.task.user.email)
-    to = ['tdsemakula@gmail.com']
 
-    task_url = '{}/task/{}/'.format(TUNGA_URL, instance.id)
+    task_url = '{}/task/{}/'.format(TUNGA_URL, instance.task.id)
 
     merge_vars = [
         mandrill_utils.create_merge_var(MANDRILL_VAR_FIRST_NAME, instance.user.first_name),
@@ -1077,7 +1076,6 @@ def notify_new_task_invoice_client_email(instance):
                 slack_utils.KEY_CHANNEL: '#alerts'
             }
         )
-
 
 
 @job
