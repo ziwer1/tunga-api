@@ -1,10 +1,10 @@
+# -*- coding: utf-8 -*-
+
 import datetime
-import time
 
 from django_rq import job
 
-from tunga.settings import MAILCHIMP_NEW_USER_AUTOMATION_WORKFLOW_ID, MAILCHIMP_NEW_USER_AUTOMATION_EMAIL_ID
-from tunga_tasks.models import Task, ProgressReport
+from tunga_tasks.models import ProgressReport
 from tunga_tasks.notifications.email import notify_new_task_client_receipt_email, notify_new_task_admin_email, \
     notify_new_task_community_email, notify_task_invitation_response_email, notify_new_task_application_owner_email, \
     confirm_task_application_to_applicant_email, notify_task_application_response_owner_email, \
@@ -17,15 +17,16 @@ from tunga_tasks.notifications.email import notify_new_task_client_receipt_email
     notify_progress_report_client_not_satisfied_email_pm, notify_progress_report_client_not_satisfied_email_dev, \
     notify_progress_report_stuck_email_admin, notify_progress_report_stuck_email_pm, \
     notify_progress_report_stuck_email_dev, notify_progress_report_wont_meet_deadline_email_admin, \
-    notify_progress_report_wont_meet_deadline_email_pm, notify_progress_report_wont_meet_deadline_email_dev
+    notify_progress_report_wont_meet_deadline_email_pm, notify_progress_report_wont_meet_deadline_email_dev, \
+    notify_new_task_invoice_admin_email, notify_new_task_invoice_client_email
 from tunga_tasks.notifications.slack import notify_new_task_admin_slack, remind_no_task_applications_slack, \
     notify_review_task_admin_slack, notify_new_task_community_slack, notify_task_invitation_response_slack, \
     notify_new_task_application_slack, notify_task_application_response_slack, remind_progress_event_slack, \
     notify_missed_progress_event_slack, notify_new_progress_report_slack, \
     notify_progress_report_deadline_missed_slack_admin, notify_progress_report_behind_schedule_by_algo_slack_admin, \
     notify_progress_report_client_not_satisfied_slack_admin, notify_progress_report_stuck_slack_admin, \
-    notify_progress_report_wont_meet_deadline_slack_admin, send_survey_summary_report_slack
-from tunga_utils import mailchimp_utils
+    notify_progress_report_wont_meet_deadline_slack_admin, send_survey_summary_report_slack, \
+    notify_new_task_invoice_admin_slack
 from tunga_utils.constants import PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, PROGRESS_REPORT_STATUS_STUCK, \
     PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK
 from tunga_utils.helpers import clean_instance
@@ -281,3 +282,10 @@ def notify_progress_report_wont_meet_deadline_dev(instance):
 @job
 def send_survey_summary_report(event, client_report, pm_report, dev_report):
     send_survey_summary_report_slack(event, client_report, pm_report, dev_report)
+
+
+@job
+def notify_new_task_invoice(instance):
+    notify_new_task_invoice_client_email.delay(instance)
+    notify_new_task_invoice_admin_slack.delay(instance)
+    notify_new_task_invoice_admin_email.delay(instance)

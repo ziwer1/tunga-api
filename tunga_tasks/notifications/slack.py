@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import datetime
 
 from django.template.defaultfilters import floatformat, truncatewords
@@ -7,14 +9,13 @@ from tunga.settings import TUNGA_URL, SLACK_ATTACHMENT_COLOR_TUNGA, SLACK_ATTACH
     SLACK_ATTACHMENT_COLOR_BLUE, SLACK_ATTACHMENT_COLOR_NEUTRAL, SLACK_ATTACHMENT_COLOR_RED, \
     SLACK_STAFF_UPDATES_CHANNEL, SLACK_STAFF_INCOMING_WEBHOOK, SLACK_DEVELOPER_UPDATES_CHANNEL, \
     SLACK_DEVELOPER_INCOMING_WEBHOOK, SLACK_PMS_UPDATES_CHANNEL, SLACK_STAFF_LEADS_CHANNEL, \
-    SLACK_DEBUGGING_INCOMING_WEBHOOK, SLACK_STAFF_PROJECT_EXECUTION_CHANNEL
+    SLACK_STAFF_PROJECT_EXECUTION_CHANNEL, SLACK_STAFF_PAYMENTS_CHANNEL
 from tunga_tasks import slugs
-from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport
+from tunga_tasks.models import Task, Participation, Application, ProgressEvent, ProgressReport, TaskInvoice
 from tunga_tasks.utils import get_task_integration
 from tunga_utils import slack_utils
 from tunga_utils.constants import TASK_SCOPE_TASK, TASK_SOURCE_NEW_USER, VISIBILITY_DEVELOPER, STATUS_ACCEPTED, \
-    APP_INTEGRATION_PROVIDER_SLACK, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, PROGRESS_EVENT_TYPE_PERIODIC, \
-    PROGRESS_EVENT_TYPE_DEFAULT, PROGRESS_EVENT_TYPE_SUBMIT, PROGRESS_EVENT_TYPE_COMPLETE
+    APP_INTEGRATION_PROVIDER_SLACK, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, TASK_PAYMENT_METHOD_BANK
 from tunga_utils.helpers import clean_instance, convert_to_text
 from tunga_utils.slack_utils import get_user_im_id
 
@@ -951,5 +952,60 @@ def send_survey_summary_report_slack(event, client_report, pm_report, dev_report
             ),
             slack_utils.KEY_CHANNEL: SLACK_STAFF_PROJECT_EXECUTION_CHANNEL,
             slack_utils.KEY_ATTACHMENTS: attachments
+        }
+    )
+
+
+@job
+def notify_new_task_invoice_admin_slack(instance):
+    instance = clean_instance(instance, TaskInvoice)
+
+    task_url = '{}/work/{}/'.format(TUNGA_URL, instance.task.id)
+    owner = instance.task.owner or instance.task.user
+    client_url = '{}/people/{}/'.format(TUNGA_URL, owner.username)
+    invoice_url = '{}/api/task/{}/download/invoice/?format=pdf'.format(TUNGA_URL, instance.task.id)
+    slack_msg = '{} generated an invoice'.format(
+        instance.user.display_name
+    )
+
+    attachments = [
+        {
+            slack_utils.KEY_TITLE: instance.task.summary,
+            slack_utils.KEY_TITLE_LINK: task_url,
+            slack_utils.KEY_TEXT: 'Client: <{}|{}>\nFee: {}\nPayment Method: {}\n<{}|Download invoice>'.format(
+                client_url,
+                owner.display_name,
+                instance.display_fee().encode('utf-8'),
+                instance.get_payment_method_display(),
+                invoice_url
+            ),
+            slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+            slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_BLUE
+        },
+    ]
+    if not instance.task.payment_approved:
+        if instance.payment_method == TASK_PAYMENT_METHOD_BANK:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'No payment approval required.',
+                slack_utils.KEY_TEXT: 'Payment will be completed via bank transfer.',
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
+            })
+        else:
+            task_approval_url = '{}edit/payment-approval/'.format(task_url)
+            attachments.append({
+                slack_utils.KEY_TITLE: 'Review and approve payment.',
+                slack_utils.KEY_TITLE_LINK: task_approval_url,
+                slack_utils.KEY_TEXT: "The client won't be able to pay until the payment is approved.",
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
+            })
+
+    slack_utils.send_incoming_webhook(
+        SLACK_STAFF_INCOMING_WEBHOOK,
+        {
+            slack_utils.KEY_TEXT: slack_msg,
+            slack_utils.KEY_ATTACHMENTS: attachments,
+            slack_utils.KEY_CHANNEL: SLACK_STAFF_PAYMENTS_CHANNEL
         }
     )

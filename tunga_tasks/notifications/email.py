@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import datetime
 
 from django_rq import job
@@ -5,13 +7,14 @@ from django_rq import job
 from tunga.settings import TUNGA_URL, TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS, \
     TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, \
     MANDRILL_VAR_FIRST_NAME, SLACK_DEBUGGING_INCOMING_WEBHOOK
-from tunga_tasks.models import Task, Quote, Estimate, Participation, Application, ProgressEvent, ProgressReport
+from tunga_tasks.models import Task, Quote, Estimate, Participation, Application, ProgressEvent, ProgressReport, \
+    TaskInvoice
 from tunga_tasks.utils import get_suggested_community_receivers
 from tunga_utils import mandrill_utils, slack_utils
 from tunga_utils.constants import TASK_SCOPE_TASK, TASK_SOURCE_NEW_USER, USER_TYPE_DEVELOPER, VISIBILITY_MY_TEAM, \
     STATUS_ACCEPTED, VISIBILITY_DEVELOPER, USER_TYPE_PROJECT_MANAGER, STATUS_SUBMITTED, STATUS_APPROVED, \
     STATUS_DECLINED, STATUS_REJECTED, STATUS_INITIAL, PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, \
-    PROGRESS_REPORT_STATUS_STUCK, PROGRESS_REPORT_STATUS_BEHIND_AND_STUCK
+    TASK_PAYMENT_METHOD_BANK
 from tunga_utils.emails import send_mail
 from tunga_utils.helpers import clean_instance
 
@@ -561,22 +564,6 @@ def notify_new_progress_report_email(instance):
     )
 
 
-@job
-def notify_task_invoice_request_email(instance):
-    instance = clean_instance(instance, Task)
-    subject = "{} requested for an invoice".format(instance.user.display_name)
-    to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
-    ctx = {
-        'owner': instance.owner or instance.user,
-        'task': instance,
-        'task_url': '%s/work/%s/' % (TUNGA_URL, instance.id),
-        'invoice_url': '%s/api/task/%s/download/invoice/?format=pdf' % (TUNGA_URL, instance.id)
-    }
-    send_mail(
-        subject, 'tunga/email/task_invoice_request', to, ctx, **dict(deal_ids=[instance.hubspot_deal_id])
-    )
-
-
 # Deadline missed
 @job
 def notify_progress_report_deadline_missed_email_admin(instance):
@@ -1039,3 +1026,58 @@ def notify_parties_of_low_rating_email(instance):
                 subject, 'tunga/email/{}'.format(email_template), to, ctx,
                 **dict(deal_ids=[instance.event.task.hubspot_deal_id])
             )
+
+
+@job
+def notify_new_task_invoice_client_email(instance):
+    instance = clean_instance(instance, TaskInvoice)
+
+    to = [instance.user.email]
+    if instance.task.owner and instance.task.owner.email != instance.user.email:
+        to.append(instance.task.owner.email)
+
+    if instance.task.user and instance.task.user.email != instance.user.email:
+        to.append(instance.task.user.email)
+    to = ['tdsemakula@gmail.com']
+
+    task_url = '{}/task/{}/'.format(TUNGA_URL, instance.id)
+
+    merge_vars = [
+        mandrill_utils.create_merge_var(MANDRILL_VAR_FIRST_NAME, instance.user.first_name),
+        mandrill_utils.create_merge_var('invoice_title', instance.task.summary),
+        mandrill_utils.create_merge_var('can_pay', bool(instance.payment_method != TASK_PAYMENT_METHOD_BANK)),
+    ]
+
+    mandrill_response = mandrill_utils.send_email('69-invoice', to, merge_vars=merge_vars)
+    if mandrill_response:
+        mandrill_utils.log_emails.delay(mandrill_response, to, deal_ids=[instance.task.hubspot_deal_id])
+
+        # Notify via Slack of sent email to double check and prevent multiple sends
+        slack_utils.send_incoming_webhook(
+            SLACK_DEBUGGING_INCOMING_WEBHOOK,
+            {
+                slack_utils.KEY_TEXT: "Mandrill Email sent to {} for <{}|Invoice: {}>".format(
+                    ', '.join(to), task_url, instance.task.summary
+                ),
+                slack_utils.KEY_CHANNEL: '#alerts'
+            }
+        )
+
+
+
+@job
+def notify_new_task_invoice_admin_email(instance):
+    instance = clean_instance(instance, TaskInvoice)
+    subject = "{} generated for an invoice".format(instance.user.display_name)
+    to = TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS
+    ctx = {
+        'user': instance.user,
+        'owner': instance.task.owner or instance.task.user,
+        'invoice': instance,
+        'task': instance.task,
+        'task_url': '{}/work/{}/'.format(TUNGA_URL, instance.task.id),
+        'invoice_url': '{}/api/task/{}/download/invoice/?format=pdf'.format(TUNGA_URL, instance.task.id)
+    }
+    send_mail(
+        subject, 'tunga/email/task_invoice_request', to, ctx, **dict(deal_ids=[instance.task.hubspot_deal_id])
+    )

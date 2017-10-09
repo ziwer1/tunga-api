@@ -601,7 +601,7 @@ class Task(models.Model):
             return ''
         if self.currency in CURRENCY_SYMBOLS:
             return '{}{}'.format(CURRENCY_SYMBOLS[self.currency], floatformat(amount, arg=-2))
-        return amount
+        return amount or ''
     display_fee.short_description = 'Fee'
 
     @property
@@ -1790,8 +1790,8 @@ class TaskInvoice(models.Model):
         if amount is None:
             amount = self.fee
         if self.currency in CURRENCY_SYMBOLS:
-            return '%s%s' % (CURRENCY_SYMBOLS[self.currency], floatformat(amount, arg=-2))
-        return amount
+            return '{}{}'.format(CURRENCY_SYMBOLS[self.currency], floatformat(amount, arg=-2))
+        return amount or ''
     display_fee.short_description = 'Fee'
 
     @property

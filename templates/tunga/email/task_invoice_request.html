@@ -6,9 +6,14 @@
 {% block email_content %}
     <p>Hello,</p>
 
-    <p>{{ owner.display_name }} requested for an invoice for task:</p>
+    <p>{{ user.display_name }} generated an invoice.</p>
 
-    <p>{{ task.summary }}</p>
+    <p>
+        {% if task.is_task %}Task{% else %}Project{% endif %}: {{ task.summary }}<br/>
+        Client: {{ owner.display_name }}
+        Fee: {{ invoice.display_fee }}
+        Payment method: {{ invoice.get_payment_method_display }}
+    </p>
 
     <p>
         Click the link below to get a copy of the invoice:<br/>

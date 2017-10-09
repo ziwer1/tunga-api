@@ -7,6 +7,7 @@ from urllib import urlencode, quote_plus
 from allauth.socialaccount.providers.github.provider import GitHubProvider
 from dateutil.parser import parse
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import Sum
 from django.http.response import HttpResponse
 from django.shortcuts import redirect
 from django.template.loader import render_to_string
@@ -25,10 +26,9 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from stripe.error import InvalidRequestError
 from weasyprint import HTML
-from django.db.models import Sum
 
 from tunga.settings import BITONIC_CONSUMER_KEY, BITONIC_CONSUMER_SECRET, BITONIC_ACCESS_TOKEN, BITONIC_TOKEN_SECRET, \
-    BITONIC_URL, BITONIC_PAYMENT_COST_PERCENTAGE
+    BITONIC_URL
 from tunga_activity.filters import ActionFilter
 from tunga_activity.models import ActivityReadLog
 from tunga_activity.serializers import SimpleActivitySerializer, LastReadActivitySerializer
@@ -43,7 +43,7 @@ from tunga_tasks.filters import TaskFilter, ApplicationFilter, ParticipationFilt
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, Project, ProgressReport, ProgressEvent, \
     Integration, IntegrationMeta, IntegrationActivity, TaskPayment, TaskInvoice, Estimate, Quote, \
     MultiTaskPaymentKey, ParticipantPayment, SkillsApproval, Sprint
-from tunga_tasks.notifications.email import notify_task_invoice_request_email
+from tunga_tasks.notifications.generic import notify_new_task_invoice
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
@@ -54,7 +54,7 @@ from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, 
     update_multi_tasks
 from tunga_tasks.utils import save_integration_tokens, get_integration_token
 from tunga_utils import github, coinbase_utils, bitcoin_utils, bitpesa, stripe_utils
-from tunga_utils.constants import TASK_PAYMENT_METHOD_BITONIC, TASK_PAYMENT_METHOD_BANK, STATUS_ACCEPTED, \
+from tunga_utils.constants import TASK_PAYMENT_METHOD_BITONIC, STATUS_ACCEPTED, \
     TASK_PAYMENT_METHOD_STRIPE, CURRENCY_EUR, TASK_PAYMENT_METHOD_BITCOIN
 from tunga_utils.filterbackends import DEFAULT_FILTER_BACKENDS
 from tunga_utils.mixins import SaveUploadsMixin
@@ -294,9 +294,8 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
                 tax_rate=task.tax_rate
             )
 
-            if task.payment_method == TASK_PAYMENT_METHOD_BANK:
-                # Send notification for requested invoice
-                notify_task_invoice_request_email.delay(task.id)
+            # Send notifications for generated invoice
+            notify_new_task_invoice.delay(invoice.id)
 
         response_serializer = TaskInvoiceSerializer(invoice, context={'request': request})
         return Response(response_serializer.data)
