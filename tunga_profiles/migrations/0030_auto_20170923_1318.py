@@ -5,15 +5,8 @@ from __future__ import unicode_literals
 from django.db import migrations, models
 import tagulous.models.fields
 
-
-class Migration(migrations.Migration):
-
-    dependencies = [
-        ('tunga_profiles', '0029_merge_20170923_1318'),
-    ]
-
-    operations = [
-        migrations.DeleteModel(
+"""
+migrations.DeleteModel(
             name='Frameworks',
         ),
         migrations.DeleteModel(
@@ -55,6 +48,16 @@ class Migration(migrations.Migration):
             model_name='userprofile',
             name='third_party_apis',
         ),
+"""
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('tunga_profiles', '0029_merge_20170923_1318'),
+    ]
+
+    operations = [
         migrations.AddField(
             model_name='skill',
             name='type',
