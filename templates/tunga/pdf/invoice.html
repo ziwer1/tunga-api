@@ -7,174 +7,191 @@
     }
 {% endblock %}
 {% block pdf_content %}
-    {% for developer_info in invoice.developers %}
-        <div class="container">
-            <div style="margin: 20px 0 10px;text-align: left;">
-                {% if context == "tunga" %}
-                    <div class="bold">
-                        Attn: Tunga BV<br/>
-                        Ms. van Riemsdijkweg 57<br/>
-                        1033 RC, Amsterdam<br/>
-                        The Netherlands<br/>
-                    </div>
-                {% elif context == "client" %}
-                    <div class="bold">
-                        {{ invoice.client.profile.company }}<br/>
-                        Attn: {{ invoice.client.display_name }}<br/>
-                        {{ invoice.client.profile.street | default:'' }} {{ developer_info.client.profile.plot_number | default:'' }}<br/>
-                        {{ invoice.client.profile.postal_code | default:'' }}{% if invoice.client.profile.postal_code and invoice.client.profile.city %}, {% endif %}{{ invoice.client.profile.city | default:'' }}<br/>
-                        {{ invoice.client.profile.country_name | default:'' }}
-                    </div>
-
-                    <!--<div style="margin: 20px 0;">Invoice generated on behalf of:</div>-->
-                {% endif %}
-
-                {% if context != "client" %}
-                    <div {% if context == "developer" %}class="bold"{% endif %} style="margin-top: 20px">
-                        {% if context == "developer" %}Attn: {% endif %}
-                        {{ developer_info.developer.display_name }}<br/>
-                         {{ developer_info.developer.profile.street | default:'' }} {{ developer_info.developer.profile.plot_number | default:'' }}<br/>
-                        {{ developer_info.developer.profile.postal_code | default:'' }}{% if developer_info.developer.profile.postal_code and developer_info.developer.profile.city %}, {% endif %}{{ developer_info.developer.profile.city | default:'' }}<br/>
-                        {{ developer_info.developer.profile.country_name | default:'' }}
-                    </div>
-                {% endif %}
-
-                {% if context != "tunga" %}
-                    <div style="margin: 20px 0;">
-                        Tunga BV<br/>
-                        Ms. van Riemsdijkweg 57<br/>
-                        1033 RC, Amsterdam<br/>
-                        The Netherlands<br/>
-                    </div>
-                {% endif %}
-
-                <div style="margin-top: 40px;">
-                    <div class="pull-left" style="margin-right: 50px;">
-                        <strong>Invoice number:</strong><br/>
-                        {{ developer_info.number | default:'' }}
-                    </div>
-                    <div class="pull-left">
-                        <strong>Invoicing date:</strong><br/>
-                        {{ invoice.date }}
-                    </div>
-                    <div class="clearfix"></div>
-                </div>
-
-                <table style="margin-top: 80px">
-                    <tr style="border-bottom: 1px solid #000;">
-                        <th>Description</th>
-                        <th>Amount</th>
-                    </tr>
-
-                    {% if context == "developer" %}
-                        <tr>
-                            <td>Tunga fee for {{ invoice.title }}</td>
-                            <td>{{ developer_info.amount.currency | safe }} {{ developer_info.amount.tunga | floatformat:2 }}</td>
-                        </tr>
-                    {% else %}
-                        <tr>
-                            <td>{{ invoice.title }}</td>
-                            <td>{{ developer_info.amount.currency | safe }} {% if context == "client" %}{{ invoice.amount.portion | floatformat:2 }}{% else %}{{ developer_info.amount.portion | floatformat:2 }}{% endif %}</td>
-                        </tr>
-                    {% endif %}
-
-                    <tr class="top-border">
-                        <td>Payment costs</td>
-                        <td>{{ developer_info.amount.currency | safe }} {% if context == "client" %}{{ invoice.amount.processing | floatformat:2 }}{% else %}{{ developer_info.amount.processing | floatformat:2 }}{% endif %}</td>
-                    </tr>
-
-                    <tr class="top-border">
-                        <td>Subtotal</td>
-                        <td>{{ invoice.amount.currency | safe }}
-                            {% if context == "client" %}
-                                {{ invoice.amount.total | floatformat:2 }}
-                            {% elif context == "developer" %}
-                                {{ developer_info.amount.total_dev | floatformat:2 }}
-                            {% else %}
-                                {{ developer_info.amount.total | floatformat:2 }}
-                            {% endif %}</td>
-                    </tr>
-
-                    <tr class="top-border">
-                        <td>VAT {% if context == "client" %}{{ invoice.amount.vat | floatformat:-2 }}{% else %}0{% endif %}%</td>
-                        <td>{{ developer_info.amount.currency | safe }} {% if context == "client" %}{{ invoice.amount.vat_amount | floatformat:2 }}{% else %}0{% endif %}</td>
-                    </tr>
-
-                    <tr class="top-border">
-                        <th>Total</th>
-                        <th>{{ developer_info.amount.currency | safe }}
-                            {% if context == "client" %}
-                                {{ invoice.amount.plus_tax | floatformat:2 }}
-                            {% elif context == "developer" %}
-                                {{ developer_info.amount.total_dev | floatformat:2 }}
-                            {% elif context == "tunga" %}
-                                {{ developer_info.amount.total | floatformat:2 }}
-                            {% else %}
-                                {{ developer_info.amount.plus_tax | floatformat:2 }}
-                            {% endif %}
-                        </th>
-                    </tr>
-                </table>
-
-                <div style="margin-top: 40px">
-                    {% if context != "client" %}
-                        <p>VAT reverse-charged</p>
-                    {% endif %}
-
-                    {% if context == "tunga" %}
-                        <p>Kindly transfer the stated amount within 2 weeks using the following information:</p>
-                        <p>Bitcoin address: {{ invoice.btc_address }}</p>
-                    {% else %}
-                        {% if context == "client" and location != "NL" %}
-                            <p>
-                            {% if location == "europe" %}
-                                VAT is charged in reverse due to articles 44 and 196 VAT directive 2006/112
-                            {% else %}
-                                VAT reverse-charged
-                            {% endif %}
-                            </p>
-                        {% endif %}
-                        {% if invoice.payment_method == "bank" %}
-                            <p>
-                            Kindly transfer the stated amount within two weeks of the invoice date. Please use the bank account details
-                            below, indicating the invoice number  {{ developer_info.number | default:'' }}.
-                            </p>
-                        {% endif %}
-
-                        <p>
-                        {% if invoice.payment_method == "bank"  or invoice.payment_method == "stripe" %}
-                            <strong>Tunga BV</strong><br/>
-                            IBAN: NL64 INGB 0007 6631 29<br/>
-                            BIC/SWIFT: INGBNL2A<br/>
-                            BTW: NL.8567.94.636.B.01<br/>
-                        {% else %}
-                            Bitcoin address: {{ invoice.btc_address }}
-                        {% endif %}
-                        </p>
-                    {% endif %}
-                </div>
-
-            </div>
-
-            <footer class="footer">
+    {% for item in invoices %}
+        {% with invoice=item.invoice invoice_type=item.invoice_type location=item.location user=item.user %}
+            {% for developer_info in invoice.developers %}
                 <div class="container">
-                    <div class="text-center">
-                        <div class="bold">
-                            {% if context == "tunga" %}
-                                Generated on behalf of {{ developer_info.developer.display_name }} by Tunga BV
+                    <div style="margin: 20px 0 10px;text-align: left;">
+                        {% if invoice_type == "tunga" %}
+                            <div class="bold">
+                                Attn: Tunga BV<br/>
+                                Ms. van Riemsdijkweg 57<br/>
+                                1033 RC, Amsterdam<br/>
+                                The Netherlands<br/>
+                            </div>
+                        {% elif invoice_type == "client" %}
+                            <div class="bold">
+                                {{ invoice.client.profile.company }}<br/>
+                                Attn: {{ invoice.client.display_name }}<br/>
+                                {{ invoice.client.profile.street | default:'' }} {{ developer_info.client.profile.plot_number | default:'' }}<br/>
+                                {{ invoice.client.profile.postal_code | default:'' }}
+                                        {% if invoice.client.profile.postal_code and invoice.client.profile.city %}
+                                            , {% endif %}{{ invoice.client.profile.city | default:'' }}<br/>
+                                {{ invoice.client.profile.country_name | default:'' }}
+                            </div>
+
+                            <!--<div style="margin: 20px 0;">Invoice generated on behalf of:</div>-->
+                        {% endif %}
+
+                        {% if invoice_type != "client" %}
+                            <div {% if invoice_type == "developer" %}class="bold"{% endif %} style="margin-top: 20px">
+                                {% if invoice_type == "developer" %}Attn: {% endif %}
+                                {{ developer_info.developer.display_name }}<br/>
+                                {{ developer_info.developer.profile.street | default:'' }} {{ developer_info.developer.profile.plot_number | default:'' }}<br/>
+                                {{ developer_info.developer.profile.postal_code | default:'' }}
+                                        {% if developer_info.developer.profile.postal_code and developer_info.developer.profile.city %}
+                                            , {% endif %}{{ developer_info.developer.profile.city | default:'' }}<br/>
+                                {{ developer_info.developer.profile.country_name | default:'' }}
+                            </div>
+                        {% endif %}
+
+                        {% if invoice_type != "tunga" %}
+                            <div style="margin: 20px 0;">
+                                Tunga BV<br/>
+                                Ms. van Riemsdijkweg 57<br/>
+                                1033 RC, Amsterdam<br/>
+                                The Netherlands<br/>
+                            </div>
+                        {% endif %}
+
+                        <div style="margin-top: 40px;">
+                            <div class="pull-left" style="margin-right: 50px;">
+                                <strong>Invoice number:</strong><br/>
+                                {{ developer_info.number | default:'' }}
+                            </div>
+                            <div class="pull-left">
+                                <strong>Invoicing date:</strong><br/>
+                                {{ invoice.date }}
+                            </div>
+                            <div class="clearfix"></div>
+                        </div>
+
+                        <table style="margin-top: 80px">
+                            <tr style="border-bottom: 1px solid #000;">
+                                <th>Description</th>
+                                <th>Amount</th>
+                            </tr>
+
+                            {% if invoice_type == "developer" %}
+                                <tr>
+                                    <td>Tunga fee for {{ invoice.title }}</td>
+                                    <td>{{ developer_info.amount.currency | safe }} {{ developer_info.amount.tunga | floatformat:2 }}</td>
+                                </tr>
                             {% else %}
-                                Tunga BV
+                                <tr>
+                                    <td>{{ invoice.title }}</td>
+                                    <td>{{ developer_info.amount.currency | safe }} {% if invoice_type == "client" %}
+                                        {{ invoice.amount.portion | floatformat:2 }}{% else %}
+                                        {{ developer_info.amount.portion | floatformat:2 }}{% endif %}</td>
+                                </tr>
+                            {% endif %}
+
+                            <tr class="top-border">
+                                <td>Payment costs</td>
+                                <td>{{ developer_info.amount.currency | safe }} {% if invoice_type == "client" %}
+                                    {{ invoice.amount.processing | floatformat:2 }}{% else %}
+                                    {{ developer_info.amount.processing | floatformat:2 }}{% endif %}</td>
+                            </tr>
+
+                            <tr class="top-border">
+                                <td>Subtotal</td>
+                                <td>{{ invoice.amount.currency | safe }}
+                                    {% if invoice_type == "client" %}
+                                        {{ invoice.amount.total | floatformat:2 }}
+                                    {% elif invoice_type == "developer" %}
+                                        {{ developer_info.amount.total_dev | floatformat:2 }}
+                                    {% else %}
+                                        {{ developer_info.amount.total | floatformat:2 }}
+                                    {% endif %}</td>
+                            </tr>
+
+                            <tr class="top-border">
+                                <td>VAT {% if invoice_type == "client" %}{{ invoice.amount.vat | floatformat:-2 }}{% else %}
+                                    0{% endif %}%
+                                </td>
+                                <td>{{ developer_info.amount.currency | safe }} {% if invoice_type == "client" %}
+                                    {{ invoice.amount.vat_amount | floatformat:2 }}{% else %}0{% endif %}</td>
+                            </tr>
+
+                            <tr class="top-border">
+                                <th>Total</th>
+                                <th>{{ developer_info.amount.currency | safe }}
+                                    {% if invoice_type == "client" %}
+                                        {{ invoice.amount.plus_tax | floatformat:2 }}
+                                    {% elif invoice_type == "developer" %}
+                                        {{ developer_info.amount.total_dev | floatformat:2 }}
+                                    {% elif invoice_type == "tunga" %}
+                                        {{ developer_info.amount.total | floatformat:2 }}
+                                    {% else %}
+                                        {{ developer_info.amount.plus_tax | floatformat:2 }}
+                                    {% endif %}
+                                </th>
+                            </tr>
+                        </table>
+
+                        <div style="margin-top: 40px">
+                            {% if invoice_type != "client" %}
+                                <p>VAT reverse-charged</p>
+                            {% endif %}
+
+                            {% if invoice_type == "tunga" %}
+                                <p>Kindly transfer the stated amount within 2 weeks using the following information:</p>
+                                <p>Bitcoin address: {{ invoice.btc_address }}</p>
+                            {% else %}
+                                {% if invoice_type == "client" and location != "NL" %}
+                                    <p>
+                                        {% if location == "europe" %}
+                                            VAT is charged in reverse due to articles 44 and 196 VAT directive 2006/112
+                                        {% else %}
+                                            VAT reverse-charged
+                                        {% endif %}
+                                    </p>
+                                {% endif %}
+                                {% if invoice.payment_method == "bank" %}
+                                    <p>
+                                        Kindly transfer the stated amount within two weeks of the invoice date. Please
+                                        use the bank account details
+                                        below, indicating the invoice number {{ developer_info.number | default:'' }}.
+                                    </p>
+                                {% endif %}
+
+                                <p>
+                                    {% if invoice.payment_method == "bank"  or invoice.payment_method == "stripe" %}
+                                        <strong>Tunga BV</strong><br/>
+                                        IBAN: NL64 INGB 0007 6631 29<br/>
+                                        BIC/SWIFT: INGBNL2A<br/>
+                                        BTW: NL.8567.94.636.B.01<br/>
+                                    {% else %}
+                                        Bitcoin address: {{ invoice.btc_address }}
+                                    {% endif %}
+                                </p>
                             {% endif %}
                         </div>
-                        <div>
-                            Ms van Riemsdijkweg 57, 1033 RC Amsterdam, the Netherlands<br/>
-                            +31 (0) 615955194 , <a href="mailto:hello@tunga.io" class="highlight">hello@tunga.io</a>, <a
-                                href="https://tunga.io" class="highlight">tunga.io</a><br/>
-                            KvK 67015697, IBAN NL64 INGB 0007 6631 29
-                        </div>
+
                     </div>
+
+                    <footer class="footer">
+                        <div class="container">
+                            <div class="text-center">
+                                <div class="bold">
+                                    {% if invoice_type == "tunga" %}
+                                        Generated on behalf of {{ developer_info.developer.display_name }} by Tunga BV
+                                    {% else %}
+                                        Tunga BV
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    Ms van Riemsdijkweg 57, 1033 RC Amsterdam, the Netherlands<br/>
+                                    +31 (0) 615955194 , <a href="mailto:hello@tunga.io"
+                                                           class="highlight">hello@tunga.io</a>, <a
+                                        href="https://tunga.io" class="highlight">tunga.io</a><br/>
+                                    KvK 67015697, IBAN NL64 INGB 0007 6631 29
+                                </div>
+                            </div>
+                        </div>
+                    </footer>
                 </div>
-            </footer>
-        </div>
+            {% endfor %}
+        {% endwith %}
     {% endfor %}
 {% endblock %}
