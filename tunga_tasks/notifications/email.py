@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
-
+import base64
 import datetime
 
 from django_rq import job
+from weasyprint import HTML
 
 from tunga.settings import TUNGA_URL, TUNGA_STAFF_LOW_LEVEL_UPDATE_EMAIL_RECIPIENTS, \
     TUNGA_STAFF_UPDATE_EMAIL_RECIPIENTS, \
     MANDRILL_VAR_FIRST_NAME, SLACK_DEBUGGING_INCOMING_WEBHOOK
+from tunga_tasks.background import process_invoices
 from tunga_tasks.models import Task, Quote, Estimate, Participation, Application, ProgressEvent, ProgressReport, \
     TaskInvoice
 from tunga_tasks.utils import get_suggested_community_receivers
@@ -1048,7 +1050,20 @@ def notify_new_task_invoice_client_email(instance):
         mandrill_utils.create_merge_var('can_pay', bool(instance.payment_method != TASK_PAYMENT_METHOD_BANK)),
     ]
 
-    mandrill_response = mandrill_utils.send_email('69-invoice', to, merge_vars=merge_vars)
+    owner = instance.task.owner or instance.task.user
+    rendered_html = process_invoices(instance.task.id, invoice_types=('client',), user_id=owner.id, is_admin=False)
+    pdf_file = HTML(string=rendered_html, encoding='utf-8').write_pdf()
+    pdf_file_contents = base64.b64encode(pdf_file)
+
+    attachments = [
+        dict(
+            content=pdf_file_contents,
+            name='Invoice - {}'.format(instance.task.summary),
+            type='application/pdf'
+        )
+    ]
+
+    mandrill_response = mandrill_utils.send_email('69-invoice', to, merge_vars=merge_vars, attachments=attachments)
     if mandrill_response:
         mandrill_utils.log_emails.delay(mandrill_response, to, deal_ids=[instance.task.hubspot_deal_id])
 

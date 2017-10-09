@@ -2,8 +2,6 @@
 
 from copy import copy
 
-import datetime
-
 from django.db.models.query_utils import Q
 from django.template.loader import render_to_string
 from django_rq.decorators import job
@@ -11,9 +9,8 @@ from weasyprint import HTML
 
 from tunga_profiles.models import DeveloperNumber
 from tunga_tasks.models import Task
-from tunga_tasks.serializers import TaskInvoiceSerializer
 from tunga_tasks.tasks import generate_invoice_number
-from tunga_utils.serializers import InvoiceUserSerializer
+from tunga_utils.serializers import InvoiceUserSerializer, TaskInvoiceSerializer
 
 
 @job

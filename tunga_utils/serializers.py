@@ -8,6 +8,8 @@ from rest_framework.fields import SkipField
 
 from tunga_profiles.models import Skill, City, UserProfile, Education, Work, Connection, BTCWallet
 from tunga_profiles.utils import profile_check
+from tunga_tasks.models import TaskInvoice
+from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.models import GenericUpload, ContactRequest, Upload, AbstractExperience, Rating
 
 
@@ -225,3 +227,24 @@ class SimpleRatingSerializer(ContentTypeAnnotatedModelSerializer):
         model = Rating
         exclude = ('content_type', 'object_id', 'created_at')
 
+
+class TaskInvoiceSerializer(serializers.ModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
+    client = InvoiceUserSerializer(required=False, read_only=True)
+    developer = InvoiceUserSerializer(required=False, read_only=True)
+    amount = serializers.JSONField(required=False, read_only=True)
+    developer_amount = serializers.SerializerMethodField(required=False, read_only=True)
+
+    class Meta:
+        model = TaskInvoice
+        fields = '__all__'
+
+    def get_developer_amount(self, obj):
+        current_user = self.get_current_user()
+        if current_user and current_user.is_developer:
+            try:
+                participation = obj.task.participation_set.get(user=current_user)
+                share = obj.task.get_user_participation_share(participation.id)
+                return obj.get_amount_details(share=share)
+            except:
+                pass
+        return obj.get_amount_details(share=0)

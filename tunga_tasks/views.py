@@ -49,9 +49,10 @@ from tunga_tasks.notifications.generic import notify_new_task_invoice
 from tunga_tasks.renderers import PDFRenderer
 from tunga_tasks.serializers import TaskSerializer, ApplicationSerializer, ParticipationSerializer, \
     TimeEntrySerializer, ProjectSerializer, ProgressReportSerializer, ProgressEventSerializer, \
-    IntegrationSerializer, TaskPaySerializer, TaskInvoiceSerializer, EstimateSerializer, QuoteSerializer, \
+    IntegrationSerializer, TaskPaySerializer, EstimateSerializer, QuoteSerializer, \
     MultiTaskPaymentKeySerializer, TaskPaymentSerializer, ParticipantPaymentSerializer, SimpleProgressEventSerializer, \
     SimpleProgressReportSerializer, SimpleTaskSerializer, SkillsApprovalSerializer, SprintSerializer
+from tunga_utils.serializers import TaskInvoiceSerializer
 from tunga_tasks.tasks import distribute_task_payment, generate_invoice_number, complete_bitpesa_payment, \
     update_multi_tasks
 from tunga_tasks.utils import save_integration_tokens, get_integration_token

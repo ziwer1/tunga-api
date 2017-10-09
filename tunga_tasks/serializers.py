@@ -17,7 +17,7 @@ from tunga_profiles.utils import profile_check
 from tunga_tasks import slugs
 from tunga_tasks.models import Task, Application, Participation, TimeEntry, ProgressEvent, ProgressReport, \
     Project, IntegrationMeta, Integration, IntegrationEvent, IntegrationActivity, TASK_PAYMENT_METHOD_CHOICES, \
-    TaskInvoice, Estimate, Quote, WorkActivity, WorkPlan, AbstractEstimate, TaskPayment, ParticipantPayment, \
+    Estimate, Quote, WorkActivity, WorkPlan, AbstractEstimate, TaskPayment, ParticipantPayment, \
     MultiTaskPaymentKey, TaskAccess, SkillsApproval, Sprint
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
     task_integration, estimate_created, estimate_status_changed, quote_status_changed, quote_created, task_approved, \
@@ -32,7 +32,7 @@ from tunga_utils.mixins import GetCurrentUserAnnotatedSerializerMixin
 from tunga_utils.models import Rating
 from tunga_utils.serializers import ContentTypeAnnotatedModelSerializer, SkillSerializer, \
     CreateOnlyCurrentUserDefault, SimpleUserSerializer, UploadSerializer, DetailAnnotatedModelSerializer, \
-    SimpleRatingSerializer, InvoiceUserSerializer
+    SimpleRatingSerializer, InvoiceUserSerializer, TaskInvoiceSerializer
 
 
 class SimpleProjectSerializer(ContentTypeAnnotatedModelSerializer):
@@ -235,28 +235,6 @@ class TaskPaySerializer(serializers.Serializer):
     payment_method = serializers.ChoiceField(choices=TASK_PAYMENT_METHOD_CHOICES, required=True)
     fee = serializers.DecimalField(max_digits=19, decimal_places=4)
     withhold_tunga_fee = serializers.BooleanField(required=False, default=False)
-
-
-class TaskInvoiceSerializer(serializers.ModelSerializer, GetCurrentUserAnnotatedSerializerMixin):
-    client = InvoiceUserSerializer(required=False, read_only=True)
-    developer = InvoiceUserSerializer(required=False, read_only=True)
-    amount = serializers.JSONField(required=False, read_only=True)
-    developer_amount = serializers.SerializerMethodField(required=False, read_only=True)
-
-    class Meta:
-        model = TaskInvoice
-        fields = '__all__'
-
-    def get_developer_amount(self, obj):
-        current_user = self.get_current_user()
-        if current_user and current_user.is_developer:
-            try:
-                participation = obj.task.participation_set.get(user=current_user)
-                share = obj.task.get_user_participation_share(participation.id)
-                return obj.get_amount_details(share=share)
-            except:
-                pass
-        return obj.get_amount_details(share=0)
 
 
 class ParticipantShareSerializer(serializers.Serializer):

@@ -18,7 +18,7 @@ def create_merge_var(name, value):
     return dict(name=name, content=value)
 
 
-def send_email(template_name, to, subject=None, merge_vars=None, cc=None, bcc=None):
+def send_email(template_name, to, subject=None, merge_vars=None, cc=None, bcc=None, attachments=None):
     mandrill_client = get_client()
 
     final_to = []
@@ -45,6 +45,8 @@ def send_email(template_name, to, subject=None, merge_vars=None, cc=None, bcc=No
     )
     if subject:
         message['subject'] = '[Tunga] {}'.format(subject)
+    if attachments:
+        message['attachments'] = attachments
     responses = mandrill_client.messages.send_template(template_name, [], message)
     return responses
 
