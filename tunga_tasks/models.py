@@ -469,6 +469,8 @@ class Task(models.Model):
 
     def has_admin_access(self, user):
         if user and user.is_authenticated():
+            if user.is_admin:
+                return True
             if user == self.user:
                 return True
             if user == self.owner:
