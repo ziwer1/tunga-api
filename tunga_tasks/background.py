@@ -60,18 +60,19 @@ def process_invoices(pk, invoice_types=('client',), user_id=None, is_admin=False
                 for invoice_type in invoice_types:
                     task_developers = []
                     invoice_data = copy(initial_invoice_data)
-                    for common_info in common_developer_info:
-                        final_dev_info = copy(common_info)
-                        final_dev_info['number'] = '{}{}{}'.format(
-                            invoice_data['number'],
-                            invoice_type != 'client' and common_info['dev_number'] or '',
-                            (invoice_type == 'developer' and 'D' or (invoice_type == 'tunga' and 'T' or 'C'))
-                        )
 
-                        task_developers.append(final_dev_info)
+                    if invoice_type == 'client':
+                        task_developers = [dict()]
+                    else:
+                        for common_info in common_developer_info:
+                            final_dev_info = copy(common_info)
+                            final_dev_info['number'] = '{}{}{}'.format(
+                                invoice_data['number'],
+                                invoice_type != 'client' and common_info['dev_number'] or '',
+                                (invoice_type == 'developer' and 'D' or (invoice_type == 'tunga' and 'T' or 'C'))
+                            )
 
-                    if invoice_type == 'client' and task_developers and len(task_developers) > 1:
-                        task_developers = task_developers[:1]
+                            task_developers.append(final_dev_info)
 
                     invoice_data['developers'] = task_developers
 
