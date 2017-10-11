@@ -1043,13 +1043,14 @@ def notify_new_task_invoice_client_email(instance):
 
     task_url = '{}/task/{}/'.format(TUNGA_URL, instance.task.id)
 
+    owner = instance.task.owner or instance.task.user
+
     merge_vars = [
-        mandrill_utils.create_merge_var(MANDRILL_VAR_FIRST_NAME, instance.user.first_name),
+        mandrill_utils.create_merge_var(MANDRILL_VAR_FIRST_NAME, owner.first_name),
         mandrill_utils.create_merge_var('invoice_title', instance.task.summary),
         mandrill_utils.create_merge_var('can_pay', bool(instance.payment_method != TASK_PAYMENT_METHOD_BANK)),
     ]
 
-    owner = instance.task.owner or instance.task.user
     rendered_html = process_invoices(instance.task.id, invoice_types=('client',), user_id=owner.id, is_admin=False)
     pdf_file = HTML(string=rendered_html, encoding='utf-8').write_pdf()
     pdf_file_contents = base64.b64encode(pdf_file)
@@ -1094,3 +1095,42 @@ def notify_new_task_invoice_admin_email(instance):
     send_mail(
         subject, 'tunga/email/task_invoice_request', to, ctx, **dict(deal_ids=[instance.task.hubspot_deal_id])
     )
+
+
+@job
+def notify_payment_link_client_email(instance):
+    instance = clean_instance(instance, Task)
+
+    to = [instance.user.email]
+    if instance.owner and instance.owner.email != instance.user.email:
+        to.append(instance.owner.email)
+
+    task_url = '{}/task/{}/'.format(TUNGA_URL, instance.id)
+    payment_link = '{}pay/'.format(task_url)
+
+    owner = instance.owner or instance.user
+
+    merge_vars = [
+        mandrill_utils.create_merge_var(MANDRILL_VAR_FIRST_NAME, owner.first_name),
+        mandrill_utils.create_merge_var('payment_title', instance.summary),
+        mandrill_utils.create_merge_var('payment_link', payment_link),
+    ]
+
+    mandrill_response = mandrill_utils.send_email('70-payment-link-ready', to, merge_vars=merge_vars)
+    if mandrill_response:
+        instance.payment_link_sent = True
+        instance.payment_link_sent_at = datetime.datetime.utcnow()
+        instance.save()
+
+        mandrill_utils.log_emails.delay(mandrill_response, to, deal_ids=[instance.hubspot_deal_id])
+
+        # Notify via Slack of sent email to double check and prevent multiple sends
+        slack_utils.send_incoming_webhook(
+            SLACK_DEBUGGING_INCOMING_WEBHOOK,
+            {
+                slack_utils.KEY_TEXT: "Mandrill Email sent to {} for <{}|Payment Link: {}>".format(
+                    ', '.join(to), task_url, instance.summary
+                ),
+                slack_utils.KEY_CHANNEL: '#alerts'
+            }
+        )
