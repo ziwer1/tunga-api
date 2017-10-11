@@ -57,7 +57,11 @@
                         <div style="margin-top: 40px;">
                             <div class="pull-left" style="margin-right: 50px;">
                                 <strong>Invoice number:</strong><br/>
-                                {{ developer_info.number | default:'' }}
+                                {% if invoice_type == "client" %}
+                                    {{ invoice.number_client | default:'' }}
+                                {% else %}
+                                    {{ developer_info.number | default:'' }}
+                                {% endif %}
                             </div>
                             <div class="pull-left">
                                 <strong>Invoicing date:</strong><br/>
