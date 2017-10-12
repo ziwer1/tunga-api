@@ -59,7 +59,9 @@ def notify_new_message_slack(instance):
             inquirer = instance.channel.get_inquirer()
             if inquirer:
                 try:
-                    message_details[slack_utils.KEY_TITLE] = 'Help: %s' % inquirer.name
+                    message_details[slack_utils.KEY_TITLE] = 'Help{}{}'.format(
+                        inquirer.name and ': ' or '', inquirer.name or ''
+                    )
                     if inquirer.email:
                         message_details[slack_utils.KEY_TEXT] += '\n\nEmail: {}'.format(inquirer.email)
                     message_details[slack_utils.KEY_TITLE_LINK] = channel_url

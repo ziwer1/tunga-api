@@ -280,8 +280,8 @@ class Message(models.Model):
             return GenericObject(**dict(
                 id='inquirer#{}'.format(inquirer.id),
                 name=inquirer.name,
-                display_name=inquirer.name.title(),
-                short_name=inquirer.name.title(),
+                display_name=(inquirer.name or '').title(),
+                short_name=(inquirer.name or '').title(),
                 email=inquirer.email,
                 inquirer=True
             ))
