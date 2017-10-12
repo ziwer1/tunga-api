@@ -1048,7 +1048,10 @@ def notify_new_task_invoice_client_email(instance):
     merge_vars = [
         mandrill_utils.create_merge_var(MANDRILL_VAR_FIRST_NAME, owner.first_name),
         mandrill_utils.create_merge_var('invoice_title', instance.task.summary),
-        mandrill_utils.create_merge_var('can_pay', bool(instance.payment_method != TASK_PAYMENT_METHOD_BANK)),
+        mandrill_utils.create_merge_var(
+            'can_pay',
+            bool(instance.payment_method != TASK_PAYMENT_METHOD_BANK and not instance.task.payment_approved)
+        ),
     ]
 
     rendered_html = process_invoices(instance.task.id, invoice_types=('client',), user_id=owner.id, is_admin=False)
