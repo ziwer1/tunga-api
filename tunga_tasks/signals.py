@@ -12,7 +12,7 @@ from tunga_messages.tasks import get_or_create_task_channel
 from tunga_tasks.models import Task, Application, Participation, ProgressEvent, ProgressReport, \
     IntegrationActivity, Integration, Estimate, Quote, Sprint
 from tunga_tasks.notifications.email import notify_estimate_status_email, notify_task_invitation_email, \
-    send_task_application_not_selected_email
+    send_task_application_not_selected_email, notify_payment_link_client_email
 from tunga_tasks.notifications.generic import notify_new_task, \
     notify_task_approved, notify_new_task_admin, notify_task_invitation_response, notify_new_task_application, \
     notify_task_application_response, notify_new_progress_report
@@ -31,6 +31,7 @@ task_details_completed = Signal(providing_args=["task"])
 task_owner_added = Signal(providing_args=["task"])
 task_applications_closed = Signal(providing_args=["task"])
 task_closed = Signal(providing_args=["task"])
+task_payment_approved = Signal(providing_args=["task"])
 
 # Applications
 application_response = Signal(providing_args=["application"])
@@ -108,6 +109,14 @@ def activity_handler_task_applications_closed(sender, task, **kwargs):
 def activity_handler_task_closed(sender, task, **kwargs):
     if task.closed:
         action.send(task.user, verb=verbs.CLOSE, target=task)
+
+
+@receiver(task_payment_approved, sender=Task)
+def activity_handler_task_payment_approved(sender, task, **kwargs):
+    if task.payment_approved:
+        action.send(task.payment_approved_by, verb=verbs.APPROVE_PAYMENT, target=task)
+
+        notify_payment_link_client_email.delay(task.id)
 
 
 @receiver(post_save, sender=Application)

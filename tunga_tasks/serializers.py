@@ -21,7 +21,7 @@ from tunga_tasks.models import Task, Application, Participation, TimeEntry, Prog
     MultiTaskPaymentKey, TaskAccess, SkillsApproval, Sprint
 from tunga_tasks.signals import application_response, participation_response, task_applications_closed, task_closed, \
     task_integration, estimate_created, estimate_status_changed, quote_status_changed, quote_created, task_approved, \
-    task_call_window_scheduled, task_fully_saved, task_details_completed, task_owner_added
+    task_call_window_scheduled, task_fully_saved, task_details_completed, task_owner_added, task_payment_approved
 from tunga_tasks.tasks import update_multi_tasks
 from tunga_utils import coinbase_utils, bitcoin_utils
 from tunga_utils.constants import PROGRESS_EVENT_TYPE_MILESTONE, USER_TYPE_PROJECT_OWNER, USER_SOURCE_TASK_WIZARD, \
@@ -441,6 +441,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         initial_schedule_call_start = None
         initial_description = None
         initial_owner = None
+        initial_payment_approved = False
 
         new_user = None
         is_update = bool(instance)
@@ -452,6 +453,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             initial_schedule_call_start = instance.schedule_call_start
             initial_description = instance.description
             initial_owner = instance.owner
+            initial_payment_approved = instance.payment_approved
 
             if not instance.closed and validated_data.get('closed'):
                 validated_data['closed_at'] = datetime.datetime.utcnow()
@@ -523,6 +525,12 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
 
             if not initial_closed and instance.closed:
                 task_closed.send(sender=Task, task=instance)
+
+            if not initial_payment_approved and instance.payment_approved:
+                instance.payment_approved_at = datetime.datetime.utcnow()
+                instance.payment_approved_by = current_user
+                instance.save()
+                task_payment_approved.send(sender=Task, task=instance)
         else:
             # Triggered here instead of in the post_save signal to allow task to be fully saved
             task_fully_saved.send(sender=Task, task=instance, new_user=not (current_user and current_user.is_authenticated()))
