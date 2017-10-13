@@ -376,41 +376,40 @@ def complete_bitpesa_payment(transaction):
             payment = None
 
         if payment:
+            transaction_state = transaction.get(bitpesa.KEY_STATE, None)
+            if transaction_state == bitpesa.VALUE_APPROVED:
+                share_amount = Decimal(
+                    bitcoin_utils.get_valid_btc_amount(
+                        payment.source.btc_received * Decimal(payment.participant.payment_share)
+                    )
+                )
 
-            if transaction.get(bitpesa.KEY_STATE, None) == bitpesa.VALUE_CANCELED:
+                if input_amount <= share_amount:
+                    cb_transaction = send_payment_share(
+                        destination=destination_address,
+                        amount=input_amount,
+                        idem=str(payment.idem_key),
+                        description='%s - %s' % (
+                            payment.participant.task.summary, payment.participant.user.display_name
+                        )
+                    )
+                    if cb_transaction.status not in [
+                        coinbase_utils.TRANSACTION_STATUS_FAILED, coinbase_utils.TRANSACTION_STATUS_EXPIRED,
+                        coinbase_utils.TRANSACTION_STATUS_CANCELED
+                    ]:
+                        payment.btc_sent = input_amount
+                        payment.destination = destination_address
+                        payment.ref = cb_transaction.id
+                        payment.status = STATUS_PROCESSING
+                        payment.extra = json.dumps(dict(bitpesa=bp_transaction_id))
+                        payment.save()
+                        return True
+            elif transaction_state == bitpesa.VALUE_CANCELED:
                 # Fail for canceled BitPesa transactions
                 if payment.status == STATUS_INITIATED:
                     # Switch status to pending if BTC hasn't already been sent
                     payment.status = STATUS_PENDING
                     payment.save()
-                return False
-
-            share_amount = Decimal(
-                bitcoin_utils.get_valid_btc_amount(
-                    payment.source.btc_received * Decimal(payment.participant.payment_share)
-                )
-            )
-
-            if input_amount <= share_amount:
-                cb_transaction = send_payment_share(
-                    destination=destination_address,
-                    amount=input_amount,
-                    idem=str(payment.idem_key),
-                    description='%s - %s' % (
-                        payment.participant.task.summary, payment.participant.user.display_name
-                    )
-                )
-                if cb_transaction.status not in [
-                    coinbase_utils.TRANSACTION_STATUS_FAILED, coinbase_utils.TRANSACTION_STATUS_EXPIRED,
-                    coinbase_utils.TRANSACTION_STATUS_CANCELED
-                ]:
-                    payment.btc_sent = input_amount
-                    payment.destination = destination_address
-                    payment.ref = cb_transaction.id
-                    payment.status = STATUS_PROCESSING
-                    payment.extra = json.dumps(dict(bitpesa=bp_transaction_id))
-                    payment.save()
-                    return True
     return False
 
 

@@ -55,6 +55,7 @@ VALUE_INITIAL = "initial"
 VALUE_FUNDED = "funded"
 VALUE_PAID = "paid"
 VALUE_CANCELED = "canceled"
+VALUE_APPROVED = "approved"
 
 EVENT_SENDER_APPROVED = "sender.approved"
 EVENT_TRANSACTION_REQUEST_CREATED = "transaction_request.created"
