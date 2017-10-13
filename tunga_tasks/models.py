@@ -314,6 +314,7 @@ class Task(models.Model):
     multi_pay_distribute_key = models.ForeignKey(
         MultiTaskPaymentKey, related_name='distribute_tasks', on_delete=models.DO_NOTHING, blank=True, null=True
     )
+    includes_pm_fee = models.BooleanField(default=False)
 
     # Classification details
     type = models.IntegerField(choices=TASK_TYPE_CHOICES, default=TASK_TYPE_OTHER)  # Web, Mobile ...
@@ -452,6 +453,8 @@ class Task(models.Model):
                 if self.source == TASK_SOURCE_NEW_USER and self.scope == TASK_SCOPE_TASK and self.description and len(
                         self.description.split(' ')) >= 15:
                     self.approved = True
+            if self.scope != TASK_SCOPE_TASK and self.pm_required and not self.payment_approved and not self.includes_pm_fee:
+                self.includes_pm_fee = True
         else:
             # Analyze new tasks to decide on approval status
             if self.source == TASK_SOURCE_NEW_USER:
@@ -465,6 +468,7 @@ class Task(models.Model):
                 self.approved = bool(
                     self.scope == TASK_SCOPE_TASK or (self.scope == TASK_SCOPE_PROJECT and not self.pm_required)
                 )
+            self.includes_pm_fee = bool(self.scope != TASK_SCOPE_TASK and self.pm_required)
         super(Task, self).save(
             force_insert=force_insert, force_update=force_update, using=using, update_fields=update_fields
         )
