@@ -44,8 +44,11 @@ def get_medium_posts(request):
             posts = [
                 dict(
                     title=post['title'],
-                    url='https://blog.tunga.io/{}'.format(post['slug']),
-                    slug=post['slug'], created_at=post['createdAt'])
+                    url='https://blog.tunga.io/{}-{}'.format(post['slug'], post['id']),
+                    slug=post['slug'], created_at=post['createdAt'],
+                    id=post['id'],
+                    latestVersion=post['latestVersion']
+                )
                 for key, post in six.iteritems(response['payload']['references']['Post'])
                 ]
             # Sort latest first
