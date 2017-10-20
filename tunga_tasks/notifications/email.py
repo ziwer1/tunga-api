@@ -65,7 +65,7 @@ def notify_new_task_client_drip_one(instance, template='welcome'):
                 ]
             )
         else:
-            template_code = '01-welcome'
+            template_code = '01-welcome-new'
     elif template == 'hiring':
         template_code = '02-hiring'
 
