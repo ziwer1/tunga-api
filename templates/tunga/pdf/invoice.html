@@ -79,27 +79,36 @@
                             {% if invoice_type == "developer" %}
                                 <tr>
                                     <td>Tunga fee for {{ invoice.title }}</td>
-                                    <td>{{ developer_info.amount.currency | safe }} {{ developer_info.amount.tunga | floatformat:2 }}</td>
+                                    <td>
+                                        {{ invoice.amount.currency | safe }} {{ developer_info.amount.tunga | floatformat:2 }}
+                                    </td>
                                 </tr>
                             {% else %}
                                 <tr>
                                     <td>{{ invoice.title }}</td>
-                                    <td>{{ developer_info.amount.currency | safe }} {% if invoice_type == "client" %}
+                                    <td>
+                                        {{ invoice.amount.currency | safe }}
+                                        {% if invoice_type == "client" %}
                                         {{ invoice.amount.portion | floatformat:2 }}{% else %}
-                                        {{ developer_info.amount.portion | floatformat:2 }}{% endif %}</td>
+                                        {{ developer_info.amount.portion | floatformat:2 }}{% endif %}
+                                    </td>
                                 </tr>
                             {% endif %}
 
                             <tr class="top-border">
                                 <td>Payment costs</td>
-                                <td>{{ developer_info.amount.currency | safe }} {% if invoice_type == "client" %}
+                                <td>
+                                    {{ invoice.amount.currency | safe }}
+                                    {% if invoice_type == "client" %}
                                     {{ invoice.amount.processing | floatformat:2 }}{% else %}
-                                    {{ developer_info.amount.processing | floatformat:2 }}{% endif %}</td>
+                                    {{ developer_info.amount.processing | floatformat:2 }}{% endif %}
+                                </td>
                             </tr>
 
                             <tr class="top-border">
                                 <td>Subtotal</td>
-                                <td>{{ invoice.amount.currency | safe }}
+                                <td>
+                                    {{ invoice.amount.currency | safe }}
                                     {% if invoice_type == "client" %}
                                         {{ invoice.amount.total | floatformat:2 }}
                                     {% elif invoice_type == "developer" %}
@@ -113,13 +122,17 @@
                                 <td>VAT {% if invoice_type == "client" %}{{ invoice.amount.vat | floatformat:-2 }}{% else %}
                                     0{% endif %}%
                                 </td>
-                                <td>{{ developer_info.amount.currency | safe }} {% if invoice_type == "client" %}
-                                    {{ invoice.amount.vat_amount | floatformat:2 }}{% else %}0{% endif %}</td>
+                                <td>
+                                    {{ invoice.amount.currency | safe }}
+                                    {% if invoice_type == "client" %}
+                                    {{ invoice.amount.vat_amount | floatformat:2 }}{% else %}0{% endif %}
+                                </td>
                             </tr>
 
                             <tr class="top-border">
                                 <th>Total</th>
-                                <th>{{ developer_info.amount.currency | safe }}
+                                <th>
+                                    {{ invoice.amount.currency | safe }}
                                     {% if invoice_type == "client" %}
                                         {{ invoice.amount.plus_tax | floatformat:2 }}
                                     {% elif invoice_type == "developer" %}
