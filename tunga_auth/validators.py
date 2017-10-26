@@ -9,12 +9,12 @@ class PasswordStrengthValidator(object):
     Validate password strength.
     """
     def validate(self, password, user=None):
-        if not re.match(r'\d', password):
+        if not re.search(r'\d', password):
             raise ValidationError(
                 _("This password does not contain any numbers."),
                 code='password_too_weak',
             )
-        if not re.match(r'[^\d]', password):
+        if not re.search(r'[^\d]', password):
             raise ValidationError(
                 _("This password does not contain any alphabetic characters."),
                 code='password_too_weak',
