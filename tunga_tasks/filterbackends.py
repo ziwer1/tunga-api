@@ -130,6 +130,7 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
             elif request.user.is_project_manager:
                 queryset = queryset.filter(
                     Q(user=request.user) |
+                    Q(pm=request.user) |
                     Q(taskaccess__user=request.user) | (
                         Q(scope=TASK_SCOPE_ONGOING) |
                         (
