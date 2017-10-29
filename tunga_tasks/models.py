@@ -1696,11 +1696,12 @@ class TaskPayment(models.Model):
     received_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
-        return '{}:{} - {} | {}'.format(
+        return '{}:{} - {} | {} {}'.format(
             self.get_payment_type_display(),
             self.payment_type == TASK_PAYMENT_METHOD_STRIPE and self.charge_id or self.btc_address,
             self.payment_type == TASK_PAYMENT_METHOD_STRIPE and self.amount or self.btc_received,
-            self.task and self.task.summary or 'Multi Task Payment'
+            self.task and self.task.summary or 'Multi Task Payment',
+            self.task and '#{}'.format(self.task.id) or ''
         )
 
     class Meta:
@@ -1744,7 +1745,7 @@ class ParticipantPayment(models.Model):
     extra = models.TextField(blank=True, null=True)  # JSON formatted extra details
 
     def __str__(self):
-        return 'bitcoin:%s - %s | %s' % (self.destination, self.participant.user, self.description)
+        return 'bitcoin:{} - {} | {}'.format(self.destination, self.participant.user, self.description)
 
     class Meta:
         unique_together = ('participant', 'source')
