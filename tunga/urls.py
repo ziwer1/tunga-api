@@ -17,6 +17,7 @@ from allauth.account.views import ConfirmEmailView
 from django.conf.urls import url, include
 from django.contrib import admin
 from django.contrib.auth.views import password_reset_confirm
+from django.contrib.sitemaps.views import sitemap
 from rest_auth.views import UserDetailsView
 from rest_framework.routers import DefaultRouter
 from rest_framework_jwt.views import obtain_jwt_token, refresh_jwt_token, verify_jwt_token
@@ -27,7 +28,7 @@ from tunga_auth.views import VerifyUserView, AccountInfoView, UserViewSet, socia
     slack_connect_callback, harvest_connect_callback, EmailVisitorView, github_connect_callback
 from tunga_comments.views import CommentViewSet
 from tunga_messages.views import MessageViewSet, ChannelViewSet, slack_customer_notification
-from tunga_pages.views import SkillPageViewSet
+from tunga_pages.views import SkillPageViewSet, SkillPagesSitemap
 from tunga_profiles.views import ProfileView, EducationViewSet, WorkViewSet, ConnectionViewSet, \
     NotificationView, CountryListView, DeveloperApplicationViewSet, RepoListView, IssueListView, SlackIntegrationView, \
     HarvestAPIView, DeveloperInvitationViewSet
@@ -71,6 +72,11 @@ router.register(r'participant-payment', ParticipantPaymentViewSet)
 router.register(r'skill-page', SkillPageViewSet)
 router.register(r'skill-approval', SkillsApprovalViewSet)
 
+# Dictionary containing your sitemap classes
+sitemaps = {
+   'skills': SkillPagesSitemap(),
+}
+
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^admin/django-rq/', include('django_rq.urls')),
@@ -111,5 +117,6 @@ urlpatterns = [
     url(r'^api/docs/', api_schema_view),
     url(r'^reset-password/confirm/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
         password_reset_confirm, name='password_reset_confirm'),
-    url(r'^$', router.get_api_root_view(), name='backend-root')
+    url(r'^$', router.get_api_root_view(), name='backend-root'),
+    url(r'^api/sitemap\.xml$', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
 ]

@@ -6,6 +6,7 @@ from django.utils.encoding import python_2_unicode_compatible
 from dry_rest_permissions.generics import allow_staff_or_superuser
 
 from tunga import settings
+from tunga.settings import TUNGA_URL
 from tunga_profiles.models import Skill
 
 
@@ -35,6 +36,9 @@ class SkillPage(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+    def get_absolute_url(self):
+        return '/{}/'.format(self.keyword)
 
     @allow_staff_or_superuser
     def has_object_read_permission(self, request):

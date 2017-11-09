@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     # Core
     'django.contrib.sites',
     'tunga.apps.DjangoAuthConfig',
+    'django.contrib.sitemaps',
 
     # Third Party
     'allauth',
