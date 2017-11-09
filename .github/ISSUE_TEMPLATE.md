@@ -13,6 +13,7 @@ PLEASE CREATE AN ISSUE ON THIS REPO (github.com/tunga-io/tunga-web) IF ANY OF TH
 [ ] Bug report <!-- Please search this repo for a similar issue or PR before submitting -->
 [ ] Feature request
 [ ] Regression (behavior that used to work and stopped working in a new release)
+[ ] Enhancement
 </code></pre>
 
 ## Current behavior
