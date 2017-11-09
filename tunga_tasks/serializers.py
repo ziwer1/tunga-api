@@ -422,6 +422,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         participants = None
         participant_updates = None
         ratings = None
+        sprints = None
         if 'skills' in validated_data:
             skills = validated_data.pop('skills')
         if 'participation' in validated_data:
@@ -434,6 +435,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
             participant_updates = validated_data.pop('participant_updates')
         if 'ratings' in validated_data:
             ratings = validated_data.pop('ratings')
+        if 'sprints' in validated_data:
+            sprints = validated_data.pop('sprints')
 
         initial_apply = True
         initial_closed = False
@@ -502,6 +505,7 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
         self.save_participants(instance, participants)
         self.save_participant_updates(participant_updates)
         self.save_ratings(instance, ratings)
+        self.save_sprints(instance, sprints)
 
         if is_update:
             if not initial_approved and instance.approved:
@@ -642,6 +646,16 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                     pass
             if assignee and changed_assignee:
                 Participation.objects.exclude(user__id=assignee).filter(task=task).update(assignee=False)
+
+    def save_sprints(self, task, sprints):
+        if sprints:
+            for item in sprints:
+                try:
+                    defaults = copy(item)
+                    Sprint.objects.update_or_create(task_invoice=task,title=item['title'],start_date=item['start_date'],
+                                                     end_date=item['end_date'], defaults=defaults)
+                except:
+                    pass
 
     def get_display_fee(self, obj):
         user = self.get_current_user()
