@@ -163,3 +163,19 @@ def get_transaction(transaction_id):
     if r.status_code == 200:
         return get_response_object(r.json())
     return r
+
+
+def get_currencies_in():
+    r = call_api(get_endpoint_url('info/currencies/in'), 'GET', str(uuid4()))
+
+    if r.status_code == 200:
+        return get_response_object(r.json())
+    return r
+
+
+def get_currencies_out():
+    r = call_api(get_endpoint_url('info/currencies/out'), 'GET', str(uuid4()))
+
+    if r.status_code == 200:
+        return get_response_object(r.json())
+    return r
