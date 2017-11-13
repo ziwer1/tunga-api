@@ -560,6 +560,8 @@ class TaskSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedModelSe
                     if current_user and current_user.is_authenticated() and current_user != item.get('user', None):
                         participation_creator = current_user
                     defaults['created_by'] = participation_creator
+                    if task.parent and task.parent.get_is_participant(item['user'], active_only=True):
+                        defaults['status'] = STATUS_ACCEPTED
 
                 try:
                     participation_obj, created = Participation.objects.update_or_create(
