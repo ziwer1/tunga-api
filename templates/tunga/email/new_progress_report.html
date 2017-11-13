@@ -129,6 +129,12 @@
         </p>
     {% endif %}
 
+    {% if report.obstacles_prevention %}
+        <p>
+            What could have been done to prevent this from happening?:<br/>
+            {{ report.obstacles_prevention }}
+        </p>
+    {% endif %}
 
     {% if report.remarks %}
         <p>

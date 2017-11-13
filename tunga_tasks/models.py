@@ -1375,6 +1375,7 @@ class ProgressReport(models.Model):
     accomplished = models.TextField(blank=True, null=True)
     todo = models.TextField(blank=True, null=True)
     obstacles = models.TextField(blank=True, null=True)
+    obstacles_prevention = models.TextField(blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
     stuck_reason = models.PositiveIntegerField(
         choices=PROGRESS_REPORT_STUCK_REASON_CHOICES,

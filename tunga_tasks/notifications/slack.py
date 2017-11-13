@@ -538,6 +538,13 @@ def create_progress_report_slack_message(instance, updated=False, to_client=Fals
                 slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
                 slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_RED
             })
+        if instance.obstacles_prevention:
+            attachments.append({
+                slack_utils.KEY_TITLE: 'What could have been done to prevent this from happening?',
+                slack_utils.KEY_TEXT: convert_to_text(instance.obstacles_prevention),
+                slack_utils.KEY_MRKDWN_IN: [slack_utils.KEY_TEXT],
+                slack_utils.KEY_COLOR: SLACK_ATTACHMENT_COLOR_GREEN
+            })
 
     if is_pm_report:
         if instance.team_appraisal:
