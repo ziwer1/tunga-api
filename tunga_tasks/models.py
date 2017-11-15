@@ -1735,12 +1735,15 @@ class ParticipantPayment(models.Model):
     ref = models.CharField(max_length=255, blank=True, null=True)
     btc_sent = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
     btc_received = models.DecimalField(max_digits=18, decimal_places=8, default=0)
+    btc_price = models.DecimalField(max_digits=18, decimal_places=8, blank=True, null=True)
     status = models.CharField(
         max_length=30, choices=PAYMENT_STATUS_CHOICES, default=STATUS_PENDING,
         help_text=', '.join(['%s - %s' % (item[0], item[1]) for item in PAYMENT_STATUS_CHOICES])
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    external_created_at = models.DateTimeField(blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
+    sent_at = models.DateTimeField(blank=True, null=True)
     received_at = models.DateTimeField(blank=True, null=True)
     description = models.CharField(max_length=200, blank=True, null=True)
     extra = models.TextField(blank=True, null=True)  # JSON formatted extra details

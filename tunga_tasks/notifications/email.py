@@ -78,7 +78,7 @@ def notify_new_task_client_drip_one(instance, template='welcome'):
 
             mandrill_utils.log_emails.delay(mandrill_response, to, deal_ids=[instance.hubspot_deal_id])
 
-            # Notify via Slack of sent email to double check and prevent multiple sends
+            # Notify via Slack of sent email
             slack_utils.send_incoming_webhook(
                 SLACK_DEBUGGING_INCOMING_WEBHOOK,
                 {

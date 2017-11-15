@@ -67,3 +67,9 @@ def get_btc_price(currency):
     client = get_api_client()
     price = client.get_spot_price(**{'currency': currency})
     return price.amount
+
+
+def get_account_balance():
+    client = get_api_client()
+    account = client.get_primary_account()
+    return account.balance.amount

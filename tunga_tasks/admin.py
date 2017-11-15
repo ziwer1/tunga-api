@@ -119,10 +119,10 @@ class TaskPaymentAdmin(ReadOnlyModelAdmin):
 @admin.register(ParticipantPayment)
 class ParticipantPaymentAdmin(ReadOnlyModelAdmin):
     list_display = (
-        'participant', 'btc_sent', 'btc_received',
-        'destination', 'ref', 'status', 'created_at', 'received_at'
+        'participant', 'btc_sent', 'btc_received', 'btc_price',
+        'destination', 'ref', 'status', 'created_at', 'sent_at', 'external_created_at'
     )
-    list_filter = ('status', 'created_at', 'received_at')
+    list_filter = ('status', 'created_at', 'sent_at', 'external_created_at')
     search_fields = (
         'participant__user__username', 'participant__user__first_name',
         'participant__user__last_name', 'participant__task__title'

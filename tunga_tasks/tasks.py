@@ -11,12 +11,12 @@ from django.db.models.aggregates import Min, Max
 from django.db.models.query_utils import Q
 from django_rq.decorators import job
 
-from tunga.settings import BITPESA_SENDER
+from tunga.settings import BITPESA_SENDER, SLACK_DEBUGGING_INCOMING_WEBHOOK, TUNGA_URL
 from tunga_profiles.models import ClientNumber
 from tunga_profiles.utils import get_app_integration
 from tunga_tasks.models import ProgressEvent, Task, ParticipantPayment, \
     TaskInvoice, Integration, IntegrationMeta, Participation, MultiTaskPaymentKey, TaskPayment
-from tunga_utils import bitcoin_utils, coinbase_utils, bitpesa, harvest_utils
+from tunga_utils import bitcoin_utils, coinbase_utils, bitpesa, harvest_utils, slack_utils
 from tunga_utils.constants import CURRENCY_BTC, PAYMENT_METHOD_BTC_WALLET, \
     PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_MOBILE_MONEY, UPDATE_SCHEDULE_HOURLY, UPDATE_SCHEDULE_DAILY, \
     UPDATE_SCHEDULE_WEEKLY, UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, UPDATE_SCHEDULE_ANNUALLY, \
@@ -264,6 +264,7 @@ def distribute_task_payment(task):
         for item in participation_shares:
             participant = item['participant']
             share = item['share']
+            share_amount = Decimal(share) * payment.task_btc_share(task)
             portion_sent = False
 
             if not participant.user:
@@ -280,7 +281,7 @@ def distribute_task_payment(task):
                         participant_pay.destination = participant.user.btc_address
                     transaction = send_payment_share(
                         destination=participant_pay.destination,
-                        amount=Decimal(share) * payment.task_btc_share(task),
+                        amount=share_amount,
                         idem=str(participant_pay.idem_key),
                         description='%s - %s' % (pay_description, participant.user.display_name)
                     )
@@ -291,48 +292,93 @@ def distribute_task_payment(task):
                         participant_pay.ref = transaction.id
                         participant_pay.btc_sent = abs(Decimal(transaction.amount.amount))
                         participant_pay.status = STATUS_PROCESSING
+                        participant_pay.sent_at = datetime.datetime.utcnow()
                         participant_pay.save()
                         portion_sent = True
                 elif payment_method == PAYMENT_METHOD_MOBILE_MONEY:
-                    share_amount = Decimal(share) * payment.task_btc_share(task)
-                    recipients = [
-                        {
-                            bitpesa.KEY_REQUESTED_AMOUNT: float(
-                                bitcoin_utils.get_valid_btc_amount(share_amount)
-                            ),
-                            bitpesa.KEY_REQUESTED_CURRENCY: CURRENCY_BTC,
-                            bitpesa.KEY_PAYOUT_METHOD: {
-                                bitpesa.KEY_TYPE: bitpesa.get_pay_out_method(participant.user.mobile_money_cc),
-                                bitpesa.KEY_DETAILS: {
-                                    bitpesa.KEY_FIRST_NAME: participant.user.first_name,
-                                    bitpesa.KEY_LAST_NAME: participant.user.last_name,
-                                    bitpesa.KEY_PHONE_NUMBER: participant.user.mobile_money_number
+                    tunga_wallet_balance = coinbase_utils.get_account_balance()
+                    if tunga_wallet_balance > share_amount:
+                        # Only attempt BitPesa payment if Wallet has enough balance
+                        recipients = [
+                            {
+                                bitpesa.KEY_REQUESTED_AMOUNT: float(
+                                    bitcoin_utils.get_valid_btc_amount(share_amount)
+                                ),
+                                bitpesa.KEY_REQUESTED_CURRENCY: CURRENCY_BTC,
+                                bitpesa.KEY_PAYOUT_METHOD: {
+                                    bitpesa.KEY_TYPE: bitpesa.get_pay_out_method(participant.user.mobile_money_cc),
+                                    bitpesa.KEY_DETAILS: {
+                                        bitpesa.KEY_FIRST_NAME: participant.user.first_name,
+                                        bitpesa.KEY_LAST_NAME: participant.user.last_name,
+                                        bitpesa.KEY_PHONE_NUMBER: participant.user.mobile_money_number
+                                    }
                                 }
                             }
-                        }
-                    ]
-                    bitpesa_nonce = str(uuid4())
-                    transaction = bitpesa.create_transaction(
-                        BITPESA_SENDER, recipients, input_currency=CURRENCY_BTC,
-                        transaction_id=participant_pay.id, nonce=bitpesa_nonce
-                    )
-                    if transaction:
-                        participant_pay.ref = transaction.get(bitpesa.KEY_ID, None)
-                        participant_pay.status = STATUS_INITIATED
-                        participant_pay.extra = bitpesa_nonce
-                        participant_pay.save()
+                        ]
+                        bitpesa_nonce = str(uuid4())
+                        transaction = bitpesa.create_transaction(
+                            BITPESA_SENDER, recipients, input_currency=CURRENCY_BTC,
+                            transaction_id=participant_pay.id, nonce=bitpesa_nonce
+                        )
+                        if transaction:
+                            participant_pay.external_created_at = datetime.datetime.utcnow()
+                            participant_pay.ref = transaction.get(bitpesa.KEY_ID, None)
+                            participant_pay.status = STATUS_INITIATED
+                            participant_pay.extra = bitpesa_nonce
+                            participant_pay.save()
 
-                        if complete_bitpesa_payment(transaction):
-                            portion_sent = True
+                            if complete_bitpesa_payment(transaction):
+                                participant_pay.sent_at = datetime.datetime.utcnow()
+                                participant_pay.btc_price = coinbase_utils.get_btc_price(task.currency)
+                                participant_pay.save()
+                                portion_sent = True
+                    else:
+                        # Notify via Slack of failed payment due to balance
+                        slack_utils.send_incoming_webhook(
+                            SLACK_DEBUGGING_INCOMING_WEBHOOK,
+                            {
+                                slack_utils.KEY_TEXT: "Not enough balance to make payment for <{}|{}>\n"
+                                                      "Balance: BTC {}\n"
+                                                      "Required: BTC {}".format(
+                                    '{}/work/{}'.format(TUNGA_URL, task.id),
+                                    task.summary,
+                                    tunga_wallet_balance,
+                                    share_amount
+                                ),
+                                slack_utils.KEY_CHANNEL: '#alerts'
+                            }
+                        )
             elif participant_pay and payment_method == PAYMENT_METHOD_MOBILE_MONEY and \
                             participant_pay.status == STATUS_INITIATED:
-                transaction_details = bitpesa.call_api(
-                    bitpesa.get_endpoint_url('transactions/%s' % participant_pay.ref),
-                    'GET', str(uuid4()), data={}
-                )
-                transaction = transaction_details.json().get(bitpesa.KEY_OBJECT)
-                if transaction and complete_bitpesa_payment(transaction):
-                    portion_sent = True
+                tunga_wallet_balance = coinbase_utils.get_account_balance()
+                if tunga_wallet_balance > share_amount:
+                    # Only attempt BitPesa payment if Wallet has enough balance
+                    transaction_details = bitpesa.call_api(
+                        bitpesa.get_endpoint_url('transactions/%s' % participant_pay.ref),
+                        'GET', str(uuid4()), data={}
+                    )
+                    transaction = bitpesa.get_response_object(transaction_details.json())
+                    if transaction and complete_bitpesa_payment(transaction):
+                        participant_pay.sent_at = datetime.datetime.utcnow()
+                        participant_pay.btc_price = coinbase_utils.get_btc_price(task.currency)
+                        participant_pay.save()
+                        portion_sent = True
+                else:
+                    # Notify via Slack of failed payment due to balance
+                    slack_utils.send_incoming_webhook(
+                        SLACK_DEBUGGING_INCOMING_WEBHOOK,
+                        {
+                            slack_utils.KEY_TEXT: "Not enough balance to make payment for <{}|{}>\n"
+                                                  "Balance: BTC {}\n"
+                                                  "Required: BTC {}".format(
+                                '{}/work/{}'.format(TUNGA_URL, task.id),
+                                task.summary,
+                                tunga_wallet_balance,
+                                share_amount
+                            ),
+                            slack_utils.KEY_CHANNEL: '#alerts'
+                        }
+                    )
 
             portion_distribution.append(portion_sent)
         if portion_distribution and False not in portion_distribution:
