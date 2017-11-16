@@ -36,19 +36,29 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
             queryset = queryset.exclude(archived=True)
         queryset = queryset.filter(user__in=get_user_model().objects.all())
 
-        if label_filter in ['running', 'my-tasks', 'payments']:
+        if label_filter in ['running', 'my-tasks', 'payments', 'closed']:
             if label_filter == 'running':
                 queryset = queryset.filter(closed=False)
+            elif label_filter == 'closed':
+                queryset = queryset.filter(closed=True)
             elif label_filter == 'payments':
                 queryset = queryset.filter(closed=True).order_by('paid', 'pay_distributed', 'processing', '-created_at')
             if label_filter != 'payments' or not request.user.is_admin:
                 queryset = queryset.filter(
                     Q(user=request.user) |
                     Q(owner=request.user) |
+                    Q(pm=request.user) |
+                    Q(taskaccess__user=request.user) |
                     (
                         Q(participation__user=request.user) & Q(participation__status__in=[STATUS_INITIAL, STATUS_ACCEPTED])
                     )
                 )
+        elif label_filter in ['leads', 'projects', 'tasks']:
+            queryset = queryset.filter(approved=label_filter != 'leads')
+            if label_filter == 'projects':
+                queryset = queryset.exclude(scope=TASK_SCOPE_TASK)
+            elif label_filter == 'tasks':
+                queryset = queryset.filter(scope=TASK_SCOPE_TASK)
         elif label_filter in ['new-projects', 'estimates', 'quotes', 'proposals']:
             queryset = queryset.exclude(scope=TASK_SCOPE_TASK)
             if label_filter == 'new-projects':
@@ -82,6 +92,8 @@ class TaskFilterBackend(DRYPermissionFiltersBase):
                 return queryset.none()
         elif label_filter in ['my-clients', 'project-owners']:
             queryset = queryset.filter(
+                Q(user__tasks_created__participation__user=request.user) |
+                Q(user__tasks_owned__participation__user=request.user) |
                 (
                     Q(user__connections_initiated__to_user=request.user) &
                     Q(user__connections_initiated__status=STATUS_ACCEPTED)
