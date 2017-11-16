@@ -1131,7 +1131,8 @@ def coinbase_notification(request):
             task.paid_at = paid_at
             task.save()
 
-            distribute_task_payment.delay(task.id)
+            # Coinbase waits for 6 confirmations, so not safe to distribute yet
+            # distribute_task_payment.delay(task.id)
         else:
             try:
                 multi_task_key = MultiTaskPaymentKey.objects.get(btc_address=address)

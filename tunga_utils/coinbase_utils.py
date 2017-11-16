@@ -73,3 +73,15 @@ def get_account_balance():
     client = get_api_client()
     account = client.get_primary_account()
     return account.balance.amount
+
+
+def get_transactions():
+    client = get_api_client()
+    account = client.get_primary_account()
+    return account.get_transactions()
+
+
+def get_transaction(transaction_id):
+    client = get_api_client()
+    account = client.get_primary_account()
+    return account.get_transactions(transaction_id)

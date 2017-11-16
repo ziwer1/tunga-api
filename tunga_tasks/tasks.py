@@ -22,7 +22,7 @@ from tunga_utils.constants import CURRENCY_BTC, PAYMENT_METHOD_BTC_WALLET, \
     UPDATE_SCHEDULE_WEEKLY, UPDATE_SCHEDULE_MONTHLY, UPDATE_SCHEDULE_QUATERLY, UPDATE_SCHEDULE_ANNUALLY, \
     PROGRESS_EVENT_TYPE_PERIODIC, PROGRESS_EVENT_TYPE_SUBMIT, STATUS_PENDING, STATUS_PROCESSING, \
     STATUS_INITIATED, APP_INTEGRATION_PROVIDER_HARVEST, PROGRESS_EVENT_TYPE_COMPLETE, STATUS_ACCEPTED, \
-    PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, TASK_PAYMENT_METHOD_BITCOIN
+    PROGRESS_EVENT_TYPE_PM, PROGRESS_EVENT_TYPE_CLIENT, TASK_PAYMENT_METHOD_BITCOIN, STATUS_RETRY
 from tunga_utils.helpers import clean_instance
 from tunga_utils.hubspot_utils import create_or_update_hubspot_deal
 
@@ -274,7 +274,7 @@ def distribute_task_payment(task):
                 source=payment, participant=participant
             )
             payment_method = participant.user.payment_method
-            if created or (participant_pay and participant_pay.status == STATUS_PENDING):
+            if created or (participant_pay and participant_pay.status in [STATUS_PENDING, STATUS_RETRY]):
                 if payment_method in [PAYMENT_METHOD_BTC_ADDRESS, PAYMENT_METHOD_BTC_WALLET]:
                     if not (participant_pay.destination and bitcoin_utils.is_valid_btc_address(
                             participant_pay.destination)):
@@ -328,9 +328,6 @@ def distribute_task_payment(task):
                             participant_pay.save()
 
                             if complete_bitpesa_payment(transaction):
-                                participant_pay.sent_at = datetime.datetime.utcnow()
-                                participant_pay.btc_price = coinbase_utils.get_btc_price(task.currency)
-                                participant_pay.save()
                                 portion_sent = True
                     else:
                         # Notify via Slack of failed payment due to balance
@@ -353,15 +350,8 @@ def distribute_task_payment(task):
                 tunga_wallet_balance = coinbase_utils.get_account_balance()
                 if tunga_wallet_balance > share_amount:
                     # Only attempt BitPesa payment if Wallet has enough balance
-                    transaction_details = bitpesa.call_api(
-                        bitpesa.get_endpoint_url('transactions/%s' % participant_pay.ref),
-                        'GET', str(uuid4()), data={}
-                    )
-                    transaction = bitpesa.get_response_object(transaction_details.json())
+                    transaction = bitpesa.get_transaction(participant_pay.ref)
                     if transaction and complete_bitpesa_payment(transaction):
-                        participant_pay.sent_at = datetime.datetime.utcnow()
-                        participant_pay.btc_price = coinbase_utils.get_btc_price(task.currency)
-                        participant_pay.save()
                         portion_sent = True
                 else:
                     # Notify via Slack of failed payment due to balance
@@ -393,6 +383,14 @@ def distribute_task_payment(task):
 
 
 def complete_bitpesa_payment(transaction):
+    slack_utils.send_incoming_webhook(
+        SLACK_DEBUGGING_INCOMING_WEBHOOK,
+        {
+            slack_utils.KEY_TEXT: 'BitPesa Payment Attempt\n'
+                                  'Transaction: {}'.format(transaction),
+            slack_utils.KEY_CHANNEL: '#alerts'
+        }
+    )
     bp_transaction_id = transaction.get(bitpesa.KEY_ID, None)
     metadata = transaction.get(bitpesa.KEY_METADATA, None)
     reference = metadata.get(bitpesa.KEY_REFERENCE, None)
@@ -434,7 +432,7 @@ def complete_bitpesa_payment(transaction):
                     cb_transaction = send_payment_share(
                         destination=destination_address,
                         amount=input_amount,
-                        idem=str(payment.idem_key),
+                        idem='{}-bitpesa-{}'.format(str(payment.idem_key), bp_transaction_id)[:60],
                         description='%s - %s' % (
                             payment.participant.task.summary, payment.participant.user.display_name
                         )
@@ -448,6 +446,8 @@ def complete_bitpesa_payment(transaction):
                         payment.ref = cb_transaction.id
                         payment.status = STATUS_PROCESSING
                         payment.extra = json.dumps(dict(bitpesa=bp_transaction_id))
+                        payment.sent_at = datetime.datetime.utcnow()
+                        payment.btc_price = coinbase_utils.get_btc_price(payment.source.task.currency)
                         payment.save()
                         return True
             elif transaction_state == bitpesa.VALUE_CANCELED:
@@ -606,7 +606,9 @@ def update_multi_tasks(multi_task_key, distribute=False):
     for task in connected_tasks.all():
         if multi_task_key.distribute_only:
             if task.paid and multi_task_key.paid:
-                distribute_task_payment.delay(task.id)
+                # Coinbase waits for 6 confirmations, so not safe to distribute yet
+                # distribute_task_payment.delay(task.id)
+                pass
             return
 
         # Save Invoice

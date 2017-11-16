@@ -69,6 +69,7 @@ STATUS_REJECTED = 'rejected'
 STATUS_APPROVED = 'approved'
 STATUS_DECLINED = 'declined'
 STATUS_CANCELED = 'canceled'
+STATUS_RETRY = 'retry'
 
 # Request Statuses
 REQUEST_STATUS_INITIAL = 0
