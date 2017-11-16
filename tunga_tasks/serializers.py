@@ -1030,7 +1030,7 @@ class ProgressEventDetailsSerializer(serializers.ModelSerializer):
     task = SimpleTaskSerializer()
     created_by = SimpleUserSerializer()
     participants = SimpleUserSerializer(many=True)
-    active_participants = SimpleParticipationSerializer(many=True, source='task.active_participants')
+    active_participants = SimpleUserSerializer(many=True, source='task.active_participants')
 
     class Meta:
         model = ProgressEvent
