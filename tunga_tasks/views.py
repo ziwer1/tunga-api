@@ -276,10 +276,10 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
             except:
                 pass
 
-            if not developer:
-                raise ValidationError({
-                    'fee': 'Please assign a developer to the task or contact support@tunga.io for assistance'
-                })
+            # if not developer:
+            #    raise ValidationError({
+            #        'fee': 'Please assign a developer to the task or contact support@tunga.io for assistance'
+            #    })
 
             # Save Invoice
             invoice = TaskInvoice.objects.create(
