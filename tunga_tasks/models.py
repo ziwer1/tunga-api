@@ -1191,10 +1191,6 @@ class Quote(AbstractEstimate):
     plan = GenericRelation(WorkPlan, related_query_name='quotes')
 
 
-class Sprint(AbstractEstimate):
-    pass
-
-
 @python_2_unicode_compatible
 class TimeEntry(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -1879,6 +1875,10 @@ APPROVED_WITH_CHOICES = (
     (2, 'A skills testing platform'),
     (3, 'Has worked on Tunga tasks successfully before'),
 )
+
+
+class Sprint(AbstractEstimate):
+    task_invoice = models.ForeignKey(TaskInvoice, on_delete=models.CASCADE, blank=True, null=True)
 
 
 @python_2_unicode_compatible
