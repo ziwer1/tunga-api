@@ -230,13 +230,6 @@ class ProjectSerializer(ContentTypeAnnotatedModelSerializer, DetailAnnotatedMode
         details_serializer = ProjectDetailsSerializer
 
 
-class TaskPaySerializer(serializers.Serializer):
-    user = InvoiceUserSerializer(required=False, read_only=True)
-    payment_method = serializers.ChoiceField(choices=TASK_PAYMENT_METHOD_CHOICES, required=True)
-    fee = serializers.DecimalField(max_digits=19, decimal_places=4)
-    withhold_tunga_fee = serializers.BooleanField(required=False, default=False)
-
-
 class ParticipantShareSerializer(serializers.Serializer):
     participant = SimpleParticipationSerializer()
     share = serializers.DecimalField(max_digits=5, decimal_places=2)
@@ -1005,6 +998,14 @@ class SprintSerializer(AbstractEstimateSerializer):
 
     #def on_status_change(self, instance):
     #    estimate_status_changed.send(sender=self.Meta.model, estimate=instance)
+
+
+class TaskPaySerializer(serializers.Serializer):
+    user = InvoiceUserSerializer(required=False, read_only=True)
+    payment_method = serializers.ChoiceField(choices=TASK_PAYMENT_METHOD_CHOICES, required=True)
+    fee = serializers.DecimalField(max_digits=19, decimal_places=4)
+    withhold_tunga_fee = serializers.BooleanField(required=False, default=False)
+    sprints = SprintSerializer(required=False, many=True)
 
 
 class TimeEntryDetailsSerializer(serializers.ModelSerializer):

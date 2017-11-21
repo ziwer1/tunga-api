@@ -299,6 +299,9 @@ class TaskViewSet(viewsets.ModelViewSet, SaveUploadsMixin):
             # Send notifications for generated invoice
             notify_new_task_invoice.delay(invoice.id)
 
+            for sprint in serializer.validated_data['sprints']:
+                Sprint.objects.create(user=request.user, task=task, task_invoice=invoice, **sprint)
+
         response_serializer = TaskInvoiceSerializer(invoice, context={'request': request})
         return Response(response_serializer.data)
 
